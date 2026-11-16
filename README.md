@@ -24,8 +24,10 @@ hardware, not rewriting the system.
   the `palanu` command line or from **Web Forge**, a no-server browser app that works over Web Serial and Bluetooth.
 - **A real terminal.** Box drawing, braille spinners, wide characters, three font sizes, and an SSH client with key and
   password login, so modern text UIs run on a handheld.
-- **Develop without hardware.** A host simulator renders the exact UI, takes keyboard input, exposes the same remote link, and
-  can fake LEDs, sensors, pins and an I2C bus (`./pal sim --leds 5 --sensors 2 --gpios 4 --i2c`).
+- **Develop without hardware.** A native simulator renders the exact UI, takes keyboard input, exposes the same remote link, and
+  can fake LEDs, sensors, pins and an I2C bus (`./pal sim --leds 5 --sensors 2 --gpios 4 --i2c`). The **browser simulator** (`./pal web`)
+  runs the whole system in a tab: a key-accurate keyboard, hotkeys and key sequences, live LEDs, sensors, pins and I2C devices, editable
+  Wi-Fi networks, a network bridge, and a log panel (`docs/SIMULATOR.md`).
 - **Rules enforced by machines.** Layering, memory rules, API compatibility, file size and generated outputs are checked by
   `./pal check`; the UI is covered by golden images in two themes.
 

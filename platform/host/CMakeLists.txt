@@ -24,6 +24,9 @@ file(GLOB TESTS CONFIGURE_DEPENDS ${ROOT}/tests/unit/test_*.c)
 foreach(t ${TESTS})
   get_filename_component(name ${t} NAME_WE)
   add_executable(${name} ${t})
+  if(name STREQUAL "test_sim_hw")
+    target_sources(${name} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/sim_hw.c)
+  endif()
   target_include_directories(${name} PRIVATE ${ROOT}/tests/unit ${ROOT}/sdk)
   target_compile_options(${name} PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter)
   # Tests of apps (the shell, the Files, text viewer and Logs models) get the apps library; every other test links the system library only.
@@ -40,7 +43,7 @@ endforeach()
 
 # ---- Simulator ----
 if(TARGET palapps)
-  add_executable(palanu-sim ${CMAKE_CURRENT_LIST_DIR}/sim_main.c)
+  add_executable(palanu-sim ${CMAKE_CURRENT_LIST_DIR}/sim_main.c ${CMAKE_CURRENT_LIST_DIR}/sim_hw.c)
   target_link_libraries(palanu-sim PRIVATE palapps)
   target_compile_options(palanu-sim PRIVATE -Wall -Wextra -Wno-unused-parameter)
   # the simulator's board has no battery: `battery` must report it as unsupported (tests/sim)

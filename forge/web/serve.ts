@@ -1,25 +1,89 @@
 #!/usr/bin/env bun
-// Serves the built Web Forge page on http://localhost:5174 (`./pal web`). Only static files: the page does everything in
-// the browser. localhost counts as a secure context, so Web Serial and Web Bluetooth work, and ws:// to the device is
-// allowed (an https page would block it). Opening dist/web-forge.html straight from disk works too in Chrome and Edge.
+// Serves Web Forge on http://localhost:5174 (`./pal web`).
+//   /          the remote page (one self-contained file; it also opens straight from disk)
+//   /sim/      the simulator: PalanuOS built to WebAssembly, run in the page. It needs cross-origin isolation (COOP and COEP
+//              headers, set here) for its worker threads.
+//   /tcp/H/P   a WebSocket that forwards raw TCP to H:P, for the simulator's network bridge. Same-origin pages only, and the
+//              server listens on this computer only.
+// localhost counts as a secure context, so Web Serial and Web Bluetooth work, and ws:// to the device is allowed.
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join, normalize } from "node:path";
 
-const FILE = join(import.meta.dir, "dist/web-forge.html");
+const DIST = join(import.meta.dir, "dist");
 const PORT = Number(process.env.PORT ?? 5174);
-if (!existsSync(FILE)) {
+if (!existsSync(join(DIST, "web-forge.html"))) {
   console.error("build it first: bun forge/web/build.ts");
   process.exit(1);
 }
+
+const TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".css": "text/css; charset=utf-8",
+  ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".txt": "text/plain; charset=utf-8",
+};
+const ISOLATION = { "cross-origin-opener-policy": "same-origin", "cross-origin-embedder-policy": "require-corp", "cross-origin-resource-policy": "same-origin" };
+
+interface Tunnel { host: string; port: number; sock?: { write(d: Uint8Array | string): number; end(): void }; queued: (string | Uint8Array)[]; closed: boolean }
+
+function serve(port: number) {
+  return Bun.serve<Tunnel>({
+    port,
+    hostname: "127.0.0.1",
+    fetch(req, server) {
+      const url = new URL(req.url);
+      const t = /^\/tcp\/([^/]+)\/(\d{1,5})$/.exec(url.pathname);
+      if (t) {
+        const origin = req.headers.get("origin");
+        if (origin !== `http://${req.headers.get("host")}`) return new Response("forbidden", { status: 403 });
+        const ok = server.upgrade(req, { headers: { "sec-websocket-protocol": "binary" }, data: { host: decodeURIComponent(t[1]), port: Number(t[2]), queued: [], closed: false } });
+        return ok ? undefined : new Response("WebSocket upgrade required", { status: 426 });
+      }
+      let path = url.pathname === "/" ? "/web-forge.html" : url.pathname;
+      if (path.endsWith("/")) path += "index.html";
+      const file = join(DIST, normalize(path));
+      if (!file.startsWith(DIST) || !existsSync(file)) return new Response("not found", { status: 404 });
+      const headers: Record<string, string> = { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-store" };
+      if (path.startsWith("/sim/")) Object.assign(headers, ISOLATION);
+      return new Response(Bun.file(file), { headers });
+    },
+    websocket: {
+      async open(ws) {
+        const d = ws.data;
+        try {
+          d.sock = await Bun.connect({
+            hostname: d.host,
+            port: d.port,
+            socket: {
+              data(_s, buf) { ws.send(buf); },
+              close() { d.closed = true; ws.close(); },
+              error() { d.closed = true; ws.close(); },
+              open() {},
+            },
+          });
+          for (const q of d.queued) d.sock.write(q);
+          d.queued.length = 0;
+          if (d.closed) d.sock.end();
+        } catch {
+          ws.close(1011, "cannot reach the target");
+        }
+      },
+      message(ws, msg) {
+        const d = ws.data;
+        if (d.sock) d.sock.write(msg as string | Uint8Array);
+        else d.queued.push(msg as string | Uint8Array);
+      },
+      close(ws) {
+        ws.data.closed = true;
+        ws.data.sock?.end();
+      },
+    },
+  });
+}
+
 /* the next free port when this one is taken (an earlier Web Forge still running) */
 for (let port = PORT; port < PORT + 20; port++) {
   try {
-    Bun.serve({
-      port,
-      hostname: "127.0.0.1",
-      fetch: () => new Response(Bun.file(FILE), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } }),
-    });
-    console.log(`Web Forge on http://localhost:${port}`);
+    serve(port);
+    console.log(`Web Forge on http://localhost:${port}   simulator: http://localhost:${port}/sim/`);
     break;
   } catch (e) {
     if ((e as { code?: string }).code !== "EADDRINUSE" || port === PORT + 19) throw e;

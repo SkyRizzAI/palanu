@@ -94,3 +94,8 @@ dialog label { display: grid; gap: 4px; margin-block: 8px; }
   .ws input { width: 100%; }
   .ws { flex: 1 1 100%; }
 }
+
+.crumbs { display: flex; gap: 4px; }
+.crumbs a { color: var(--muted); text-decoration: none; padding: 4px 10px; border-radius: 6px; }
+.crumbs a[aria-current="page"] { color: var(--fg); background: var(--bg); }
+.crumbs a:hover { color: var(--accent); }

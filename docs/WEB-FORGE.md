@@ -10,8 +10,9 @@ terminal) runs in the page. Code: `forge/web` (TypeScript, bundled into a single
 bun forge/web/build.ts          # build only: forge/web/dist/web-forge.html (a single file, no network)
 ```
 
-The built file can be opened straight from disk in Chrome or Edge, or copied to another computer. `serve.ts` only
-serves that file (localhost counts as a secure context, a requirement of Web Serial and Web Bluetooth).
+`./pal web` also builds the browser simulator (`/sim/`, see `docs/SIMULATOR.md`); `./pal web --no-sim` skips it.
+
+The built file can be opened straight from disk in Chrome or Edge, or copied to another computer. `serve.ts` serves that file, the simulator (with the isolation headers it needs) and a TCP proxy for the simulator's bridge (localhost counts as a secure context, a requirement of Web Serial and Web Bluetooth).
 
 ## Transports
 

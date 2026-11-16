@@ -31,6 +31,21 @@ jobs:
           fi
       - run: ./pal check
       - run: ./pal test
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - uses: mymindstorm/setup-emsdk@v14
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+      - run: bun install --frozen-lockfile
+      - name: Build the system for the browser
+        run: emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
+      - name: Build Web Forge and the simulator page
+        run: bun forge/web/build.ts
+      - name: Simulator page tests
+        run: cd forge/web && bun test src/sim
   secrets:
     runs-on: ubuntu-latest
     steps:

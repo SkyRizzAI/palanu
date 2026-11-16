@@ -21,3 +21,23 @@ mkdirSync(join(DIR, "dist"), { recursive: true });
 const dest = join(DIR, "dist/web-forge.html");
 writeFileSync(dest, html);
 console.log(`wrote ${dest} (${(html.length / 1024).toFixed(0)} KB)`);
+
+// ---- the simulator page: dist/sim/ holds the page and, when the Emscripten build exists, the system (palanu-web.js + .wasm)
+import { copyFileSync, existsSync } from "node:fs";
+const simOut = await Bun.build({ entrypoints: [join(DIR, "src/sim/main.ts")], target: "browser", minify: true, format: "esm" });
+if (!simOut.success) {
+  for (const m of simOut.logs) console.error(m);
+  process.exit(1);
+}
+const simJs = (await simOut.outputs[0].text()).replace(/<\/script/gi, "<\\/script");
+const simCss = readFileSync(join(DIR, "style.css"), "utf8") + "\n" + readFileSync(join(DIR, "sim.css"), "utf8");
+const simHtml = readFileSync(join(DIR, "sim.html"), "utf8").replace("/*__CSS__*/", () => simCss).replace("/*__JS__*/", () => simJs);
+mkdirSync(join(DIR, "dist/sim"), { recursive: true });
+writeFileSync(join(DIR, "dist/sim/index.html"), simHtml);
+copyFileSync(join(DIR, "coi-sw.js"), join(DIR, "dist/sim/coi-sw.js"));
+const webBuild = join(DIR, "../../build/web");
+for (const f of ["palanu-web.js", "palanu-web.wasm"]) {
+  if (existsSync(join(webBuild, f))) copyFileSync(join(webBuild, f), join(DIR, "dist/sim", f));
+  else console.warn(`simulator: ${join(webBuild, f)} missing; build it first (docs/SIMULATOR.md)`);
+}
+console.log(`wrote ${join(DIR, "dist/sim/index.html")} (${(simHtml.length / 1024).toFixed(0)} KB)`);

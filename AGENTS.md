@@ -10,13 +10,14 @@ board-agnostic: each board declares its own hardware, pins and capabilities. For
 | Code rules enforced by machines | docs/CODING-RULES.md |
 | Why a decision was made | docs/adr/ |
 | Writing apps for the device | docs/DEVELOPER.md, docs/API.md, docs/PAPP.md |
+| The simulators (native and browser) | docs/SIMULATOR.md |
 | Bringing up a new board | docs/PORTING-A-BOARD.md, boards/_template |
 | Origin and licenses of third-party code | docs/SOURCES.md |
 | Release gates | docs/RELEASE.md |
 | Current status | docs/STATE.md |
 
 ## Commands
-`./pal check` (code rules) · `./pal test` (host tests, about 6 min) · `./pal golden check|update <prefix>` · `./pal sim` · `./pal build` · `./pal flash` · `./pal smoke` · `./pal release`
+`./pal check` (code rules) · `./pal test` (host tests, about 6 min) · `./pal golden check|update <prefix>` · `./pal sim` · `./pal web` · `./pal build` · `./pal flash` · `./pal smoke` · `./pal release`
 
 ## Hard rules
 1. Docs and code change in the same commit; a significant design decision becomes an ADR.

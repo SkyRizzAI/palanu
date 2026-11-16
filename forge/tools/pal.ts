@@ -308,6 +308,38 @@ function hostBuild(target?: string): number {
   return sh(`cmake --build ${HOST_BUILD}${target ? ` --target ${target}` : ""}`);
 }
 
+// ---------------------------------------------------------------- browser simulator
+const EMSDK = join(ROOT, "refs/emsdk");
+const WEB_BUILD = join(ROOT, "build/web");
+
+/** Installs Emscripten into refs/emsdk (once; needs git and Python 3.10 or newer). */
+function webSetup(): number {
+  if (existsSync(join(EMSDK, "emsdk"))) { console.log(`Emscripten is already in ${EMSDK}`); return 0; }
+  return sh(`mkdir -p refs && git clone --depth 1 https://github.com/emscripten-core/emsdk refs/emsdk && cd refs/emsdk && ${emPython()} ./emsdk install latest && ${emPython()} ./emsdk activate latest`);
+}
+
+/** The Python that runs Emscripten's tools: EMSDK_PYTHON, else the newest python3.x on the PATH. */
+function emPython(): string {
+  if (process.env.EMSDK_PYTHON) return `EMSDK_PYTHON=${process.env.EMSDK_PYTHON} ${process.env.EMSDK_PYTHON}`;
+  for (const v of ["3.14", "3.13", "3.12", "3.11", "3.10"]) {
+    const p = Bun.spawnSync(["bash", "-c", `command -v python${v}`]);
+    if (p.exitCode === 0) { const path = p.stdout.toString().trim(); return `EMSDK_PYTHON=${path} ${path}`; }
+  }
+  return "python3";
+}
+
+/** Builds the system for the browser (platform/web, Emscripten). Returns 0 and skips with a note when Emscripten is absent. */
+function webSystem(): number {
+  if (!existsSync(join(EMSDK, "emsdk_env.sh"))) {
+    console.warn("web: Emscripten not found in refs/emsdk, so the simulator will not run. Install it with: ./pal web setup");
+    return 0;
+  }
+  const py = process.env.EMSDK_PYTHON ?? "$(command -v python3.14 || command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3.10 || command -v python3)";
+  const env = `export EMSDK_PYTHON=${py}; source ${EMSDK}/emsdk_env.sh >/dev/null 2>&1`;
+  const cfg = existsSync(join(WEB_BUILD, "build.ninja")) || existsSync(join(WEB_BUILD, "Makefile")) ? 0 : sh(`${env}; emcmake cmake -S platform/web -B ${WEB_BUILD}`);
+  return cfg || sh(`${env}; cmake --build ${WEB_BUILD} -j8`);
+}
+
 function usage(): number {
   console.log(`usage: ./pal <command>
   check            enforce code rules (layers, OS headers, nema_port/ops reach-ins, ADR numbers, raw allocation, file length, API outputs and ledger)
@@ -320,7 +352,8 @@ function usage(): number {
   size             firmware size by component
   release --version X.Y.Z | --bump patch|minor|major [--board PORT] [--dry-run]   gates, changelog, dist/release/, local commit and tag
   smoke [--minutes N] [--csv F]   visit every screen on the board and watch for crashes (a soak with --minutes; 1440 is the 24 h test)
-  web              build Web Forge (forge/web) and serve it on http://localhost:5174
+  web [--no-sim]   build the simulator system (Emscripten) and Web Forge, serve on http://localhost:5174 (simulator at /sim/)
+  web setup        install Emscripten into refs/emsdk (once)
   hwtest [args]    measure a device or the simulator (default 127.0.0.1:7100), append to docs/SIZE-BUDGETS.md
   clean            remove build outputs
 env: PAL_PORT, PAL_BAUD`);
@@ -340,7 +373,10 @@ switch (cmd) {
   case "size": code = idf("idf.py size-components"); break;
   case "release": code = Bun.spawnSync([process.execPath, join(ROOT, "forge/tools/release.ts"), ...rest], { stdout: "inherit", stderr: "inherit", stdin: "inherit" }).exitCode ?? 1; break;
   case "smoke": code = idf(`python ${ROOT}/forge/tools/board_smoke.py ${port()} ${rest.join(" ")}`); break; // visits every screen on the board; --minutes N soaks
-  case "web": code = run([process.execPath, join(ROOT, "forge/web/build.ts")]) || run([process.execPath, join(ROOT, "forge/web/serve.ts")]); break;
+  case "web":
+    if (rest[0] === "setup") { code = webSetup(); break; }
+    code = (rest.includes("--no-sim") ? 0 : webSystem()) || run([process.execPath, join(ROOT, "forge/web/build.ts")]) || run([process.execPath, join(ROOT, "forge/web/serve.ts")]);
+    break;
   case "hwtest": code = Bun.spawnSync([process.execPath, join(ROOT, "forge/tools/hwtest.ts"), ...rest], { stdout: "inherit", stderr: "inherit", stdin: "inherit" }).exitCode ?? 1; break;
   case "clean": code = sh(`rm -rf build targets/hhv2/build targets/hhv2/sdkconfig`); break;
   default: code = usage();
