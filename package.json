@@ -1,0 +1,16 @@
+{
+  "name": "palanuos",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "workspaces": [
+    "forge/packages/*",
+    "forge/web"
+  ],
+  "scripts": {
+    "pal": "bun forge/tools/pal.ts",
+    "check": "bun forge/tools/pal.ts check",
+    "test": "bun forge/tools/pal.ts test",
+    "palanu": "bun forge/tools/palanu.ts"
+  }
+}

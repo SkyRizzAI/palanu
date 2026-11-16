@@ -1,0 +1,18 @@
+# Everything that is not part of the project lives under refs/ and is never published:
+# reference clones, vendor documents, board backups and photos, design files, scratch notes.
+refs/
+
+# Build output and tool state
+build/
+dist/
+node_modules/
+.claude/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+forge/dist/
+forge/web/dist/
+tests/golden/out/
+*.log
+.DS_Store

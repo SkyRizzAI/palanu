@@ -1,0 +1,15 @@
+name: Feature
+description: Propose a feature or a new device kind
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Problem to solve }
+    validations: { required: true }
+  - type: textarea
+    id: who
+    attributes: { label: Who uses it, and on which screen or API, description: A feature without a clear user is not accepted }
+    validations: { required: true }
+  - type: textarea
+    id: alternatives
+    attributes: { label: Alternatives you considered }

@@ -1,0 +1,44 @@
+CONFIG_IDF_TARGET="esp32s31"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_THREAD_LOCAL_STORAGE_POINTERS=3
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# PSRAM: 16 MB octal. Wi-Fi and lwIP buffers move there to spare internal RAM (ADR-0002).
+CONFIG_SPIRAM=y
+# Big zero-initialised UI data (NEMA_EXT_BSS, nema/types.h) lives in PSRAM: internal RAM is kept for Wi-Fi, BLE and DMA.
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=256
+
+# libssh needs termios declarations (it only uses them for an interactive password helper we do not call)
+CONFIG_VFS_SUPPORT_TERMIOS=y
+
+# Diagnostics used by top: per-task runtime statistics
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+
+# Boot log: keep the console quiet once a shell owns the UART
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# WebAssembly apps (docs/adr/0003): fast interpreter only; no AOT, no libc, no WASI, no threads
+CONFIG_WAMR_ENABLE_INTERP=y
+CONFIG_WAMR_INTERP_FAST=y
+CONFIG_WAMR_ENABLE_AOT=n
+CONFIG_WAMR_ENABLE_LIBC_BUILTIN=n
+CONFIG_WAMR_ENABLE_LIBC_WASI=n
+CONFIG_WAMR_ENABLE_LIB_PTHREAD=n
+
+# Firmware update: a new image must confirm itself or the bootloader goes back to the previous one
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Palanu Link over Bluetooth LE: NimBLE host (BLE only, one connection), peripheral role
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n

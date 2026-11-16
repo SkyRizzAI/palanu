@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Key to screen, system and app screens",
+    "target": "p95 ≤ 30 ms",
+    "how": "Timestamp at input and at SPI transfer end (T0.3)"
+  },
+  {
+    "name": "Full-screen send",
+    "target": "≤ 20 ms",
+    "how": "Perf overlay"
+  },
+  {
+    "name": "Boot until home is shown",
+    "target": "≤ 2.5 s (measured first in T0.4, then fixed)",
+    "how": "Per-stage boot log times"
+  },
+  {
+    "name": "CPU at idle on home",
+    "target": "≤ 2 %",
+    "how": "`top`, after the busy loop is removed (T1.6)"
+  },
+  {
+    "name": "Opening a built-in app",
+    "target": "≤ 50 ms",
+    "how": "Launcher timestamp to first frame"
+  },
+  {
+    "name": "Opening a 100 KB .papp app",
+    "target": "≤ 150 ms including file read",
+    "how": "Timestamp"
+  },
+  {
+    "name": "Terminal output to screen",
+    "target": "≥ 50 KB/s without input stalls",
+    "how": "`cat` of a large file"
+  },
+  {
+    "name": "Palanu Link over Wi-Fi",
+    "target": "≥ 200 KB/s file write",
+    "how": "`palanu put`"
+  },
+  {
+    "name": "Free internal RAM, everything on",
+    "target": "≥ 86 KB, largest block ≥ 32 KB",
+    "how": "`pal hwtest`, full scenario (T3.10)"
+  }
+]

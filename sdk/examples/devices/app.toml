@@ -1,0 +1,11 @@
+# devices: lists the board's LEDs and buzzers and walks through them. `palanu build` in this directory reads this file.
+id = "devices"
+name = "Devices"
+version = "0.1.0"
+api = 3
+kind = "tty"
+sources = ["main.c"]
+caps = ["dev"]
+stack_kb = 16
+mem_kb = 256
+fuel_m = 0

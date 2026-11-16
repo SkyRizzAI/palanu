@@ -1,0 +1,8 @@
+{
+  "name": "@palanu/appgen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/generate.ts",
+  "license": "MIT"
+}

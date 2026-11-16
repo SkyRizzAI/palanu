@@ -1,0 +1,105 @@
+{
+ "_about": "Coffee: a steaming cup on a saucer next to a keyboard with a key press travelling across it. Compiled by forge/tools/panim.ts.",
+ "fps": 6,
+ "size": [
+  128,
+  64
+ ],
+ "frames": 8,
+ "idle": [
+  0,
+  8
+ ],
+ "accent": "#ff6a2a",
+ "shapes": [
+  {
+   "box": [
+    14,
+    46,
+    96,
+    10
+   ]
+  },
+  {
+   "dots": [
+    17,
+    48,
+    90,
+    6
+   ],
+   "every": 2
+  },
+  {
+   "line": [
+    0,
+    58,
+    127,
+    58
+   ]
+  },
+  {
+   "fill": [
+    48,
+    43,
+    28,
+    2
+   ]
+  },
+  {
+   "fill": [
+    54,
+    30,
+    16,
+    13
+   ]
+  },
+  {
+   "ring": [
+    72,
+    35,
+    4
+   ]
+  },
+  {
+   "line": [
+    55,
+    31,
+    68,
+    31
+   ],
+   "c": "."
+  }
+ ],
+ "tracks": [
+  {
+   "sprite": "steam-a",
+   "x": 57,
+   "y": {
+    "base": 0,
+    "step": -1,
+    "wrap": 8,
+    "lo": 14
+   }
+  },
+  {
+   "sprite": "steam-b",
+   "x": 63,
+   "y": {
+    "base": 4,
+    "step": -1,
+    "wrap": 8,
+    "lo": 14
+   }
+  },
+  {
+   "sprite": "key",
+   "x": {
+    "base": 0,
+    "step": 11,
+    "wrap": 88,
+    "lo": 18
+   },
+   "y": 50
+  }
+ ]
+}

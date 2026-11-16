@@ -1,0 +1,212 @@
+{
+ "_about": "Laptop and cat: a cat watches code scroll on a laptop screen, tail flicking; steam rises from a cup. Original art.",
+ "fps": 2,
+ "size": [
+  128,
+  51
+ ],
+ "frames": 8,
+ "idle": [
+  0,
+  6
+ ],
+ "active": [
+  6,
+  8
+ ],
+ "shapes": [
+  {
+   "line": [
+    0,
+    49,
+    127,
+    49
+   ]
+  },
+  {
+   "fill": [
+    0,
+    50,
+    128,
+    1
+   ]
+  },
+  {
+   "fill": [
+    42,
+    44,
+    48,
+    4
+   ]
+  },
+  {
+   "box": [
+    46,
+    14,
+    40,
+    30
+   ]
+  },
+  {
+   "fill": [
+    46,
+    14,
+    40,
+    1
+   ],
+   "c": "#"
+  },
+  {
+   "box": [
+    88,
+    38,
+    8,
+    6
+   ]
+  },
+  {
+   "disc": [
+    20,
+    26,
+    8
+   ]
+  },
+  {
+   "line": [
+    13,
+    19,
+    15,
+    12
+   ]
+  },
+  {
+   "line": [
+    15,
+    12,
+    19,
+    18
+   ]
+  },
+  {
+   "line": [
+    21,
+    18,
+    25,
+    12
+   ]
+  },
+  {
+   "line": [
+    25,
+    12,
+    27,
+    19
+   ]
+  },
+  {
+   "fill": [
+    17,
+    24,
+    2,
+    2
+   ],
+   "c": "."
+  },
+  {
+   "fill": [
+    23,
+    24,
+    2,
+    2
+   ],
+   "c": "."
+  },
+  {
+   "fill": [
+    20,
+    29,
+    2,
+    1
+   ],
+   "c": "."
+  },
+  {
+   "disc": [
+    21,
+    47,
+    10
+   ]
+  },
+  {
+   "dots": [
+    50,
+    44,
+    36,
+    1
+   ],
+   "every": 2,
+   "c": "."
+  }
+ ],
+ "tracks": [
+  {
+   "sprite": "code",
+   "x": 48,
+   "y": {
+    "base": 0,
+    "step": -2,
+    "wrap": 8,
+    "lo": 16
+   },
+   "clip": [
+    48,
+    16,
+    36,
+    26
+   ]
+  },
+  {
+   "sprite": "caret",
+   "x": 78,
+   "y": 37,
+   "show": [
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "sprite": [
+    "tail-a",
+    "tail-b",
+    "tail-a",
+    "tail-b",
+    "tail-a",
+    "tail-b",
+    "tail-a",
+    "tail-b"
+   ],
+   "x": 26,
+   "y": 44
+  },
+  {
+   "sprite": [
+    "steam-a",
+    "steam-b",
+    "steam-a",
+    "steam-b",
+    "steam-a",
+    "steam-b",
+    "steam-a",
+    "steam-b"
+   ],
+   "x": 91,
+   "y": 30
+  }
+ ]
+}

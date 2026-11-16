@@ -1,0 +1,17 @@
+name: Bug
+description: Report something that behaves wrongly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: Short steps to reproduce }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What you expected }
+  - type: input
+    id: version
+    attributes: { label: PalanuOS version, placeholder: "0.9.0 (see About)" }
+  - type: dropdown
+    id: board
+    attributes: { label: Board, options: [hhv2, Simulator, Other board] }

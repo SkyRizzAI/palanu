@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Forge</title>
+<style>/*__CSS__*/</style>
+</head>
+<body data-connected="0">
+<header class="bar">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><b>Web Forge</b><span class="sub">PalanuOS remote</span></div>
+  <div class="connect">
+    <button id="c-usb" type="button" title="Web Serial">USB</button>
+    <button id="c-ble" type="button" title="Web Bluetooth">Bluetooth</button>
+    <form id="ws-form" class="ws">
+      <input id="ws-addr" type="text" inputmode="url" autocomplete="off" spellcheck="false" aria-label="Device address on Wi-Fi or LAN">
+      <button id="c-ws" type="submit">Wi-Fi / LAN</button>
+    </form>
+    <button id="disconnect" type="button" class="ghost" hidden>Disconnect</button>
+  </div>
+  <div id="status" class="status" data-kind="idle" role="status">Not connected</div>
+</header>
+<p id="ws-note" class="note"></p>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="screen" role="tab">Screen</button>
+  <button data-tab="terminal" role="tab">Terminal</button>
+  <button data-tab="files" role="tab">Files</button>
+  <button data-tab="device" role="tab">Device</button>
+</nav>
+
+<main>
+  <section class="empty" aria-live="polite">
+    <h2>Connect a PalanuOS device</h2>
+    <ul>
+      <li><b>USB</b>: plug the board in and pick its serial port (Chrome or Edge on a computer). The cable is trusted: no pairing.</li>
+      <li><b>Bluetooth</b>: turn Bluetooth on in the device's Settings, then pick <i>PalanuOS</i> (Chrome or Edge).</li>
+      <li><b>Wi-Fi / LAN</b>: the device and this computer on the same network; type the device's address (Settings &gt; Wi-Fi shows it). Port 7001.</li>
+    </ul>
+    <p class="muted">Wireless links pair once: open the pairing window on the device (Settings &gt; Remote &gt; Pair, or <code>link pair</code> in its terminal) and type the 6-digit code here. Everything runs in this page; nothing goes through a server.</p>
+  </section>
+
+  <section data-panel="screen" class="panel">
+    <div class="screenwrap">
+      <canvas id="screen" width="320" height="240" tabindex="0" aria-label="Device screen: click it, then type"></canvas>
+    </div>
+    <div class="keys">
+      <button data-sym="16" title="Long press on the cycle key">Home</button>
+      <button data-sym="15" title="Tap on the cycle key">Switch</button>
+      <button data-sym="3">Esc</button>
+      <button data-sym="17" title="On-screen keyboard">Keyboard</button>
+      <button id="refresh" class="ghost">Refresh</button>
+    </div>
+    <p class="muted">Click the screen and type: arrows, Enter, Esc, Tab and letters go to the device.</p>
+  </section>
+
+  <section data-panel="terminal" class="panel" hidden>
+    <div id="term" class="term"></div>
+  </section>
+
+  <section data-panel="files" class="panel" hidden>
+    <div class="row">
+      <button id="files-root" class="ghost">/</button>
+      <code id="files-path">/home</code>
+      <span class="grow"></span>
+      <button id="files-refresh" class="ghost">Refresh</button>
+      <button id="files-up">Upload here</button>
+      <input id="files-input" type="file" multiple hidden>
+    </div>
+    <table class="files"><thead><tr><th>Name</th><th class="num">Size</th><th></th></tr></thead><tbody id="files-body"></tbody></table>
+    <p id="files-note" class="muted"></p>
+  </section>
+
+  <section data-panel="device" class="panel" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3>Device</h3>
+        <dl id="info"></dl>
+        <div class="row"><button id="ping">Ping</button><span id="ping-out" class="muted"></span></div>
+        <p id="paired-note" class="muted"></p>
+        <button id="forget" class="ghost">Forget pairing in this browser</button>
+      </div>
+      <div class="card">
+        <h3>Firmware update</h3>
+        <p class="muted">A <code>palanuos.bin</code> from <code>./pal build</code> (targets/hhv2/build). The device writes it to its other slot, checks it, and restarts; a bad image rolls back.</p>
+        <label class="check"><input id="ota-confirm" type="checkbox"> Restart the device into the new firmware</label>
+        <input id="ota-file" type="file" accept=".bin">
+        <progress id="ota-bar" max="1" value="0" hidden></progress>
+        <p id="ota-note" class="muted"></p>
+      </div>
+      <div class="card wide">
+        <h3>Serial console</h3>
+        <pre id="console" class="console"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="pair">
+  <form id="pair-form" method="dialog">
+    <h3>Pair with <span id="pair-device">PalanuOS</span></h3>
+    <p class="muted">On the device open Settings &gt; Remote &gt; Pair, or run <code>link pair</code> in its terminal. Type the 6-digit code it shows. The window lasts 2 minutes and allows 3 tries.</p>
+    <label>Code <input id="pair-code" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" required autofocus></label>
+    <label>This browser's name <input id="pair-name" value="Web Forge" maxlength="24"></label>
+    <p id="pair-err" class="err"></p>
+    <div class="row end"><button id="pair-cancel" type="button" class="ghost">Cancel</button><button type="submit">Pair</button></div>
+  </form>
+</dialog>
+<script type="module">/*__JS__*/</script>
+</body>
+</html>

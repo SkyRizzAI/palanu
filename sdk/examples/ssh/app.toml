@@ -1,0 +1,13 @@
+# ssh: the SSH client, written with the public API only (sdk/palanu.h, sdk/palssh). `palanu build` in this directory
+# reads this file.
+id = "ssh"
+name = "SSH"
+version = "1.0.0"
+api = 2
+kind = "tty"
+sources = ["main.c"]
+caps = ["net", "fs", "crypto.keys"]
+stack_kb = 24
+mem_kb = 256
+fuel_m = 0
+icon = "icon.pvi"   # placeholder: not packed yet

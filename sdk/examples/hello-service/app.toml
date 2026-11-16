@@ -1,0 +1,12 @@
+# hello-service: a service loop with QUIT handling. `palanu build` in this directory reads this file.
+id = "hello-service"
+name = "Hello service"
+version = "0.1.0"
+api = 2
+kind = "service"
+sources = ["main.c"]
+caps = []
+stack_kb = 16
+mem_kb = 128
+fuel_m = 0
+icon = "icon.pvi"   # placeholder: not packed yet

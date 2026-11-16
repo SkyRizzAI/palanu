@@ -1,0 +1,90 @@
+name,since,signature,cap,wasm_name,status
+pal_random,1,"int32_t(void *, uint32_t)",,random,stable
+pal_hash_open,1,int32_t(int32_t),,hash_open,stable
+pal_hmac_open,1,"int32_t(int32_t, const void *, uint32_t)",,hmac_open,stable
+pal_hash_update,1,"int32_t(int32_t, const void *, uint32_t)",,hash_update,stable
+pal_hash_final,1,"int32_t(int32_t, void *, uint32_t)",,hash_final,stable
+pal_aead_open,1,"int32_t(int32_t, const void *, uint32_t)",,aead_open,stable
+pal_aead_seal,1,"int32_t(int32_t, const void *, uint32_t, const void *, uint32_t, void *, uint32_t, void *, uint32_t)",,aead_seal,stable
+pal_aead_decrypt,1,"int32_t(int32_t, const void *, uint32_t, const void *, uint32_t, void *, uint32_t, const void *, uint32_t)",,aead_decrypt,stable
+pal_aes_ctr_open,1,"int32_t(const void *, uint32_t, const void *, uint32_t)",,aes_ctr_open,stable
+pal_cipher_xor,1,"int32_t(int32_t, void *, uint32_t)",,cipher_xor,stable
+pal_chacha20_xor,1,"int32_t(const void *, uint32_t, const void *, uint32_t, uint64_t, const void *, uint32_t, void *, uint32_t)",,chacha20_xor,stable
+pal_poly1305,1,"int32_t(const void *, uint32_t, const void *, uint32_t, void *, uint32_t)",,poly1305,stable
+pal_x25519,1,"int32_t(void *, uint32_t, const void *, uint32_t, const void *, uint32_t)",,x25519,stable
+pal_x25519_base,1,"int32_t(void *, uint32_t, const void *, uint32_t)",,x25519_base,stable
+pal_ed25519_verify,1,"int32_t(const void *, uint32_t, const void *, uint32_t, const void *, uint32_t)",,ed25519_verify,stable
+pal_ecdsa_p256_verify,1,"int32_t(const void *, uint32_t, const void *, uint32_t, const void *, uint32_t)",,ecdsa_p256_verify,stable
+pal_rsa_verify_pkcs1,1,"int32_t(const void *, uint32_t, const void *, uint32_t, int32_t, const void *, uint32_t, const void *, uint32_t)",,rsa_verify_pkcs1,stable
+pal_dev_total,3,int32_t(),dev,dev_total,stable
+pal_dev_info,3,"int32_t(int32_t, void *, uint32_t)",dev,dev_info,stable
+pal_dev_lookup,3,int32_t(const char *),dev,dev_lookup,stable
+pal_dev_set_led,3,"int32_t(int32_t, int32_t, uint32_t)",dev,dev_set_led,stable
+pal_dev_play_tone,3,"int32_t(int32_t, int32_t, int32_t)",dev,dev_play_tone,stable
+pal_dev_gpio_read,4,int32_t(int32_t),dev,dev_gpio_read,stable
+pal_dev_gpio_write,4,"int32_t(int32_t, int32_t)",dev,dev_gpio_write,stable
+pal_dev_sensor_read,4,"int32_t(int32_t, void *, uint32_t)",dev,dev_sensor_read,stable
+pal_dev_read_battery,4,int32_t(int32_t),dev,dev_read_battery,stable
+pal_dev_i2c_probe,4,"int32_t(int32_t, int32_t)",dev,dev_i2c_probe,stable
+pal_dev_bus_xfer,5,"int32_t(int32_t, int32_t, const void *, uint32_t, void *, uint32_t)",dev,dev_bus_xfer,stable
+pal_wait,2,"int32_t(void *, uint32_t, int32_t)",,wait,stable
+pal_events,2,int32_t(),,events,stable
+pal_event_next,2,"int32_t(void *, uint32_t, int32_t)",,event_next,stable
+pal_open,1,"int32_t(const char *, uint32_t, int32_t)",fs,open,stable
+pal_close,1,int32_t(int32_t),,close,stable
+pal_stat,2,"int32_t(const char *, void *, uint32_t)",fs,stat,stable
+pal_dir_open,2,int32_t(const char *),fs,dir_open,stable
+pal_dir_next,2,"int32_t(int32_t, void *, uint32_t)",fs,dir_next,stable
+pal_seek,2,"int64_t(int32_t, int64_t, int32_t)",fs,seek,stable
+pal_mkdir,2,int32_t(const char *),fs,mkdir,stable
+pal_remove,2,int32_t(const char *),fs,remove,stable
+pal_rename,2,"int32_t(const char *, const char *)",fs,rename,stable
+pal_fsync,2,int32_t(int32_t),fs,fsync,stable
+pal_write,1,"int32_t(int32_t, const void *, uint32_t)",,write,stable
+pal_read,1,"int32_t(int32_t, void *, uint32_t)",,read,stable
+pal_key_generate,1,"int32_t(int32_t, const char *, uint32_t)",crypto.keys,key_generate,stable
+pal_key_load,1,"int32_t(const char *, uint32_t)",crypto.keys,key_load,stable
+pal_key_import,1,"int32_t(const void *, uint32_t, const char *, uint32_t, const char *, uint32_t)",crypto.keys,key_import,stable
+pal_key_public,1,"int32_t(int32_t, void *, uint32_t)",crypto.keys,key_public,stable
+pal_key_sign,1,"int32_t(int32_t, const void *, uint32_t, void *, uint32_t)",crypto.keys,key_sign,stable
+pal_key_list,1,"int32_t(void *, uint32_t)",crypto.keys,key_list,stable
+pal_key_delete,1,"int32_t(const char *, uint32_t)",crypto.keys,key_delete,stable
+pal_kv_get,2,"int32_t(const char *, void *, uint32_t)",,kv_get,stable
+pal_kv_set,2,"int32_t(const char *, const void *, uint32_t)",,kv_set,stable
+pal_kv_del,2,int32_t(const char *),,kv_del,stable
+pal_kv_keys,2,"int32_t(void *, uint32_t)",,kv_keys,stable
+pal_legend_show,2,int32_t(const char *),,legend_show,stable
+pal_log,2,"int32_t(int32_t, const char *)",,log,stable
+pal_tcp_connect,2,"int32_t(const char *, int32_t, int32_t)",net,tcp_connect,stable
+pal_tcp_listen,2,"int32_t(int32_t, int32_t)",net.listen,tcp_listen,stable
+pal_tcp_accept,2,"int32_t(int32_t, int32_t)",net.listen,tcp_accept,stable
+pal_dns_resolve,2,"int32_t(const char *, void *, uint32_t, int32_t)",net,dns_resolve,stable
+pal_net_info,2,"int32_t(void *, uint32_t)",net,net_info,stable
+pal_set_nonblock,2,"int32_t(int32_t, int32_t)",,set_nonblock,stable
+pal_shutdown,2,"int32_t(int32_t, int32_t)",,shutdown,stable
+pal_toast,2,"int32_t(const char *, int32_t)",notify,toast,stable
+pal_notify_post,2,"int32_t(const char *, const char *, int32_t)",notify,notify_post,stable
+pal_notify_update,2,"int32_t(int32_t, const char *, const char *)",notify,notify_update,stable
+pal_notify_cancel,2,int32_t(int32_t),notify,notify_cancel,stable
+pal_exit,1,void(int32_t),,exit,stable
+pal_argc,1,int32_t(),,argc,stable
+pal_argv,1,"int32_t(int32_t, void *, uint32_t)",,arg,stable
+pal_arg,1,"int32_t(int32_t, void *, uint32_t)",,arg,deprecated
+pal_spawn,2,"int32_t(const char *, const char *, uint32_t, int32_t)",proc.spawn,spawn,stable
+pal_child_wait,2,"int32_t(int32_t, void *, uint32_t, int32_t)",,child_wait,stable
+pal_signal,2,"int32_t(int32_t, int32_t)",,signal,stable
+pal_getenv,2,"int32_t(const char *, void *, uint32_t)",,getenv,stable
+pal_setting_get,2,"int32_t(const char *, void *, uint32_t)",settings.read,setting_get,stable
+pal_setting_set,2,"int32_t(const char *, const char *)",settings.write,setting_set,stable
+pal_svc_ready,2,int32_t(),,svc_ready,stable
+pal_now_ms,1,int64_t(),,time_ms,stable
+pal_time_ms,1,int64_t(),,time_ms,deprecated
+pal_sleep_ms,1,void(int32_t),,sleep_ms,stable
+pal_unix_time,2,int64_t(),,unix_time,stable
+pal_localtime,2,"int32_t(int64_t, void *, uint32_t)",,localtime,stable
+pal_tty_mode,1,int32_t(int32_t),,tty_raw,stable
+pal_tty_raw,1,int32_t(int32_t),,tty_raw,deprecated
+pal_tty_get,2,int32_t(),,tty_get,stable
+pal_tty_size,1,"int32_t(void *, uint32_t)",,term_size,stable
+pal_term_size,1,"int32_t(void *, uint32_t)",,term_size,deprecated
+pal_tty_caps,2,int32_t(),,tty_caps,stable

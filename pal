@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# PalanuOS developer entry point. Everything else lives in forge/tools/pal.ts.
+exec bun "$(cd "$(dirname "$0")" && pwd)/forge/tools/pal.ts" "$@"

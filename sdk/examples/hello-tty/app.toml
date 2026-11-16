@@ -1,0 +1,12 @@
+# hello-tty: a paltui menu. `palanu build` in this directory reads this file.
+id = "hello-tty"
+name = "Hello TTY"
+version = "0.1.0"
+api = 2
+kind = "tty"
+sources = ["main.c"]
+caps = []
+stack_kb = 16
+mem_kb = 256
+fuel_m = 0
+icon = "icon.pvi"   # placeholder: not packed yet

@@ -1,0 +1,5 @@
+GNU Unifont 17.0.05 (https://unifoundry.com/unifont/), fetched 2026-11-15:
+  unifont-17.0.05.hex.gz        font-builds/unifont-17.0.05.hex.gz       the Basic Multilingual Plane, 8x16 and 16x16
+  unifont_upper-17.0.05.hex.gz  font-builds/unifont_upper-17.0.05.hex.gz the planes above (only U+1F000-1FAFF is used)
+  LICENSE.txt                   https://unifoundry.com/LICENSE.txt       SIL OFL 1.1 and GPL with the font embedding exception
+Packed by forge/tools/fontpack.ts into system/src/font_fallback_data.c and the CJK file; see docs/FONTS.md.

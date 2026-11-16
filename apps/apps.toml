@@ -1,0 +1,102 @@
+# Built-in apps (app kinds and manifests). The views are the graphical apps; [defaults.command] gives every
+# command of the nema table its kind and visibility. forge/packages/appgen compiles this file into apps/manifests.gen.c at
+# build time; nothing parses TOML on the device. Edit here, then run: bun forge/packages/appgen/src/cli.ts
+#
+# caps: the manifest permissions a view holds (names as in docs/PAPP.md). kind: service | tty | gui.
+# hidden = true keeps an entry out of the launcher; the launcher itself is a system view and is hidden.
+
+[defaults.command]
+kind = "tty"
+hidden = true
+api = 2
+
+[[app]]
+id = "launcher"
+name = "Apps"
+version = "1.0.0"
+kind = "gui"
+hidden = true
+icon = "apps"
+category = "System"
+
+[[app]]
+id = "home"
+name = "Home"
+version = "1.0.0"
+kind = "gui"
+hidden = true
+icon = "clock"
+category = "System"
+
+[[app]]
+id = "lock"
+name = "Lock"
+version = "1.0.0"
+kind = "gui"
+hidden = true
+icon = "lock"
+category = "System"
+
+[[app]]
+id = "terminal"
+name = "Terminal"
+version = "1.0.0"
+kind = "gui"
+icon = "terminal"
+category = "Tools"
+
+[[app]]
+id = "settings"
+name = "Settings"
+version = "1.0.0"
+kind = "gui"
+icon = "settings"
+category = "System"
+
+[[app]]
+id = "control"
+name = "Control"
+version = "1.0.0"
+kind = "gui"
+icon = "brightness"
+category = "System"
+
+[[app]]
+id = "notifications"
+name = "Notifications"
+version = "1.0.0"
+kind = "gui"
+icon = "notifications"
+category = "System"
+
+[[app]]
+id = "monitor"
+name = "Monitor"
+version = "1.0.0"
+kind = "gui"
+icon = "monitor"
+category = "System"
+
+[[app]]
+id = "files"
+name = "Files"
+version = "1.0.0"
+kind = "gui"
+icon = "files"
+category = "Tools"
+
+[[app]]
+id = "logs"
+name = "Logs"
+version = "1.0.0"
+kind = "gui"
+icon = "logs"
+category = "System"
+
+[[app]]
+id = "applist"
+name = "Apps"
+version = "1.0.0"
+kind = "gui"
+icon = "apps"
+category = "System"

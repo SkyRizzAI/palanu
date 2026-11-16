@@ -1,0 +1,189 @@
+{
+  "_about": "Coder: a pixel programmer types at a laptop while the screen text scrolls. Sources: shapes, sprites in this folder; compiled by forge/tools/panim.ts.",
+  "fps": 8,
+  "size": [
+    128,
+    64
+  ],
+  "frames": 16,
+  "idle": [
+    0,
+    16
+  ],
+  "shapes": [
+    {
+      "fill": [
+        0,
+        50,
+        128,
+        2
+      ]
+    },
+    {
+      "box": [
+        34,
+        2,
+        60,
+        36
+      ]
+    },
+    {
+      "box": [
+        28,
+        38,
+        70,
+        4
+      ]
+    },
+    {
+      "dots": [
+        31,
+        39,
+        64,
+        2
+      ],
+      "every": 2
+    },
+    {
+      "box": [
+        37,
+        7,
+        54,
+        28
+      ]
+    },
+    {
+      "fill": [
+        8,
+        34,
+        20,
+        16
+      ]
+    },
+    {
+      "disc": [
+        17,
+        25,
+        6
+      ]
+    },
+    {
+      "fill": [
+        11,
+        18,
+        13,
+        4
+      ]
+    },
+    {
+      "fill": [
+        10,
+        19,
+        3,
+        6
+      ]
+    },
+    {
+      "fill": [
+        14,
+        19,
+        2,
+        5
+      ],
+      "c": "."
+    },
+    {
+      "line": [
+        24,
+        40,
+        30,
+        38
+      ]
+    },
+    {
+      "line": [
+        24,
+        41,
+        30,
+        39
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "sprite": "code",
+      "x": 40,
+      "y": {
+        "base": 0,
+        "step": -2,
+        "wrap": 32,
+        "lo": 8
+      },
+      "clip": [
+        38,
+        8,
+        52,
+        26
+      ]
+    },
+    {
+      "sprite": "code",
+      "x": 40,
+      "y": {
+        "base": 0,
+        "step": -2,
+        "wrap": 32,
+        "lo": -24
+      },
+      "clip": [
+        38,
+        8,
+        52,
+        26
+      ]
+    },
+    {
+      "sprite": "caret",
+      "x": 80,
+      "y": 27,
+      "show": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sprite": "hand",
+      "x": 30,
+      "y": {
+        "base": 0,
+        "step": 1,
+        "wrap": 2,
+        "lo": 39
+      }
+    },
+    {
+      "sprite": "hand",
+      "x": 62,
+      "y": {
+        "base": 1,
+        "step": 1,
+        "wrap": 2,
+        "lo": 39
+      }
+    }
+  ]
+}

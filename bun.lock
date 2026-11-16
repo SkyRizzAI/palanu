@@ -1,0 +1,48 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "palanuos",
+    },
+    "forge/packages/apigen": {
+      "name": "@palanu/apigen",
+      "version": "0.1.0",
+    },
+    "forge/packages/appgen": {
+      "name": "@palanu/appgen",
+      "version": "0.1.0",
+    },
+    "forge/packages/link": {
+      "name": "@palanu/link",
+      "version": "0.1.0",
+    },
+    "forge/packages/papp": {
+      "name": "@palanu/papp",
+      "version": "0.1.0",
+    },
+    "forge/web": {
+      "name": "@palanu/web-forge",
+      "version": "0.1.0",
+      "dependencies": {
+        "@xterm/addon-fit": "0.10.0",
+        "@xterm/xterm": "5.5.0",
+      },
+    },
+  },
+  "packages": {
+    "@palanu/apigen": ["@palanu/apigen@workspace:forge/packages/apigen"],
+
+    "@palanu/appgen": ["@palanu/appgen@workspace:forge/packages/appgen"],
+
+    "@palanu/link": ["@palanu/link@workspace:forge/packages/link"],
+
+    "@palanu/papp": ["@palanu/papp@workspace:forge/packages/papp"],
+
+    "@palanu/web-forge": ["@palanu/web-forge@workspace:forge/web"],
+
+    "@xterm/addon-fit": ["@xterm/addon-fit@0.10.0", "", { "peerDependencies": { "@xterm/xterm": "^5.0.0" } }, "sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ=="],
+
+    "@xterm/xterm": ["@xterm/xterm@5.5.0", "", {}, "sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A=="],
+  }
+}

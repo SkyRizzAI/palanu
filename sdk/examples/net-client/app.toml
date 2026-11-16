@@ -1,0 +1,12 @@
+# net-client: a TCP client. `palanu build` in this directory reads this file.
+id = "net-client"
+name = "Net client"
+version = "0.1.0"
+api = 2
+kind = "tty"
+sources = ["main.c"]
+caps = ["net"]
+stack_kb = 16
+mem_kb = 256
+fuel_m = 0
+icon = "icon.pvi"   # placeholder: not packed yet

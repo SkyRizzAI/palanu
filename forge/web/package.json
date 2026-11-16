@@ -1,0 +1,15 @@
+{
+  "name": "@palanu/web-forge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Web Forge: remote for PalanuOS devices in the browser (USB, Bluetooth, Wi-Fi and LAN), no server",
+  "scripts": {
+    "build": "bun build.ts"
+  },
+  "dependencies": {
+    "@xterm/xterm": "5.5.0",
+    "@xterm/addon-fit": "0.10.0"
+  }
+}
