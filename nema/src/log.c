@@ -11,6 +11,7 @@ static struct {
     size_t cap, head, used;
     bool console;
     nema_log_level_t max_level;
+    nema_log_sink_t sink;
 } L;
 
 void nema_log_init(size_t ring_bytes, bool console);
@@ -26,6 +27,7 @@ void nema_log_init(size_t ring_bytes, bool console) {
 
 void nema_log_set_console(bool on) { L.console = on; }
 void nema_log_set_level(nema_log_level_t max_level) { L.max_level = max_level; }
+void nema_log_set_sink(nema_log_sink_t sink) { L.sink = sink; }
 
 static void ring_put(const char *s, size_t n) {
     if (!L.cap) return;
@@ -54,7 +56,9 @@ void nema_log(nema_log_level_t level, const char *tag, const char *fmt, ...) {
     nema_port_mutex_lock(L.lock);
     ring_put(line, len);
     bool console = L.console;
+    nema_log_sink_t sink = L.sink;
     nema_port_mutex_unlock(L.lock);
+    if (sink) sink(level, line, len - 1);
     if (console) {
         line[len - 1] = '\r';
         line[len++] = '\n';

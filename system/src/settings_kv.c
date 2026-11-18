@@ -73,6 +73,7 @@ static const kv_def_t DEFS[] = {
     {"dev.mode", KV_BOOL, 0, 1, NULL, PSYS_DEV_MODE_DEFAULT, NULL, NULL}, /* the default trust.c reads too (trust.h) */
     {"log.level", KV_CHOICE, 0, 3, LOG_NAMES, 2, NULL, apply_log},
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},
+    {"boot.quiet", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the system console's splash covers the boot log until a key (console.c) */
     {"profile.user", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL},
     {"desktop.env", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "classic", NULL}, /* the active desktop environment (pal/desktops.h) */
 };

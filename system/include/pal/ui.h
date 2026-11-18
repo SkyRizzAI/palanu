@@ -137,7 +137,7 @@ void pal_ui_lock_freeze(int frame);
 /* Animation screens (ui_splash.c, ui_anim_view.c). The splash fills its bar over 2 s (the reference); ms >= 0 holds the bar at that many
  * milliseconds (the golden tool). pal_ui_splash_restart shows the restart splash and then restarts the board. */
 void pal_ui_splash_freeze(int ms);
-void pal_ui_splash_show(void);    /* the boot splash as an opaque overlay (boot.c, after the desktop starts) */
+void pal_ui_splash_show(void);    /* the classic splash as an opaque overlay (uishow; the boot shows the system console's splash) */
 void pal_ui_splash_restart(void);
 /* anim play NAME: the animation full screen at scale 1..3; ENTER plays its active sequence, ESC closes. anim sheet: every frame of
  * an animation, six to a page. Both open from any task. */

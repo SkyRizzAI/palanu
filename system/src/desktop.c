@@ -8,6 +8,7 @@
 #include "desktop_int.h"
 #include "nema/log.h"
 #include "nema/nema.h"
+#include "pal/console.h"
 #include "pal/desktop.h"
 #include "pal/display.h"
 #include "pal/dpm.h"
@@ -434,6 +435,13 @@ static void full_redraw(pal_canvas_t *c) {
 static void render(void) {
     if (!pal_dpm_display_on()) return; /* asleep: the flags stay set; waking the screen redraws everything */
     pal_canvas_t *c = pal_display_canvas();
+    if (pal_console_front()) { /* the system console has the screen: nothing of the session is drawn */
+        bool full = D.inval_all;
+        D.inval = D.inval_all = D.status_dirty = false;
+        D.owned = true; /* when it gives the screen back, everything is drawn again */
+        pal_console_render(full);
+        return;
+    }
     if (!front()) return;
     if (D.chrome && D.chrome->owns_screen && D.chrome->owns_screen()) { /* the desktop draws the screen itself now */
         D.owned = true;
@@ -491,6 +499,7 @@ static void handle_key(const pal_key_t *k) {
         D.inval_all = true;
         return;
     }
+    if (pal_console_key(k)) return; /* the system console's switch key, and every key while it is in front (ADR-0010) */
     if (pal_dpm_locked()) { /* while locked, the lock view gets every key and nothing else does */
         pal_view_t *lv = lock_view();
         if (lv && lv->key) {
@@ -644,6 +653,8 @@ static void desktop_task(void *arg) {
         if (dn >= 0 && dn < wait) wait = dn;
         int32_t tn = pal_toast_next_ms(t);
         if (tn >= 0 && tn < wait) wait = tn;
+        int32_t con = pal_console_next_ms(t);
+        if (con >= 0 && con < wait) wait = con;
         if (D.chrome && D.chrome->next_ms) {
             int32_t cn = D.chrome->next_ms(t);
             if (cn >= 0 && cn < wait) wait = cn;
@@ -665,6 +676,7 @@ static void desktop_task(void *arg) {
         pal_key_t k;
         while (pal_input_pop(&k)) handle_key(&k);
         run_posts();
+        pal_console_pump(t);
         for (int i = 0; i < D.nviews; i++)
             if (D.views[i]->pump) {
                 D.cur = D.views[i];
@@ -689,7 +701,7 @@ static void desktop_task(void *arg) {
             if (!status_same(&st, &D.last_status)) D.status_dirty = true;
         }
         render();
-        if (D.chrome && D.chrome->frame && pal_dpm_display_on()) D.chrome->frame(t);
+        if (D.chrome && D.chrome->frame && pal_dpm_display_on() && !pal_console_front()) D.chrome->frame(t);
     }
 }
 

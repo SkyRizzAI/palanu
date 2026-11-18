@@ -101,6 +101,11 @@ bool psys_svc_info(size_t i, psys_svc_info_t *out);
 bool psys_svc_find(const char *id, psys_svc_info_t *out);
 const char *psys_svc_state_name(psys_svc_state_t s);
 const char *psys_svc_restart_name(psys_svc_restart_t r);
+/* Told about every change of a service's state (the system console prints the boot's status lines from it). It runs in the
+ * supervisor's context with the table locked: it must only copy what it needs. NULL removes it. */
+typedef void (*psys_svc_status_sink_t)(const char *id, const char *name, psys_svc_state_t was, psys_svc_state_t now,
+                                       const char *why);
+void psys_svc_set_status_sink(psys_svc_status_sink_t sink);
 
 /* The log: copies the bytes after *cursor (initially 0 reads what is kept). The cursor moves past what was copied; bytes
  * that were overwritten before the reader came are skipped. Returns the bytes copied, 0 when there is nothing new, or

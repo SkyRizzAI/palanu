@@ -138,7 +138,8 @@ static void key_named(const char *n) {
             inject(K[i].sym, 0, 0);
             return;
         }
-    if (strncmp(n, "ctrl-", 5) == 0 && n[5]) inject(PAL_KEY_CHAR, (unsigned char)n[5], PAL_MOD_CTRL);
+    if (strcmp(n, "ctrl-alt-esc") == 0) inject(PAL_KEY_ESC, 0, PAL_MOD_CTRL | PAL_MOD_ALT); /* the system console's switch key */
+    else if (strncmp(n, "ctrl-", 5) == 0 && n[5]) inject(PAL_KEY_CHAR, (unsigned char)n[5], PAL_MOD_CTRL);
     else if (strncmp(n, "alt-", 4) == 0 && n[4]) inject(PAL_KEY_CHAR, (unsigned char)n[4], PAL_MOD_ALT);
     else fprintf(stderr, "unknown key %s\n", n);
 }

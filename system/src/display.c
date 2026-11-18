@@ -98,4 +98,10 @@ bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r) {
     return true;
 }
 
+void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette) {
+    if (!D.ready || r.w <= 0 || r.h <= 0) return;
+    D.ops.present(D.ops.ctx, px, stride, r, palette);
+    D.flushes++;
+}
+
 void pal_display_reserve_top(int rows) { D.reserved_top = rows < 0 ? 0 : rows; }

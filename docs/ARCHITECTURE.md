@@ -15,6 +15,12 @@ platform/ boards/ targets/   the only places for platform code (ESP-IDF, host, h
 `nema/`, `system/` and `apps/` are portable. The build enforces this direction (private headers are hidden from the layers above)
 and `./pal check` catches violations earlier.
 
+## Screen: the system console and desktop sessions
+
+The system owns the screen loop and the system console (`pal/console.h`): the boot log, a login shell, and Ctrl+Alt+Esc, which no
+desktop can take. A desktop session (`pal/desktops.h`) runs on top and gives everything graphical; when none runs, the console has
+the screen. ADR-0010 and docs/DESKTOPS.md.
+
 ## Board-agnostic
 
 A board is one descriptor (`pal_board_desc_t`): name, screen, keyboard, capability bits, and a `devices` table (LEDs, buzzers,

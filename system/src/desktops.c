@@ -1,22 +1,18 @@
 /* The desktop registry (pal/desktops.h). Registration happens at start-up from one task; use and boot run from the shell or
- * the boot task, so a mutex is not needed: the compositor takes its own lock for every change this makes to it. */
+ * the boot task, so a mutex is not needed: the compositor takes its own lock for every change this makes to it. There is no
+ * fallback desktop: what is under every session is the system console (ADR-0010). */
 #include <string.h>
 
 #include "nema/log.h"
-#include "pal/desktop.h"
 #include "pal/bootcount.h"
+#include "pal/console.h"
+#include "pal/desktop.h"
 #include "pal/desktops.h"
 #include "pal/settings.h"
 
 static const pal_desktop_env_t *s_env[PAL_DESKTOP_ENV_MAX];
 static size_t s_n;
 static const pal_desktop_env_t *s_active;
-
-/* The fallback is the desktop called "classic" (registered by ui_wire.c); a platform may register others before it. */
-static const pal_desktop_env_t *fallback(void) {
-    const pal_desktop_env_t *c = pal_desktops_find("classic");
-    return c ? c : (s_n ? s_env[0] : NULL);
-}
 
 nema_err_t pal_desktops_register(const pal_desktop_env_t *env) {
     if (!env || !env->id || !env->id[0] || !env->start) return NEMA_ERR_INVAL;
@@ -39,36 +35,56 @@ const pal_desktop_env_t *pal_desktops_find(const char *id) {
 
 const char *pal_desktops_active(void) { return s_active ? s_active->id : ""; }
 
-static bool start_env(const pal_desktop_env_t *e) {
+static void stop_active(void) {
     if (s_active && s_active->stop) s_active->stop();
     s_active = NULL;
-    if (!e->start()) return false;
-    s_active = e;
-    return true;
+}
+
+/* No session: the reason goes to the log and the console, and the console takes the screen. */
+static void failed(const char *id, const char *why) {
+    NEMA_LOGE("desktop", "%s: %s", id, why);
+    pal_console_printf("[\x1b[31mFAILED\x1b[0m] Desktop session %s: %s\n", id, why);
+    pal_console_show();
 }
 
 nema_err_t pal_desktops_use(const char *id) {
     const pal_desktop_env_t *e = pal_desktops_find(id);
     if (!e) return NEMA_ERR_NOENT;
-    if (!start_env(e)) {
-        const pal_desktop_env_t *fb = fallback();
-        NEMA_LOGW("desktop", "%s did not start; back to %s", e->id, fb->id);
-        if (e != fb) start_env(fb);
-        pal_desktop_home();
+    stop_active();
+    if (!e->start()) {
+        failed(e->id, "did not start");
         return NEMA_ERR_IO;
     }
+    s_active = e;
     pal_desktop_home();
     psys_settings_set("desktop.env", e->id);
     return NEMA_OK;
 }
 
+void pal_desktops_stop(void) {
+    stop_active();
+    pal_console_show();
+}
+
 void pal_desktops_boot(void) {
-    const pal_desktop_env_t *fb = fallback();
-    if (!fb) return;
+    if (psys_bootcount_safe()) { /* safe mode starts as little as it can; desktop.env is kept for the next normal boot */
+        pal_console_print("Safe mode: no desktop session. `safemode off` and `reboot` leave it.\n");
+        return;
+    }
+    char target[16] = "";
+    psys_settings_get("boot.target", target, sizeof(target));
+    if (!strcmp(target, "console")) return;
     char want[24] = "";
     psys_settings_get("desktop.env", want, sizeof(want));
-    /* safe mode starts as little as it can: the fallback desktop, whatever desktop.env says (it is kept for the next normal boot) */
-    const pal_desktop_env_t *e = psys_bootcount_safe() ? NULL : pal_desktops_find(want);
-    if (!e) e = fb;
-    if (!start_env(e) && e != fb) start_env(fb);
+    const pal_desktop_env_t *e = pal_desktops_find(want);
+    if (!e) {
+        failed(want[0] ? want : "(none)", "no such desktop; `desktop` lists them");
+        return;
+    }
+    stop_active();
+    if (!e->start()) {
+        failed(e->id, "did not start");
+        return;
+    }
+    s_active = e;
 }

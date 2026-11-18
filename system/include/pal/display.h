@@ -36,6 +36,9 @@ void pal_display_set_tap(void (*tap)(void *ctx, pal_rect_t r), void *ctx);
 bool pal_display_has_rgb565(void);
 bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r);
 /* Rows at the top that a flush of the 8-bit framebuffer never sends (a desktop draws its own bar there); 0 by default. */
+/* Sends an 8-bit image of the caller's with the caller's palette (byte-swapped RGB565, as pal_theme_palette makes it). The system
+ * console draws this way: its pixels and colours are its own, never the theme's or the compositor's frame. */
+void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette);
 void pal_display_reserve_top(int rows);
 
 #endif

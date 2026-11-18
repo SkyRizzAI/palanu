@@ -150,7 +150,7 @@ static void inject(uint8_t sym, uint32_t cp, uint8_t mods) {
 EMSCRIPTEN_KEEPALIVE void pal_web_key(int sym, unsigned cp, int mods) { inject((uint8_t)sym, cp, (uint8_t)mods); }
 
 /* The same names as the native simulator's --key: enter esc tab backspace up down left right home end pgup pgdn delete switch
- * home-app vkb fntap, ctrl-X and alt-X. Returns 0, or -1 for an unknown name. */
+ * home-app vkb fntap, ctrl-alt-esc, ctrl-X and alt-X. Returns 0, or -1 for an unknown name. */
 EMSCRIPTEN_KEEPALIVE int pal_web_key_named(const char *n) {
     static const struct { const char *name; uint8_t sym; } K[] = {
         {"enter", PAL_KEY_ENTER}, {"esc", PAL_KEY_ESC}, {"tab", PAL_KEY_TAB}, {"backspace", PAL_KEY_BACKSPACE},
@@ -161,6 +161,7 @@ EMSCRIPTEN_KEEPALIVE int pal_web_key_named(const char *n) {
     };
     for (size_t i = 0; i < sizeof(K) / sizeof(K[0]); i++)
         if (!strcmp(K[i].name, n)) return inject(K[i].sym, 0, 0), 0;
+    if (!strcmp(n, "ctrl-alt-esc")) return inject(PAL_KEY_ESC, 0, PAL_MOD_CTRL | PAL_MOD_ALT), 0; /* the system console's switch key */
     if (!strncmp(n, "ctrl-", 5) && n[5]) return inject(PAL_KEY_CHAR, (unsigned char)n[5], PAL_MOD_CTRL), 0;
     if (!strncmp(n, "alt-", 4) && n[4]) return inject(PAL_KEY_CHAR, (unsigned char)n[4], PAL_MOD_ALT), 0;
     return -1;

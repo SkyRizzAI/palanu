@@ -16,6 +16,7 @@
 #include "lvgl.h"
 #include "nema/types.h"
 #include "pal/athena.h"
+#include "pal/console.h"
 #include "pal/desktop.h"
 #include "pal/desktops.h"
 #include "pal/display.h"
@@ -105,6 +106,7 @@ static struct {
     /* sending */
     uint32_t last_ms;
     bool pending, force, owned, display_on;
+    uint32_t console_gen; /* pal_console_generation at the last frame */
     int dx0, dy0, dx1, dy1; /* dirty union of what LVGL has drawn since the last send */
 } A NEMA_EXT_BSS;
 
@@ -697,7 +699,8 @@ static void chrome_frame(uint32_t now) {
     bool owned = owns_screen();
     bar_style(!home_in_front());
     bool on = pal_dpm_display_on();
-    if (owned != A.owned || on != A.display_on) A.force = true;
+    if (owned != A.owned || on != A.display_on || pal_console_generation() != A.console_gen) A.force = true; /* the console had the screen */
+    A.console_gen = pal_console_generation();
     A.owned = owned;
     A.display_on = on;
     if (A.force) lv_obj_invalidate(lv_screen_active());

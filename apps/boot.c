@@ -2,8 +2,10 @@
 #include <string.h>
 
 #include "builtin.h"
+#include "pal/console.h"
 #include "pal/desktops.h"
 #include "pal/sd.h"
+#include "pal/settings.h"
 #include "pal/bootcount.h"
 #include "pal/link.h"
 #include "pal/papp.h"
@@ -153,10 +155,12 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_display_set_brightness(80);
         pal_settings_load();
         pal_display_refresh_theme();
+        /* The system console is in front from here: the boot log (under a splash when boot.quiet is on), then a desktop session
+         * or, with boot.target console, in safe mode or when the session fails, a login shell (ADR-0010, pal/console.h). */
+        pal_console_init(!safe && psys_settings_int("boot.quiet", 1) != 0);
         pal_boot_mark("display");
-        /* the Terminal in front when boot.target is console, and always in safe mode (no launcher there) */
-        bool console = safe || !strcmp(pal_settings_boot_target(), "console");
-        pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = console ? "terminal" : NULL /* the desktop environment's home */};
+        pal_console_printf("[\x1b[32m  OK  \x1b[0m] Display %dx%d.\n", panel.width, panel.height);
+        pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = NULL /* the session's home */};
         pal_desktop_init(&dc);
         pal_desktop_register(&pal_launcher_view);
         pal_desktop_register(&pal_applist_view); /* the app list, opened from the launcher's Apps entry (applist.c) */
@@ -169,9 +173,8 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_desktop_register(&pal_logs_view);     /* Logs: launcher app */
         pal_vk_register(); /* the on-screen keyboard overlay (vk.h) */
         pal_launcher_set_runner(pal_terminal_run); /* installed tty apps open in the Terminal */
-        pal_desktops_boot(); /* the desktop environment named by desktop.env (classic when unset): home, chrome, keys */
+        pal_desktops_boot(); /* the session named by desktop.env, unless boot.target is console or this is safe mode */
         pal_desktop_start();
-        if (!console) pal_ui_splash_show(); /* the boot splash, an overlay over home until the stages are done (ui_splash.c) */
         pal_boot_mark("desktop");
     }
     /* Background work is services now: registered here, started in `after` order. The radios start after the

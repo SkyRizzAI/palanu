@@ -349,6 +349,8 @@ static const pal_menu_row_t DEV_ROWS[] = {
     {.kind = PAL_MENU_CHOICE, .label = "Boot target", .icon = "terminal", .ctx = (void *)&MAP_TARGET,
      .choices = TARGET_LABELS, .get = settings_map_get, .set = settings_map_set,
      .hint = "The screen in front after a restart"},
+    {.kind = PAL_MENU_TOGGLE, .label = "Quiet boot", .icon = "terminal", .ctx = (void *)"boot.quiet", .get = settings_bool_get,
+     .set = settings_bool_set, .hint = "A splash over the boot log; any key shows the log"},
     {.kind = PAL_MENU_CHOICE, .label = "Log level", .icon = "logs", .ctx = (void *)&MAP_LOG, .choices = LOG_LABELS,
      .get = settings_map_get, .set = settings_map_set, .hint = "What the device logs to the console"},
     {.kind = PAL_MENU_TOGGLE, .label = "Developer mode", .icon = "monitor", .get = dev_get, .set = dev_set,

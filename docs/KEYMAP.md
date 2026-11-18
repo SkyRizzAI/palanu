@@ -18,6 +18,7 @@ A 4x10 matrix (TCA8418), 39 keys, columns run from right to left (C9 is leftmost
 - **Fn twice quickly:** the input menu (on-screen keyboard, Symbols lock, Numbers, Caps Lock, one-key Ctrl); inside the menu a single tap of Fn
   moves down and Fn twice closes it (like Esc). **Shift twice quickly:** Caps Lock. Details in `VKEYBOARD.md`.
 - **⟳ (cycle):** tap = switch app, hold = home.
+- **Ctrl + Alt + Esc:** the system console and back (docs/DESKTOPS.md); it works on every screen and no desktop can take it.
 - **Alt + N / W / Tab:** new terminal tab / close / next. **Shift + PgUp/PgDn** (Fn+R/F): scroll history.
 
 ## Not yet confirmed

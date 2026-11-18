@@ -17,6 +17,10 @@ void nema_log(nema_log_level_t level, const char *tag, const char *fmt, ...)
 /* Console sink: on by default. Turn it off when a shell owns the console. */
 void nema_log_set_console(bool on);
 void nema_log_set_level(nema_log_level_t max_level);
+/* One more reader of every line, after the ring and the serial console: the system console shows the boot with it. The line
+ * has no newline; the sink runs on the logging task and must not log. NULL removes it. */
+typedef void (*nema_log_sink_t)(nema_log_level_t level, const char *line, size_t len);
+void nema_log_set_sink(nema_log_sink_t sink);
 
 /* Copy the most recent text (whole lines) into dst. Returns bytes written. */
 size_t nema_log_snapshot(char *dst, size_t cap);

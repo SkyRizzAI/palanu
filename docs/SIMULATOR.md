@@ -53,7 +53,7 @@ One step per line, the same words as the native simulator's flags:
 ```
 cmd LINE         type LINE and press Enter       type TEXT        type TEXT
 key NAME...      enter esc tab backspace up down left right home end pgup pgdn delete
-                 switch home-app vkb fntap, ctrl-X, alt-X
+                 switch home-app vkb fntap, ctrl-alt-esc (the system console), ctrl-X, alt-X
 wait MS          pause                           tap ROW COL      press and release a hardware key
 battery PCT      charge (-1: no battery)         sensor I DEG     sensor I reads DEG degrees
 gpio I 0|1       drive pin I                     shot             save a screenshot

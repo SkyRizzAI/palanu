@@ -47,9 +47,14 @@ bool svc_valid_id(const char *id) {
     return true;
 }
 
+static psys_svc_status_sink_t s_sink;
+void psys_svc_set_status_sink(psys_svc_status_sink_t sink) { s_sink = sink; }
+
 void svc_set_state(svc_t *e, psys_svc_state_t s, const char *why) {
+    psys_svc_state_t was = e->state;
     e->state = s;
     svc_setstr(e->reason, sizeof(e->reason), why);
+    if (s_sink && was != s) s_sink(e->id, e->name[0] ? e->name : e->id, was, s, e->reason);
 }
 
 svc_t *svc_find(const char *id) {
