@@ -21,7 +21,7 @@ include(${ROOT}/platform/host/libs.cmake)
 
 add_executable(palanu-web ${CMAKE_CURRENT_LIST_DIR}/web_main.c ${ROOT}/platform/host/sim_hw.c)
 target_include_directories(palanu-web PRIVATE ${ROOT}/platform/host)
-target_link_libraries(palanu-web PRIVATE palapps)
+target_link_libraries(palanu-web PRIVATE palapps palathena)
 target_compile_options(palanu-web PRIVATE -Wall -Wextra -Wno-unused-parameter)
 set_target_properties(palanu-web PROPERTIES SUFFIX ".js")
 target_link_options(palanu-web PRIVATE -O1

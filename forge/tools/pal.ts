@@ -97,6 +97,11 @@ const ALLOW: { file: string; rules: string[]; reason: string; used?: boolean }[]
     reason: "WAMR runtime header: the hooks the generated palanu import table calls (T2.1)",
   },
   {
+    file: "system/src/athena/athena.c",
+    rules: ["unresolved header"],
+    reason: "LVGL header from third_party/lvgl: the Athena desktop is built into the simulators only (ADR-0009)",
+  },
+  {
     file: "system/src/cryptoimpl_mbedtls.c",
     rules: ["unresolved header"],
     reason: "PSA Crypto header of ESP-IDF (TF-PSA-Crypto), present only in the ESP build (T2.6)",
@@ -321,7 +326,7 @@ function webSetup(): number {
 /** The Python that runs Emscripten's tools: EMSDK_PYTHON, else the newest python3.x on the PATH. */
 function emPython(): string {
   if (process.env.EMSDK_PYTHON) return `EMSDK_PYTHON=${process.env.EMSDK_PYTHON} ${process.env.EMSDK_PYTHON}`;
-  for (const v of ["3.14", "3.13", "3.12", "3.11", "3.10"]) {
+  for (const v of ["3.15", "3.14", "3.13", "3.12", "3.11", "3.10"]) {
     const p = Bun.spawnSync(["bash", "-c", `command -v python${v}`]);
     if (p.exitCode === 0) { const path = p.stdout.toString().trim(); return `EMSDK_PYTHON=${path} ${path}`; }
   }
@@ -334,7 +339,7 @@ function webSystem(): number {
     console.warn("web: Emscripten not found in refs/emsdk, so the simulator will not run. Install it with: ./pal web setup");
     return 0;
   }
-  const py = process.env.EMSDK_PYTHON ?? "$(command -v python3.14 || command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3.10 || command -v python3)";
+  const py = process.env.EMSDK_PYTHON ?? "$(command -v python3.15 || command -v python3.14 || command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3.10 || command -v python3)";
   const env = `export EMSDK_PYTHON=${py}; source ${EMSDK}/emsdk_env.sh >/dev/null 2>&1`;
   const cfg = existsSync(join(WEB_BUILD, "build.ninja")) || existsSync(join(WEB_BUILD, "Makefile")) ? 0 : sh(`${env}; emcmake cmake -S platform/web -B ${WEB_BUILD}`);
   return cfg || sh(`${env}; cmake --build ${WEB_BUILD} -j8`);

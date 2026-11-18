@@ -155,7 +155,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_boot_mark("display");
         /* the Terminal in front when boot.target is console, and always in safe mode (no launcher there) */
         bool console = safe || !strcmp(pal_settings_boot_target(), "console");
-        pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = console ? "terminal" : "home"};
+        pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = console ? "terminal" : NULL /* the desktop environment's home */};
         pal_desktop_init(&dc);
         pal_desktop_register(&pal_launcher_view);
         pal_desktop_register(&pal_applist_view); /* the app list, opened from the launcher's Apps entry (applist.c) */

@@ -72,3 +72,13 @@ add_library(palapps STATIC ${APPS_SRC})
 target_include_directories(palapps PUBLIC ${ROOT}/apps)
 target_compile_options(palapps PRIVATE -Wall -Wextra -Wshadow -Werror -Wno-unused-parameter)
 target_link_libraries(palapps PUBLIC palsys)
+
+# ---- Athena: the optional LVGL desktop (system/src/athena). Simulators only; the firmware build does not include it ----
+file(GLOB_RECURSE LVGL_SRC CONFIGURE_DEPENDS ${ROOT}/third_party/lvgl/src/*.c)
+add_library(lvgl STATIC ${LVGL_SRC})
+target_include_directories(lvgl PUBLIC ${ROOT}/third_party/lvgl ${ROOT}/system/src/athena)
+target_compile_definitions(lvgl PUBLIC LV_CONF_INCLUDE_SIMPLE LV_LVGL_H_INCLUDE_SIMPLE)
+target_compile_options(lvgl PRIVATE -w) # vendored unmodified
+add_library(palathena STATIC ${ROOT}/system/src/athena/athena.c)
+target_compile_options(palathena PRIVATE -Wall -Wextra -Wshadow -Werror -Wno-unused-parameter)
+target_link_libraries(palathena PUBLIC palsys lvgl)

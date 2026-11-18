@@ -7,7 +7,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 ## Working (tested)
 - **Nema** (kernel): classed and owned memory with an internal RAM reserve, task gate, one wait primitive, objects and handles, pipes, processes with signals and groups, two-sided TTY, registry, VFS with ramfs and `/bin`. 8 host tests, passing (also run with random scheduling jitter).
-- **Subsystems:** 8-bit indexed canvas with dirty rects, Spleen fonts, themes with replaceable components (4 themes, dark mode, 2 sizes), xterm terminal emulator (17 tests), input with an Nm/Fn layer, display, desktop with views, wall clock.
+- **Subsystems:** 8-bit indexed canvas with dirty rects, Spleen fonts, themes with replaceable components (4 themes, dark mode, 2 sizes), xterm terminal emulator (17 tests), input with an Nm/Fn layer, display, desktop with views, wall clock, desktop environments (`classic`, and `athena` drawn with LVGL on the simulators; `desktop use ID`, docs/DESKTOPS.md).
 - **Userland:** shell (line editor, history, Tab, quoting, variables, pipes, redirection, `&&` `||` `&`, glob, alias, scripts), 30 commands, launcher, tabbed Terminal, Settings, Monitor.
 - **hhv2 board (proven on the chip):** boot, 80 MHz LCD with changed-area flush, TCA8418 keyboard, backlight, buzzer, RGB LED, shell on UART.
 - **Host simulator:** `./pal sim` (SDL2 window) and a script mode with screenshots.

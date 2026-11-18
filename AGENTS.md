@@ -11,6 +11,7 @@ board-agnostic: each board declares its own hardware, pins and capabilities. For
 | Why a decision was made | docs/adr/ |
 | Writing apps for the device | docs/DEVELOPER.md, docs/API.md, docs/PAPP.md |
 | The simulators (native and browser) | docs/SIMULATOR.md |
+| Desktop environments (`desktop use`) | docs/DESKTOPS.md |
 | Bringing up a new board | docs/PORTING-A-BOARD.md, boards/_template |
 | Origin and licenses of third-party code | docs/SOURCES.md |
 | Release gates | docs/RELEASE.md |

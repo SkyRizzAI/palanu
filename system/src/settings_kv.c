@@ -74,6 +74,7 @@ static const kv_def_t DEFS[] = {
     {"log.level", KV_CHOICE, 0, 3, LOG_NAMES, 2, NULL, apply_log},
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},
     {"profile.user", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL},
+    {"desktop.env", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "classic", NULL}, /* the active desktop environment (pal/desktops.h) */
 };
 #define NDEFS ((int)(sizeof(DEFS) / sizeof(DEFS[0])))
 

@@ -44,7 +44,7 @@ endforeach()
 # ---- Simulator ----
 if(TARGET palapps)
   add_executable(palanu-sim ${CMAKE_CURRENT_LIST_DIR}/sim_main.c ${CMAKE_CURRENT_LIST_DIR}/sim_hw.c)
-  target_link_libraries(palanu-sim PRIVATE palapps)
+  target_link_libraries(palanu-sim PRIVATE palapps palathena)
   target_compile_options(palanu-sim PRIVATE -Wall -Wextra -Wno-unused-parameter)
   # the simulator's board has no battery: `battery` must report it as unsupported (tests/sim)
   add_test(NAME sim_battery_unsupported COMMAND sh ${ROOT}/tests/sim/battery_unsupported.sh $<TARGET_FILE:palanu-sim>)

@@ -11,6 +11,7 @@
 #include "builtin.h"
 #include "sim_hw.h"
 #include "nema/nema.h"
+#include "pal/athena.h"
 #include "pal/board.h"
 #include "pal/input.h"
 #include "pal/svc.h"
@@ -113,6 +114,7 @@ int main(int argc, char **argv) {
         .status = status,
         .platform_services = services,
     };
+    pal_athena_register(); /* the LVGL desktop: `desktop use athena` */
     pal_boot(&cfg);
     for (;;) sleep(3600); /* main only boots; the tasks run on their own workers */
 }

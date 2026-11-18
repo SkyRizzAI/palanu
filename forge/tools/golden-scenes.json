@@ -278,6 +278,8 @@
       "--wait",
       "600"
     ],
+    "athena-home": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200"],
+    "athena-select": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200", "--key", "right", "--key", "down", "--wait", "300"],
     "terminal-ls-bin": [
       "--key",
       "enter",

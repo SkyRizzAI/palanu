@@ -7,7 +7,8 @@ Third-party code keeps its own license. Every adapted or bundled file, its
 origin, its license, and the reason it was adopted are listed in
 docs/SOURCES.md. Files adapted from Apache-2.0 projects keep the original
 copyright notice and Apache-2.0 header; bundled components (for example
-third_party/wamr, Apache-2.0 with LLVM exception) keep their license files.
+third_party/wamr, Apache-2.0 with LLVM exception, and third_party/lvgl, MIT,
+Copyright (c) 2021 LVGL Kft) keep their license files.
 
 Helvetica bitmap fonts (system/src/kui/font_reg8.c, font_bold8.c, font_reg10.c, font_bold10.c, font_reg12.c, font_bold12.c,
 font_primary.c): the glyph data comes from the X11 helvR/helvB BDF fonts (ISO10646-1 extension by Markus Kuhn, 2001-03-20),
@@ -25,3 +26,8 @@ used under this notice:
   be used in advertising or publicity pertaining to distribution of the software without specific, written prior permission.
   Adobe Systems and Digital Equipment Corporation make no representations about the suitability of this software for any
   purpose. It is provided "as is" without express or implied warranty.
+
+Athena (system/src/athena) draws with the Montserrat fonts bundled in third_party/lvgl/src/font (lv_font_montserrat_12, _16, _20, _48):
+  Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat), licensed under the SIL Open Font License,
+  Version 1.1 (https://openfontlicense.org). The fonts are used unmodified in the form LVGL ships them; the license applies to them and
+  not to the rest of the software.

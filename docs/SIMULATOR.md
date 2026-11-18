@@ -89,6 +89,7 @@ shows its state. It has no air interface: a real peripheral cannot be bridged fr
 
 ## Code
 
+- `system/src/athena/` and `third_party/lvgl`: the LVGL desktop, linked into both simulators; try it with `desktop use athena` in the Terminal (docs/DESKTOPS.md).
 - `platform/host/sim_hw.c`: simulated devices and Wi-Fi shared by both simulators; `tests/unit/test_sim_hw.c`.
 - `platform/web/`: the Emscripten target (`web_main.c` exports the page's controls, `CMakeLists.txt` the link options and the reasons for them).
 - `forge/web/src/sim/`: the page (TypeScript): `engine.ts` (the module and the bridge), `keymap.ts` (the keyboard picture), `script.ts` (sequences,

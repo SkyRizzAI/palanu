@@ -7,6 +7,7 @@
 #include "libapp.h"
 #include "nema/log.h"
 #include "nema/nema.h"
+#include "pal/desktops.h"
 #include "views.h"
 
 static int cmd_files(int argc, char **argv) {
@@ -112,9 +113,30 @@ static int cmd_viewfix(int argc, char **argv) {
     return 0;
 }
 
+/* desktop [list | use ID | start ID]: the desktop environments (pal/desktops.h). `start` is a synonym of `use`. */
+static int cmd_desktop(int argc, char **argv) {
+    if (argc == 1 || !strcmp(argv[1], "list")) {
+        for (size_t i = 0; i < pal_desktops_count(); i++) {
+            const pal_desktop_env_t *e = pal_desktops_get(i);
+            pal_printf("%c %-10s %s\n", !strcmp(e->id, pal_desktops_active()) ? '*' : ' ', e->id, e->about ? e->about : e->title);
+        }
+        return 0;
+    }
+    if (argc == 3 && (!strcmp(argv[1], "use") || !strcmp(argv[1], "start"))) {
+        nema_err_t r = pal_desktops_use(argv[2]);
+        if (r == NEMA_ERR_NOENT) pal_eprintf("desktop: no desktop called %s (`desktop list`)\n", argv[2]);
+        else if (r != NEMA_OK) pal_eprintf("desktop: %s did not start; the classic desktop is back\n", argv[2]);
+        else pal_printf("desktop: %s\n", argv[2]);
+        return r == NEMA_OK ? 0 : 1;
+    }
+    pal_eprintf("usage: desktop [list | use ID | start ID]\n");
+    return 1;
+}
+
 #define APP(n, h, f, s) {n, h, f, s, 0}
 static const nema_app_t VIEW_APPS[] = {
     APP("files", "open the file browser at PATH (default /home)", cmd_files, 8192),
+    APP("desktop", "list the desktop environments, or switch to one: desktop use ID", cmd_desktop, 8192),
     APP("logs", "open the log viewer, optionally only one source (COMPONENT)", cmd_logs, 8192),
     APP("viewfix", "fixed files, text and log lines for the golden images (files, text, hex, readme, logs)", cmd_viewfix, 8192),
 };

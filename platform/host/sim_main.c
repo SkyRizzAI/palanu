@@ -17,6 +17,7 @@
 #include "builtin.h"
 #include "sim_hw.h"
 #include "nema/nema.h"
+#include "pal/athena.h"
 #include "pal/bootcount.h"
 #include "pal/link.h"
 #include "pal/radio.h"
@@ -306,6 +307,7 @@ int main(int argc, char **argv) {
     }
     pal_radio_set_ops(sim_hw_radio_ops());
     pal_wifi_set_ops(sim_hw_wifi_ops());
+    pal_athena_register(); /* the LVGL desktop: `desktop use athena` */
     pal_boot(&cfg);
     /* --link-open trusts the TCP link without a token. Tests only: the default is an untrusted link (docs/PLP.md). */
     pal_link_set_tcp_trust(has_arg(argc, argv, "--link-open"));
