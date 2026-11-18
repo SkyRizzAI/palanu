@@ -138,7 +138,7 @@ static void tick(pal_view_t *v, uint32_t now) {
 
 /* Removed by someone else: the caller hears a cancel. */
 /* The entry as shown: asterisks when masked. */
-static char s_shown[PAL_DIALOG_TEXT];
+static char s_shown[PAL_DIALOG_TEXT] NEMA_EXT_BSS;
 static bool describe(pal_view_t *v, pal_shell_view_t *o) {
     (void)v;
     for (int i = 0; i < TI.len; i++) s_shown[i] = TI.mask ? '*' : TI.buf[i];

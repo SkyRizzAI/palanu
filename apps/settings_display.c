@@ -129,8 +129,8 @@ static const settings_map_t MAP_LAUNCH = {"ui.launcher", LAUNCH_TEXTS, NULL, 4};
 #define ANIM_SLOTS 12
 static const char *s_anim_texts[ANIM_SLOTS + 1];
 static const char *s_anim_labels[ANIM_SLOTS + 1];
-static char s_anim_text_buf[ANIM_SLOTS][PAL_ANIM_NAME_MAX + 8];
-static char s_anim_label_buf[ANIM_SLOTS][PAL_ANIM_NAME_MAX];
+static char s_anim_text_buf[ANIM_SLOTS][PAL_ANIM_NAME_MAX + 8] NEMA_EXT_BSS;
+static char s_anim_label_buf[ANIM_SLOTS][PAL_ANIM_NAME_MAX] NEMA_EXT_BSS;
 static settings_map_t MAP_ANIM = {"ui.wallpaper", s_anim_texts, NULL, 0};
 
 static void fill_anims(void) {

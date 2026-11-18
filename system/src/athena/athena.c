@@ -300,7 +300,7 @@ static void open_shortcuts_sheet(void) {
 }
 
 static void open_recents_sheet(void) {
-    static char labels[MAX_ROWS][40];
+    static char labels[MAX_ROWS][40] NEMA_EXT_BSS;
     const char *rows[MAX_ROWS];
     int n = 0;
     for (int i = 0; i < desk_mru_count() && n < MAX_ROWS - 1; i++) {

@@ -107,7 +107,7 @@ void vk_draw(pal_canvas_t *c, pal_rect_t a, bool full) {
 }
 
 /* The keyboard as data (pal/shell.h): a session that draws the shell services lays it out itself. */
-static char s_entry[VK_TEXT_MAX + 1];
+static char s_entry[VK_TEXT_MAX + 1] NEMA_EXT_BSS;
 bool vk_describe(pal_view_t *v, pal_shell_view_t *o) {
     (void)v;
     bool masked = vk_S.ui.mask && !vk_S.ui.show;
