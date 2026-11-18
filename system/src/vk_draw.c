@@ -6,6 +6,7 @@
 
 #include "nema/types.h"
 #include "pal/kui.h"
+#include "pal/shell.h"
 #include "pal/vk_layout.h"
 #include "vk_int.h"
 
@@ -103,4 +104,30 @@ void vk_draw(pal_canvas_t *c, pal_rect_t a, bool full) {
     vk_S.dirty_text = false;
     vk_S.dirty_caret = false;
     memset(vk_S.dirty_keys, 0, sizeof(vk_S.dirty_keys));
+}
+
+/* The keyboard as data (pal/shell.h): a session that draws the shell services lays it out itself. */
+static char s_entry[VK_TEXT_MAX + 1];
+bool vk_describe(pal_view_t *v, pal_shell_view_t *o) {
+    (void)v;
+    bool masked = vk_S.ui.mask && !vk_S.ui.show;
+    size_t n = vk_S.len < VK_TEXT_MAX ? vk_S.len : VK_TEXT_MAX;
+    for (size_t i = 0; i < n; i++) s_entry[i] = masked ? '*' : vk_S.text[i];
+    s_entry[n] = 0;
+    o->kind = PAL_SHELL_KEYBOARD;
+    o->title = vk_S.title;
+    o->text = s_entry;
+    o->cursor = (int)vk_S.cursor;
+    o->rows = VK_ROWS;
+    o->nkeys = vk_S.ncells < PAL_SHELL_KEYS ? vk_S.ncells : PAL_SHELL_KEYS;
+    o->focus = vk_S.flash >= 0 ? vk_S.flash : vk_S.focus;
+    for (int i = 0; i < o->nkeys; i++) {
+        const vk_cell_t *c = &vk_S.cells[i];
+        char buf[4];
+        pal_shell_key_t *k = &o->keys[i];
+        k->row = c->row, k->x = c->x, k->w = c->w;
+        nema_strlcpy(k->label, key_label(c->key, vk_S.phys, buf, sizeof(buf)), sizeof(k->label));
+        k->accent = c->key->kind != VK_K_CHAR && c->key->kind != VK_K_CHORD;
+    }
+    return true;
 }

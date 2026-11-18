@@ -73,4 +73,7 @@ void vk_press(int idx);
 /* Drawing (vk_draw.c). full: the whole area; otherwise only what is marked dirty. Clears the marks. */
 void vk_draw(pal_canvas_t *c, pal_rect_t a, bool full);
 
+struct pal_shell_view;
+bool vk_describe(pal_view_t *v, struct pal_shell_view *o); /* vk_draw.c */
+
 #endif

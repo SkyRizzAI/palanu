@@ -20,7 +20,7 @@ set(TINFL_RENAME TINFL_RENAMED
 
 # Athena, the LVGL desktop (system/src/athena, docs/DESKTOPS.md): LVGL 9.2.2 vendored unmodified in third_party/lvgl, its pool in PSRAM.
 file(GLOB_RECURSE LVGL_SRC ${CMAKE_CURRENT_LIST_DIR}/../third_party/lvgl/src/*.c)
-set(ATHENA_SRC ${CMAKE_CURRENT_LIST_DIR}/src/athena/athena.c)
+file(GLOB ATHENA_SRC ${CMAKE_CURRENT_LIST_DIR}/src/athena/*.c)
 
 idf_component_register(
     SRCS ${SYSTEM_SRC} ${SYSTEM_API_SRC} ${MONOCYPHER_SRC} ${MINIZ_SRC} ${LVGL_SRC} ${ATHENA_SRC}

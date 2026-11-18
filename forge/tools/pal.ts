@@ -97,9 +97,9 @@ const ALLOW: { file: string; rules: string[]; reason: string; used?: boolean }[]
     reason: "WAMR runtime header: the hooks the generated palanu import table calls (T2.1)",
   },
   {
-    file: "system/src/athena/athena.c",
+    file: "system/src/athena/athena_int.h",
     rules: ["unresolved header"],
-    reason: "LVGL header from third_party/lvgl: the Athena desktop is built into the simulators only (ADR-0009)",
+    reason: "LVGL header from third_party/lvgl: the Athena session, included by its parts through athena_int.h (ADR-0009, ADR-0010)",
   },
   {
     file: "system/src/cryptoimpl_mbedtls.c",

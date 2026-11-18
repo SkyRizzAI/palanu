@@ -1,58 +1,16 @@
-/* Athena: a desktop environment drawn with LVGL in full colour (docs/DESKTOPS.md).
+/* Athena: a desktop session drawn with LVGL in full colour (docs/DESKTOPS.md, ADR-0010).
  *
  * Athena owns its chrome (pal_desktop_chrome_t): its own status bar on top of every screen, its own global keys (Fn twice opens its
- * Keyboard sheet, a tap of the cycle key its Recent apps sheet, holding it goes home), and its own home. LVGL renders one RGB565 frame
- * the size of the panel (direct mode: the frame persists, only dirty areas are redrawn) and Athena sends it to the panel itself
- * (pal_display_present_rgb565): no palette, no dithering.
+ * Keyboard sheet, a tap of the cycle key its Recent apps sheet, holding it goes home), its own home and lock screen, and it draws the
+ * shell services and toasts itself (athena_shell.c). LVGL renders into Athena's own RGB565 frame (direct mode: the frame persists,
+ * only dirty areas are redrawn) and Athena copies what is its own into the system's screen frame (pal_display_present_rgb565).
  *
- * Two cases. While the home or a sheet is in front, Athena owns the whole screen and the compositor draws nothing. While an app (or a
- * dialog, the lock screen, a toast) is in front, the compositor draws it below Athena's bar (top_px rows are kept for the bar) and
- * Athena sends only its bar. When something covers the home (a toast, the on-screen keyboard), the home is copied into the 8-bit canvas
- * by the view's draw, snapped to the palette's colour cube. */
-#include <stdio.h>
-#include <string.h>
-
-#include "../desktop_int.h"
-#include "lvgl.h"
-#include "nema/types.h"
+ * While the home, a sheet, a modal, the lock screen or a bound menu is in front, Athena owns the whole screen and the compositor draws
+ * nothing. While an app is in front, the compositor draws it below Athena's bar (top_px rows are kept for the bar) and Athena sends
+ * only its bar. Parts: athena_lock.c (lock screen), athena_page.c (bound menus), athena_shell.c (services, toasts). */
+#include "athena_int.h"
+#include "pal/shell.h"
 #include "athena_pool.h"
-#include "nema/nema.h"
-#include "pal/athena.h"
-#include "pal/console.h"
-#include "pal/desktop.h"
-#include "pal/desktops.h"
-#include "pal/display.h"
-#include "pal/dpm.h"
-#include "pal/input.h"
-#include "pal/menu.h"
-#include "pal/nav.h"
-#include "pal/overlay.h"
-#include "pal/registry.h"
-#include "pal/time.h"
-#include "pal/toast.h"
-#include "pal/ui.h"
-#include "pal/vk.h"
-
-#define MAX_W 320
-#define MAX_H 240
-#define MAX_TILES 24
-#define MAX_ROWS 8
-#define BAR_H 20
-#define MAX_PAGE_ROWS 40
-#define VALUE_MAX 40
-
-#define C_WALL_TOP lv_color_hex(0x1A1750)
-#define C_WALL_BOT lv_color_hex(0x7A3C8C)
-#define C_WHITE lv_color_hex(0xFFFFFF)
-#define C_BLACK lv_color_hex(0x000000)
-#define C_SHEET lv_color_hex(0xF2F2F7) /* a grouped-list background */
-#define C_ROW lv_color_hex(0xFFFFFF)
-#define C_BLUE lv_color_hex(0x0A84FF)
-#define C_INK lv_color_hex(0x1C1C1E)
-#define C_GREY lv_color_hex(0x8E8E93)
-#define C_GREEN lv_color_hex(0x34C759)
-#define C_RED lv_color_hex(0xFF3B30)
-#define C_TRACK lv_color_hex(0xE5E5EA)
 
 typedef struct {
     const char *id, *glyph;
@@ -73,51 +31,9 @@ static const icon_style_t *icon_for(const char *id) {
     return &FALLBACK_ICON;
 }
 
-typedef enum { SHEET_NONE, SHEET_KEYBOARD, SHEET_SHORTCUTS, SHEET_RECENTS } sheet_t;
+athena_t A NEMA_EXT_BSS;
 
-static struct {
-    lv_display_t *disp;
-    int w, h;
-    /* status bar (on LVGL's top layer, above everything) */
-    lv_obj_t *bar, *bar_time, *bar_right;
-    bool bar_solid;
-    pal_status_t st;
-    /* home */
-    lv_obj_t *home, *clock, *date, *grid;
-    lv_obj_t *tile[MAX_TILES];
-    pal_reg_app_t app[MAX_TILES];
-    int n, sel, cols, last_minute;
-    /* sheet */
-    lv_obj_t *sheet, *sheet_title, *sheet_hint;
-    lv_obj_t *row[MAX_ROWS];
-    char row_id[MAX_ROWS][24]; /* recents: the view each row opens */
-    int nrows, row_sel;
-    bool row_info; /* shortcuts: the rows are not choices */
-    sheet_t kind;
-    /* toolkit pages: a bound menu (pal_menu_bind) drawn as a grouped list */
-    lv_obj_t *page, *page_title, *page_list, *page_empty;
-    lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS];
-    int pidx[MAX_PAGE_ROWS]; /* the page row each drawn row shows */
-    char ptext[MAX_PAGE_ROWS][VALUE_MAX];
-    int pn, psel;
-    pal_menu_t *pm;
-    pal_menu_page_t *ppage;
-    size_t prows;
-    uint32_t pvals_ms;
-    int mode; /* 0 home, 1 toolkit page, 2 an app drawn by the compositor */
-    /* the lock greeter (the session's own lock screen; the PIN is the system's) */
-    lv_obj_t *lock, *lock_clock, *lock_date, *lock_dots, *lock_msg, *lock_hint;
-    bool lock_shown, lock_dirty;
-    pal_ui_pin_t pin;
-    int enters;
-    /* sending */
-    uint32_t last_ms;
-    bool pending, force, owned, display_on;
-    uint32_t console_gen; /* pal_console_generation at the last frame */
-    int dx0, dy0, dx1, dy1; /* dirty union of what LVGL has drawn since the last send */
-} A NEMA_EXT_BSS;
-
-static uint16_t *s_frame; /* the LVGL frame, taken at the start */
+uint16_t *s_frame; /* the LVGL frame, taken at the start */
 static void *s_pool;      /* LVGL's pool, taken at the start */
 static nema_owner_t s_owner;
 
@@ -136,24 +52,6 @@ static void flush(lv_display_t *d, const lv_area_t *a, uint8_t *px) {
     }
     A.pending = true;
     lv_display_flush_ready(d);
-}
-
-/* For the 8-bit canvas (the home under a toast or the on-screen keyboard): ordered dithering onto the palette's 6x6x6 cube. */
-static uint8_t snap_dither(uint8_t v, int t) {
-    static const uint8_t lv[6] = {0, 95, 135, 175, 215, 255};
-    int hi = 1;
-    while (hi < 5 && v > lv[hi]) hi++;
-    int lo = hi - 1;
-    return (uint8_t)((v - lv[lo]) * 16 > t * (lv[hi] - lv[lo]) ? hi : lo);
-}
-
-static uint8_t to_index(uint16_t p, int x, int y) {
-    static const uint8_t bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
-    int t = bayer[(y & 3) * 4 + (x & 3)];
-    uint8_t r = (uint8_t)((((p >> 11) & 31) * 255 + 15) / 31);
-    uint8_t g = (uint8_t)((((p >> 5) & 63) * 255 + 31) / 63);
-    uint8_t b = (uint8_t)(((p & 31) * 255 + 15) / 31);
-    return (uint8_t)(16 + 36 * snap_dither(r, t) + 6 * snap_dither(g, t) + snap_dither(b, t));
 }
 
 /* ---- status bar ---- */
@@ -207,6 +105,14 @@ static void build_bar(void) {
     lv_obj_set_style_text_font(A.bar_time, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(A.bar_time, C_WHITE, 0);
     lv_obj_align(A.bar_time, LV_ALIGN_LEFT_MID, 12, 0);
+    A.bar_toast = lv_label_create(A.bar); /* a toast takes the bar while it shows (athena_shell.c) */
+    lv_obj_set_style_text_font(A.bar_toast, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(A.bar_toast, C_WHITE, 0);
+    lv_label_set_long_mode(A.bar_toast, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(A.bar_toast, A.w - 24);
+    lv_obj_set_style_text_align(A.bar_toast, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(A.bar_toast, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(A.bar_toast, LV_OBJ_FLAG_HIDDEN);
     A.bar_right = lv_label_create(A.bar);
     lv_obj_set_style_text_font(A.bar_right, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(A.bar_right, C_WHITE, 0);
@@ -247,7 +153,7 @@ static void update_clock(void) {
     lv_label_set_text_fmt(A.date, "%s, %d %s", DAY[t.wday % 7], t.day, MON[(t.month + 11) % 12]);
 }
 
-static lv_obj_t *text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c) {
+lv_obj_t *ath_text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c) {
     lv_obj_t *l = lv_label_create(parent);
     lv_obj_set_style_text_font(l, f, 0);
     lv_obj_set_style_text_color(l, c, 0);
@@ -264,10 +170,10 @@ static void build_home(void) {
     lv_obj_set_size(A.home, w, h);
     lv_obj_remove_flag(A.home, LV_OBJ_FLAG_SCROLLABLE);
 
-    A.date = text(A.home, &lv_font_montserrat_16, C_WHITE);
+    A.date = ath_text(A.home, &lv_font_montserrat_16, C_WHITE);
     lv_obj_set_style_text_opa(A.date, LV_OPA_70, 0);
     lv_obj_align(A.date, LV_ALIGN_TOP_MID, 0, 0);
-    A.clock = text(A.home, &lv_font_montserrat_48, C_WHITE);
+    A.clock = ath_text(A.home, &lv_font_montserrat_48, C_WHITE);
     lv_obj_align(A.clock, LV_ALIGN_TOP_MID, 0, 12);
 
     const int top = 64, bottom = 26, ICON = 40, CELL_H = 58, CELL_W = 64;
@@ -302,14 +208,14 @@ static void build_home(void) {
         lv_obj_set_style_shadow_offset_y(icon, 2, 0);
         lv_obj_set_style_shadow_opa(icon, LV_OPA_40, 0);
         lv_obj_set_style_shadow_color(icon, C_BLACK, 0);
-        lv_obj_t *g = text(icon, &lv_font_montserrat_20, C_WHITE);
+        lv_obj_t *g = ath_text(icon, &lv_font_montserrat_20, C_WHITE);
         if (st->glyph) lv_label_set_text(g, st->glyph);
         else {
             char init[2] = {A.app[A.n].name[0] ? A.app[A.n].name[0] : '?', 0};
             lv_label_set_text(g, init);
         }
         lv_obj_center(g);
-        lv_obj_t *name = text(t, &lv_font_montserrat_12, C_WHITE);
+        lv_obj_t *name = ath_text(t, &lv_font_montserrat_12, C_WHITE);
         lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
         lv_obj_set_size(name, CELL_W - 4, 14); /* one line: a longer name ends in dots */
         lv_obj_set_style_text_align(name, LV_TEXT_ALIGN_CENTER, 0);
@@ -327,7 +233,7 @@ static void build_home(void) {
     lv_obj_set_style_radius(pill, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(pill, C_WHITE, 0);
     lv_obj_set_style_bg_opa(pill, LV_OPA_20, 0);
-    lv_obj_t *hint = text(pill, &lv_font_montserrat_12, C_WHITE);
+    lv_obj_t *hint = ath_text(pill, &lv_font_montserrat_12, C_WHITE);
     lv_label_set_text(hint, "Enter open  |  Fn Fn keyboard  |  Cycle recents");
     lv_obj_center(hint);
     update_clock();
@@ -355,7 +261,7 @@ static void sheet_open(sheet_t kind, const char *title, const char *const *rows,
     A.row_info = info;
     A.nrows = n > MAX_ROWS ? MAX_ROWS : n;
     A.row_sel = 0;
-    A.sheet_title = text(A.sheet, &lv_font_montserrat_20, C_INK);
+    A.sheet_title = ath_text(A.sheet, &lv_font_montserrat_20, C_INK);
     lv_label_set_text(A.sheet_title, title);
     lv_obj_set_pos(A.sheet_title, 14, 10);
     int rh = info ? 20 : 26, y = 40;
@@ -366,13 +272,13 @@ static void sheet_open(sheet_t kind, const char *title, const char *const *rows,
         lv_obj_set_pos(r, 10, y + i * (rh + 4));
         lv_obj_set_style_radius(r, 8, 0);
         lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
-        lv_obj_t *l = text(r, info ? &lv_font_montserrat_12 : &lv_font_montserrat_16, C_INK);
+        lv_obj_t *l = ath_text(r, info ? &lv_font_montserrat_12 : &lv_font_montserrat_16, C_INK);
         lv_label_set_text(l, rows[i]);
         lv_obj_align(l, LV_ALIGN_LEFT_MID, 10, 0);
         A.row[i] = r;
         style_row(i);
     }
-    A.sheet_hint = text(A.sheet, &lv_font_montserrat_12, C_GREY);
+    A.sheet_hint = ath_text(A.sheet, &lv_font_montserrat_12, C_GREY);
     lv_label_set_text(A.sheet_hint, info ? "Esc back" : "arrows choose  |  Enter open  |  Esc close");
     lv_obj_align(A.sheet_hint, LV_ALIGN_BOTTOM_MID, 0, -8);
     lv_obj_remove_flag(A.sheet, LV_OBJ_FLAG_HIDDEN);
@@ -434,260 +340,15 @@ static void sheet_move(int d) {
 }
 
 
-/* ---- toolkit pages: a bound menu (Settings) drawn in Athena's look ---- */
-
-static pal_menu_t *page_menu(void) {
-    if (pal_desktop_overlay_count() || pal_desktop_locked() || pal_toast_showing()) return NULL;
-    return pal_menu_bound(pal_desktop_front_id());
-}
-
-static bool selectable(const pal_menu_row_t *r) {
-    return r->kind != PAL_MENU_SECTION && !r->inert && !(r->kind == PAL_MENU_SLIDER && !r->set);
-}
-
-static void page_value(int i) {
-    const pal_menu_row_t *r = &A.ppage->rows[A.pidx[i]];
-    if (!A.pval[i]) return;
-    char v[VALUE_MAX];
-    if (r->kind == PAL_MENU_TOGGLE) { /* a switch: green when on, the knob moves */
-        bool on = r->get && r->get(r->ctx);
-        snprintf(v, sizeof(v), "%d", on);
-        if (!strcmp(v, A.ptext[i])) return;
-        nema_strlcpy(A.ptext[i], v, sizeof(A.ptext[i]));
-        lv_obj_set_style_bg_color(A.pval[i], on ? C_GREEN : C_TRACK, 0);
-        lv_obj_t *knob = lv_obj_get_child(A.pval[i], 0);
-        lv_obj_align(knob, on ? LV_ALIGN_RIGHT_MID : LV_ALIGN_LEFT_MID, on ? -2 : 2, 0);
-        return;
-    }
-    pal_menu_value_text(r, v, sizeof(v));
-    if (r->kind == PAL_MENU_SUBMENU || (r->kind == PAL_MENU_CHOICE)) {
-        size_t n = strlen(v);
-        snprintf(v + n, sizeof(v) - n, "%s%s", n ? "  " : "", LV_SYMBOL_RIGHT);
-    }
-    if (!strcmp(v, A.ptext[i])) return;
-    nema_strlcpy(A.ptext[i], v, sizeof(A.ptext[i]));
-    lv_label_set_text(A.pval[i], v);
-}
-
-static void page_style_row(int i) {
-    const pal_menu_row_t *r = &A.ppage->rows[A.pidx[i]];
-    if (r->kind == PAL_MENU_SECTION) return;
-    bool on = A.pidx[i] == A.psel;
-    lv_obj_set_style_bg_color(A.prow[i], on ? C_BLUE : C_ROW, 0);
-    lv_obj_t *label = lv_obj_get_child(A.prow[i], 0);
-    lv_color_t ink = r->danger ? C_RED : r->disabled ? C_GREY : C_INK;
-    lv_obj_set_style_text_color(label, on ? C_WHITE : ink, 0);
-    if (A.pval[i] && r->kind != PAL_MENU_TOGGLE) lv_obj_set_style_text_color(A.pval[i], on ? C_WHITE : C_GREY, 0);
-}
-
-static void page_build(void) {
-    lv_obj_clean(A.page_list);
-    A.pn = 0;
-    A.psel = A.ppage->sel;
-    A.prows = A.ppage->n;
-    const char *title = A.ppage->title && A.ppage->title[0] ? A.ppage->title : NULL;
-    if (!title) { /* a root page without a title: the app's name */
-        pal_view_t *fv = pal_desktop_view(pal_desktop_front_id());
-        title = fv && fv->title ? fv->title : "";
-    }
-    lv_label_set_text_fmt(A.page_title, "%s%s", pal_menu_depth(A.pm) > 1 ? LV_SYMBOL_LEFT "  " : "", title);
-    int y = 2, w = A.w - 20;
-    for (size_t k = 0; k < A.ppage->n && A.pn < MAX_PAGE_ROWS; k++) {
-        const pal_menu_row_t *r = &A.ppage->rows[k];
-        if (r->hidden) continue;
-        int i = A.pn++;
-        A.pidx[i] = (int)k;
-        A.pval[i] = NULL;
-        A.ptext[i][0] = 0;
-        lv_obj_t *row = lv_obj_create(A.page_list);
-        lv_obj_remove_style_all(row);
-        A.prow[i] = row;
-        if (r->kind == PAL_MENU_SECTION) { /* a small grey header above its group */
-            lv_obj_set_size(row, w, 18);
-            lv_obj_set_pos(row, 10, y + 2);
-            lv_obj_t *l = text(row, &lv_font_montserrat_12, C_GREY);
-            lv_label_set_text(l, r->label ? r->label : "");
-            lv_obj_align(l, LV_ALIGN_BOTTOM_LEFT, 6, 0);
-            y += 22;
-            continue;
-        }
-        lv_obj_set_size(row, w, 26);
-        lv_obj_set_pos(row, 10, y);
-        lv_obj_set_style_radius(row, 8, 0);
-        lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
-        lv_obj_t *l = text(row, &lv_font_montserrat_16, C_INK);
-        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l, w / 2 + 30);
-        lv_label_set_text(l, r->label ? r->label : "");
-        lv_obj_align(l, LV_ALIGN_LEFT_MID, 10, 0);
-        if (r->kind == PAL_MENU_TOGGLE) {
-            lv_obj_t *sw = lv_obj_create(row);
-            lv_obj_remove_style_all(sw);
-            lv_obj_set_size(sw, 34, 18);
-            lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -8, 0);
-            lv_obj_set_style_radius(sw, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
-            lv_obj_t *knob = lv_obj_create(sw);
-            lv_obj_remove_style_all(knob);
-            lv_obj_set_size(knob, 14, 14);
-            lv_obj_set_style_radius(knob, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_color(knob, C_WHITE, 0);
-            lv_obj_set_style_bg_opa(knob, LV_OPA_COVER, 0);
-            A.pval[i] = sw;
-        } else {
-            lv_obj_t *v = text(row, &lv_font_montserrat_12, C_GREY);
-            lv_label_set_long_mode(v, LV_LABEL_LONG_DOT);
-            lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);
-            lv_obj_set_width(v, w / 2 - 40);
-            lv_label_set_text(v, "");
-            lv_obj_align(v, LV_ALIGN_RIGHT_MID, -10, 0);
-            A.pval[i] = v;
-        }
-        page_value(i);
-        page_style_row(i);
-        y += 30;
-    }
-    if (A.pn == 0) lv_label_set_text(A.page_empty, A.ppage->empty ? A.ppage->empty : "Nothing here");
-    else lv_label_set_text(A.page_empty, "");
-    for (int i = 0; i < A.pn; i++)
-        if (A.pidx[i] == A.psel) lv_obj_scroll_to_view(A.prow[i], LV_ANIM_OFF);
-}
-
-/* Follows the bound menu: a new page or row count rebuilds, a new selection restyles, values refresh twice a second. */
-static void page_sync(pal_menu_t *m, uint32_t now) {
-    pal_menu_page_t *p = pal_menu_top(m);
-    if (!p) return;
-    if (m != A.pm || p != A.ppage || p->n != A.prows) {
-        A.pm = m;
-        A.ppage = p;
-        page_build();
-        A.pvals_ms = now;
-        return;
-    }
-    if (p->sel != A.psel) {
-        int old = A.psel;
-        A.psel = p->sel;
-        for (int i = 0; i < A.pn; i++)
-            if (A.pidx[i] == old || A.pidx[i] == A.psel) {
-                page_style_row(i);
-                if (A.pidx[i] == A.psel) lv_obj_scroll_to_view(A.prow[i], LV_ANIM_OFF);
-            }
-    }
-    if (now - A.pvals_ms >= 500u) {
-        A.pvals_ms = now;
-        for (int i = 0; i < A.pn; i++) page_value(i);
-    }
-    (void)selectable;
-}
-
-static void build_page(void) {
-    A.page = lv_obj_create(lv_screen_active());
-    lv_obj_remove_style_all(A.page);
-    lv_obj_set_pos(A.page, 0, BAR_H);
-    lv_obj_set_size(A.page, A.w, A.h - BAR_H);
-    lv_obj_set_style_bg_color(A.page, C_SHEET, 0);
-    lv_obj_set_style_bg_opa(A.page, LV_OPA_COVER, 0);
-    lv_obj_remove_flag(A.page, LV_OBJ_FLAG_SCROLLABLE);
-    A.page_title = text(A.page, &lv_font_montserrat_20, C_INK);
-    lv_obj_set_pos(A.page_title, 14, 4);
-    A.page_list = lv_obj_create(A.page);
-    lv_obj_remove_style_all(A.page_list);
-    lv_obj_set_pos(A.page_list, 0, 32);
-    lv_obj_set_size(A.page_list, A.w, A.h - BAR_H - 32);
-    lv_obj_add_flag(A.page_list, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(A.page_list, LV_SCROLLBAR_MODE_OFF);
-    A.page_empty = text(A.page, &lv_font_montserrat_16, C_GREY);
-    lv_label_set_text(A.page_empty, "");
-    lv_obj_align(A.page_empty, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(A.page, LV_OBJ_FLAG_HIDDEN);
-}
-
-/* ---- the lock greeter: Athena's lock screen. The PIN, its check and the lock state are the system's (pal/ui.h, pal/desktop.h). ---- */
-
-static void build_lock(void) {
-    A.lock = lv_obj_create(lv_layer_top());
-    lv_obj_remove_style_all(A.lock);
-    lv_obj_set_pos(A.lock, 0, 0);
-    lv_obj_set_size(A.lock, A.w, A.h);
-    lv_obj_set_style_bg_color(A.lock, lv_color_hex(0x0B0B1E), 0);
-    lv_obj_set_style_bg_grad_color(A.lock, C_WALL_TOP, 0);
-    lv_obj_set_style_bg_grad_dir(A.lock, LV_GRAD_DIR_VER, 0);
-    lv_obj_set_style_bg_opa(A.lock, LV_OPA_COVER, 0);
-    lv_obj_remove_flag(A.lock, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_t *glyph = text(A.lock, &lv_font_montserrat_16, C_WHITE);
-    lv_label_set_text(glyph, LV_SYMBOL_EYE_CLOSE);
-    lv_obj_align(glyph, LV_ALIGN_TOP_MID, 0, BAR_H + 6);
-    A.lock_clock = text(A.lock, &lv_font_montserrat_48, C_WHITE);
-    lv_obj_align(A.lock_clock, LV_ALIGN_TOP_MID, 0, BAR_H + 26);
-    A.lock_date = text(A.lock, &lv_font_montserrat_16, C_WHITE);
-    lv_obj_set_style_text_opa(A.lock_date, LV_OPA_70, 0);
-    lv_obj_align(A.lock_date, LV_ALIGN_TOP_MID, 0, BAR_H + 84);
-    A.lock_dots = text(A.lock, &lv_font_montserrat_20, C_WHITE);
-    lv_obj_align(A.lock_dots, LV_ALIGN_TOP_MID, 0, BAR_H + 116);
-    A.lock_msg = text(A.lock, &lv_font_montserrat_12, lv_color_hex(0xFF6B6B));
-    lv_obj_align(A.lock_msg, LV_ALIGN_TOP_MID, 0, BAR_H + 146);
-    A.lock_hint = text(A.lock, &lv_font_montserrat_12, C_WHITE);
-    lv_obj_set_style_text_opa(A.lock_hint, LV_OPA_70, 0);
-    lv_obj_align(A.lock_hint, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_add_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
-}
-
-static void lock_sync(void) {
-    bool locked = pal_desktop_locked();
-    if (locked != A.lock_shown) {
-        A.lock_shown = locked;
-        if (locked) lv_obj_remove_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
-        else lv_obj_add_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
-        A.lock_dirty = true;
-        A.force = true;
-    }
-    if (!locked || !A.lock_dirty) return;
-    A.lock_dirty = false;
-    pal_tm_t t;
-    pal_time_local(&t);
-    lv_label_set_text_fmt(A.lock_clock, "%02d:%02d", t.hour, t.minute);
-    lv_label_set_text(A.lock_date, lv_label_get_text(A.date));
-    bool pin = pal_ui_pin_is_set();
-    char dots[3 * PAL_UI_PIN_MAX + 1] = "";
-    for (int i = 0; pin && i < A.pin.len && i < PAL_UI_PIN_MAX; i++) strcat(dots, "\xE2\x97\x8F"); /* a filled circle */
-    lv_label_set_text(A.lock_dots, dots);
-    lv_label_set_text(A.lock_msg, pin && A.pin.last_wrong ? "Wrong PIN" : "");
-    lv_label_set_text(A.lock_hint, pin ? "Type the PIN, then Enter" : "Press Enter twice to unlock");
-}
-
-static void lock_enter(pal_view_t *v) {
-    (void)v;
-    pal_ui_pin_reset(&A.pin);
-    A.enters = 0;
-    A.lock_dirty = true;
-}
-
-static bool lock_key(pal_view_t *v, const pal_key_t *k) {
-    (void)v;
-    A.lock_dirty = true;
-    if (pal_ui_pin_is_set()) {
-        if (pal_ui_pin_key(&A.pin, k, pal_ui_pin_check) == PAL_UI_PIN_OK) pal_ui_unlock();
-        return true;
-    }
-    if (k->sym == PAL_KEY_ENTER) {
-        if (++A.enters >= 2) pal_ui_unlock();
-    } else {
-        A.enters = 0;
-    }
-    return true;
-}
-
-static pal_view_t LOCK_VIEW = {.id = "athena-lock", .title = "Locked", .flags = PAL_VIEW_FULLSCREEN | PAL_VIEW_HIDDEN,
-                               .enter = lock_enter, .key = lock_key};
-
 /* ---- the chrome ---- */
 
-static bool home_in_front(void) {
+bool ath_home_in_front(void) {
     return !strcmp(pal_desktop_front_id(), "athena") && pal_desktop_overlay_count() == 0 && !pal_desktop_locked();
 }
 
 static bool owns_screen(void) {
-    return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || (home_in_front() && !pal_toast_showing()) || page_menu());
+    /* a shell service in front is Athena's to draw (athena_shell.c): asked here, before the compositor's frame, so it never draws one */
+    return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || pal_shell_top(NULL) || ath_home_in_front() || ath_page_menu());
 }
 
 static void ensure(void) {
@@ -707,7 +368,7 @@ static void ensure(void) {
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     build_home();
-    build_page();
+    ath_build_page();
     A.sheet = lv_obj_create(lv_layer_top()); /* created before the bar, so the bar stays above it */
     lv_obj_remove_style_all(A.sheet);
     lv_obj_set_pos(A.sheet, 8, BAR_H + 4);
@@ -717,7 +378,8 @@ static void ensure(void) {
     lv_obj_set_style_bg_opa(A.sheet, LV_OPA_COVER, 0);
     lv_obj_add_flag(A.sheet, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(A.sheet, LV_OBJ_FLAG_SCROLLABLE);
-    build_lock(); /* above the sheet, below the bar */
+    ath_shell_build(); /* the modal for the shell services: above the sheet */
+    ath_build_lock();  /* above the modal, below the bar */
     build_bar();
     A.force = true;
 }
@@ -775,8 +437,8 @@ static void chrome_frame(uint32_t now) {
         update_clock();
         A.lock_dirty = true;
     }
-    pal_menu_t *pm = page_menu();
-    int mode = home_in_front() ? 0 : pm ? 1 : 2;
+    pal_menu_t *pm = ath_page_menu();
+    int mode = ath_home_in_front() ? 0 : pm ? 1 : 2;
     if (mode != A.mode) { /* the home and the page share the screen: show one */
         A.mode = mode;
         if (mode == 1) {
@@ -790,10 +452,11 @@ static void chrome_frame(uint32_t now) {
         A.pm = NULL; /* rebuild the page when it shows again */
         A.force = true;
     }
-    if (pm) page_sync(pm, now);
-    lock_sync();
+    if (pm) ath_page_sync(pm, now);
+    ath_lock_sync();
+    ath_shell_sync();
     bool owned = owns_screen();
-    bar_style(!home_in_front());
+    bar_style(!ath_home_in_front());
     bool on = pal_dpm_display_on();
     if (owned != A.owned || on != A.display_on || pal_console_generation() != A.console_gen) A.force = true; /* the console had the screen */
     A.console_gen = pal_console_generation();
@@ -802,7 +465,7 @@ static void chrome_frame(uint32_t now) {
     if (A.force) lv_obj_invalidate(lv_screen_active());
     lv_timer_handler();
     if (!on) return;
-    if (owned && A.kind != SHEET_NONE && !home_in_front()) {
+    if (owned && A.kind != SHEET_NONE && !ath_home_in_front()) {
         /* a sheet over an app: only the bar and the sheet are ours; the app stays on the panel around it */
         if (A.force || A.pending) {
             send(0, 0, A.w - 1, BAR_H - 1);
@@ -823,7 +486,7 @@ static int32_t chrome_next(uint32_t now) {
     return A.disp ? 33 : 0;
 }
 
-static const pal_desktop_chrome_t CHROME = {.hide_bar = true, .hide_legend = true, .top_px = BAR_H, .key = chrome_key,
+static const pal_desktop_chrome_t CHROME = {.hide_bar = true, .hide_legend = true, .top_px = BAR_H, .key = chrome_key, .services = true,
                                             .owns_screen = owns_screen, .frame = chrome_frame, .next_ms = chrome_next};
 
 /* ---- the home view (the compositor's front view while Athena is home) ---- */
@@ -834,15 +497,6 @@ static void enter(pal_view_t *v) {
         build_home(); /* the launcher's apps may have changed */
         A.force = true;
     }
-}
-
-/* Only while something covers the home (a toast, the on-screen keyboard): copy the home into the 8-bit canvas. */
-static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t area, bool full) {
-    (void)v, (void)full;
-    if (!A.disp) return;
-    for (int y = area.y; y < area.y + area.h && y < A.h; y++)
-        for (int x = area.x; x < area.x + area.w && x < A.w; x++) c->px[y * c->stride + x] = to_index(s_frame[y * A.w + x], x, y);
-    pal_mark(c, area.x, area.y, area.w, area.h);
 }
 
 static bool key(pal_view_t *v, const pal_key_t *k) {
@@ -861,7 +515,8 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     return true;
 }
 
-static pal_view_t ATHENA_VIEW = {.id = "athena", .title = "Athena", .flags = PAL_VIEW_HIDDEN, .enter = enter, .draw = draw, .key = key};
+/* The home is always Athena's to draw (it owns the screen while the home is in front), so the view draws nothing itself. */
+static pal_view_t ATHENA_VIEW = {.id = "athena", .title = "Athena", .flags = PAL_VIEW_HIDDEN, .enter = enter, .key = key};
 
 /* The session's start takes the pool and the frame and registers its views (they are its own: its stop takes them away). LVGL
  * starts on the first frame. Its stop shuts LVGL down and gives back all of its memory. */
@@ -880,7 +535,12 @@ static bool athena_start(void) {
         return false;
     }
     memset(&A, 0, sizeof(A));
-    if (pal_desktop_register(&ATHENA_VIEW) != NEMA_OK || pal_desktop_register(&LOCK_VIEW) != NEMA_OK) {
+    A.snap = nema_alloc_ex(NEMA_MEM_EXTERNAL, s_owner, (size_t)w * (size_t)h * 2u, 4, 0); /* the screen under a modal */
+    if (!A.snap) {
+        athena_stop();
+        return false;
+    }
+    if (pal_desktop_register(&ATHENA_VIEW) != NEMA_OK || pal_desktop_register(&ath_lock_view) != NEMA_OK) {
         athena_stop(); /* the registry takes the views it got away again */
         return false;
     }
@@ -893,6 +553,7 @@ static bool athena_start(void) {
 
 static void athena_stop(void) {
     if (A.disp) lv_deinit();
+    nema_free(A.snap);
     memset(&A, 0, sizeof(A));
     nema_free(s_pool), nema_free(s_frame);
     s_pool = NULL, s_frame = NULL;

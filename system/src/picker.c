@@ -9,10 +9,12 @@
 #include "pal/dialog.h"
 #include "pal/kui.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 
 static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full);
 static bool key(pal_view_t *v, const pal_key_t *k);
 static void leave(pal_view_t *v);
+static bool describe(pal_view_t *v, pal_shell_view_t *o);
 
 static struct {
     pal_view_t view;
@@ -23,7 +25,7 @@ static struct {
     pal_picker_cb_t cb;
     void *ctx;
 } PK = {.view = {.id = "picker", .title = "Picker", .flags = PAL_VIEW_OPAQUE, .draw = draw, .key = key, .leave = leave,
-                 .data = &PK}};
+                 .data = &PK, .describe = describe}};
 
 static kui_canvas_t S NEMA_EXT_BSS;
 
@@ -74,6 +76,16 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     if (PK.sel < PK.top) PK.top = PK.sel;
     if (PK.vis > 0 && PK.sel >= PK.top + PK.vis) PK.top = PK.sel - PK.vis + 1;
     pal_desktop_invalidate();
+    return true;
+}
+
+static bool describe(pal_view_t *v, pal_shell_view_t *o) {
+    (void)v;
+    o->kind = PAL_SHELL_PICKER;
+    o->title = PK.title;
+    o->nitems = PK.n < PAL_SHELL_ITEMS ? PK.n : PAL_SHELL_ITEMS;
+    for (int i = 0; i < o->nitems; i++) o->items[i] = PK.items[i];
+    o->sel = PK.sel;
     return true;
 }
 

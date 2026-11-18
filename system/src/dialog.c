@@ -9,6 +9,7 @@
 #include "nema/nema.h"
 #include "pal/dialog.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 #include "pal/theme.h"
 
 #define SLOTS 2
@@ -73,7 +74,19 @@ static void leave(pal_view_t *v) {
     if (cb) cb(false, ctx);
 }
 
-#define VIEW(i) {.view = {.id = "dialog", .title = "Dialog", .draw = draw, .key = key, .leave = leave, .data = &DL[i]}}
+static bool describe(pal_view_t *v, pal_shell_view_t *o) {
+    dlg_t *d = (dlg_t *)v->data;
+    o->kind = PAL_SHELL_DIALOG;
+    o->title = d->title;
+    o->text = d->text;
+    o->items[0] = d->labels[0];
+    o->items[1] = d->labels[1];
+    o->nitems = 2;
+    o->sel = d->sel;
+    return true;
+}
+
+#define VIEW(i) {.view = {.id = "dialog", .title = "Dialog", .draw = draw, .key = key, .leave = leave, .data = &DL[i], .describe = describe}}
 static dlg_t DL[SLOTS] = {VIEW(0), VIEW(1)};
 
 static void post_push(void *arg) {

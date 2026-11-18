@@ -45,6 +45,7 @@ pal_view_t pal_vk_view = {
     .pump = pump,
     .tick = tick,
     .tick_ms = TICK_MS,
+    .describe = vk_describe,
 };
 
 /* ---- desktop and test seams ---- */

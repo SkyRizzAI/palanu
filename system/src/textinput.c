@@ -9,6 +9,7 @@
 #include "pal/dialog.h"
 #include "pal/display.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 #include "pal/theme.h"
 #include "theme_widgets.h"
 
@@ -19,6 +20,7 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full);
 static bool key(pal_view_t *v, const pal_key_t *k);
 static void tick(pal_view_t *v, uint32_t now);
 static void leave(pal_view_t *v);
+static bool describe(pal_view_t *v, pal_shell_view_t *o);
 
 static const pal_legend_item_t LEGENDS[] = {{PAL_ACT_OK, "done", NULL}, {PAL_ACT_BACK, "cancel", NULL}};
 
@@ -31,7 +33,7 @@ static struct {
     pal_textinput_cb_t cb;
     void *ctx;
 } TI = {.view = {.id = "textinput", .title = "Text input", .draw = draw, .key = key, .leave = leave, .tick = tick,
-                 .tick_ms = BLINK_MS, .data = &TI, .legends = LEGENDS, .nlegends = 2}};
+                 .tick_ms = BLINK_MS, .data = &TI, .legends = LEGENDS, .nlegends = 2, .describe = describe}};
 
 static void release(void) {
     desk_lock();
@@ -135,6 +137,19 @@ static void tick(pal_view_t *v, uint32_t now) {
 }
 
 /* Removed by someone else: the caller hears a cancel. */
+/* The entry as shown: asterisks when masked. */
+static char s_shown[PAL_DIALOG_TEXT];
+static bool describe(pal_view_t *v, pal_shell_view_t *o) {
+    (void)v;
+    for (int i = 0; i < TI.len; i++) s_shown[i] = TI.mask ? '*' : TI.buf[i];
+    s_shown[TI.len] = 0;
+    o->kind = PAL_SHELL_TEXT;
+    o->title = TI.title;
+    o->text = s_shown;
+    o->cursor = TI.caret;
+    return true;
+}
+
 static void leave(pal_view_t *v) {
     (void)v;
     if (TI.done) return;

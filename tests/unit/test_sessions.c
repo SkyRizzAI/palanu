@@ -11,7 +11,9 @@
 #include "pal/desktops.h"
 #include "pal/display.h"
 #include "pal/input.h"
+#include "pal/dialog.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 #include "pal/theme.h"
 #include "pal/ui.h"
 #include "test.h"
@@ -133,6 +135,48 @@ TEST(with_no_session_the_console_has_the_screen_and_esc_goes_nowhere) {
     CHECK(wait_front("home"));
 }
 
+static volatile int g_answer = -2;
+static void on_answer(bool ok, void *ctx) { (void)ctx, g_answer = ok; }
+
+static bool wait_answer(int want) {
+    for (int t = 0; t < 3000; t += 5) {
+        if (g_answer == want) return true;
+        nema_port_sleep_ms(5);
+    }
+    return false;
+}
+
+/* P3: a service is data the running session draws; its keys and its answer are the system's under every session. */
+TEST(a_dialog_is_drawn_by_athena_and_answered_by_the_system) {
+    CHECK(pal_desktops_use("athena") == NEMA_OK);
+    CHECK(wait_front("athena"));
+    g_answer = -2;
+    CHECK(pal_dialog_confirm("Erase", "Erase it?", "Erase", "Keep", on_answer, NULL) == NEMA_OK);
+    CHECK(wait_top("dialog"));
+    pal_shell_view_t v;
+    bool described = false;
+    for (int t = 0; t < 3000 && !described; t += 5, nema_port_sleep_ms(5)) described = pal_shell_top(&v);
+    CHECK(described && v.kind == PAL_SHELL_DIALOG && !strcmp(v.items[1], "Erase"));
+    key(PAL_KEY_RIGHT, 0);
+    key(PAL_KEY_ENTER, 0);
+    CHECK(wait_answer(1));
+    CHECK(wait_top(NULL));
+}
+
+TEST(with_no_session_the_console_takes_a_dialog_keys) {
+    pal_desktops_stop();
+    CHECK(wait_console(true));
+    g_answer = -2;
+    CHECK(pal_dialog_confirm("Restart", "Restart now?", "Restart", "Cancel", on_answer, NULL) == NEMA_OK);
+    CHECK(wait_top("dialog"));
+    key(PAL_KEY_ESC, 0); /* the console gives the key to the dialog: Esc cancels */
+    CHECK(wait_answer(0));
+    CHECK(wait_top(NULL));
+    CHECK(pal_desktops_use("classic") == NEMA_OK);
+    pal_console_hide();
+    CHECK(wait_console(false));
+}
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -155,5 +199,7 @@ int main(void) {
     RUN(the_lock_screen_is_the_session_own_and_the_console_is_reachable_from_it);
     RUN(switching_back_takes_every_athena_screen_away);
     RUN(with_no_session_the_console_has_the_screen_and_esc_goes_nowhere);
+    RUN(a_dialog_is_drawn_by_athena_and_answered_by_the_system);
+    RUN(with_no_session_the_console_takes_a_dialog_keys);
     return TEST_DONE();
 }

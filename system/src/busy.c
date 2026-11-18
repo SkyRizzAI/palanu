@@ -5,6 +5,7 @@
 #include "desktop_int.h"
 #include "pal/dialog.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 #include "pal/theme.h"
 #include "theme_widgets.h"
 
@@ -16,6 +17,7 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full);
 static bool key(pal_view_t *v, const pal_key_t *k);
 static void tick(pal_view_t *v, uint32_t now);
 static void leave(pal_view_t *v);
+static bool describe(pal_view_t *v, pal_shell_view_t *o);
 
 static struct {
     pal_view_t view;
@@ -23,7 +25,7 @@ static struct {
     char text[PAL_DIALOG_TEXT];
     int frame;
 } BY = {.view = {.id = "busy", .title = "Busy", .draw = draw, .key = key, .leave = leave, .tick = tick,
-                 .tick_ms = TICK_MS, .data = &BY}};
+                 .tick_ms = TICK_MS, .data = &BY, .describe = describe}};
 
 static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     (void)v, (void)full;
@@ -50,6 +52,14 @@ static void tick(pal_view_t *v, uint32_t now) {
     (void)v, (void)now;
     BY.frame++;
     pal_desktop_invalidate();
+}
+
+static bool describe(pal_view_t *v, pal_shell_view_t *o) {
+    (void)v;
+    o->kind = PAL_SHELL_BUSY;
+    o->text = BY.text;
+    o->sel = BY.frame;
+    return true;
 }
 
 static void leave(pal_view_t *v) {

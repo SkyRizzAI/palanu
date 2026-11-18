@@ -19,6 +19,7 @@
 #include "pal/font.h"
 #include "pal/gfx.h"
 #include "pal/perf.h"
+#include "pal/shell.h"
 #include "pal/svc.h"
 #include "pal/term.h"
 #include "pal/theme.h"
@@ -50,6 +51,7 @@ static struct {
     pal_term_t *term;
     int x0, y0;
     int cursor_row; /* the row the cursor was drawn on: it is drawn again without it when the cursor moves */
+    bool shell_box;  /* a shell service's text box is drawn over the terminal */
     nema_tty_t *tty;
     nema_pid_t pid;
     char pin[PAL_UI_PIN_MAX + 1];
@@ -278,6 +280,7 @@ bool pal_console_key(const pal_key_t *k) {
         return true;
     }
     if (!C.front) return false;
+    if (!pal_desktops_active()[0] && pal_shell_key(k)) return true; /* no session: the console shows the services and gives them the keys */
     uint32_t now = now_ms();
     switch (C.mode) {
     case M_SPLASH: /* any key shows the log under the splash */
@@ -407,6 +410,42 @@ static void splash(uint32_t now) {
     C.painted = p;
 }
 
+/* A shell service with no session to draw it (pal/shell.h): a framed text box over the bottom of the terminal. */
+static void shell_box(const pal_shell_view_t *v) {
+    pal_canvas_t *c = &C.cv;
+    const pal_font_t *f = font();
+    char lines[8][64];
+    int n = 0, cols = c->w / f->w - 2;
+    if (cols > 62) cols = 62;
+    if (v->title && v->title[0]) snprintf(lines[n++], sizeof(lines[0]), "%.*s", cols, v->title);
+    switch (v->kind) {
+    case PAL_SHELL_DIALOG:
+        snprintf(lines[n++], sizeof(lines[0]), "%.*s", cols, v->text ? v->text : "");
+        snprintf(lines[n++], sizeof(lines[0]), "%s%s%s   %s%s%s", v->sel == 0 ? "[" : " ", v->items[0], v->sel == 0 ? "]" : " ",
+                 v->sel == 1 ? "[" : " ", v->items[1], v->sel == 1 ? "]" : " ");
+        break;
+    case PAL_SHELL_PICKER: {
+        int first = v->sel > 3 ? v->sel - 3 : 0;
+        for (int i = first; i < v->nitems && n < 7; i++) snprintf(lines[n++], sizeof(lines[0]), "%s %.*s", i == v->sel ? ">" : " ", cols - 2, v->items[i]);
+        break;
+    }
+    case PAL_SHELL_TEXT:
+    case PAL_SHELL_KEYBOARD: {
+        const char *t = v->text ? v->text : "";
+        int len = (int)strlen(t), from = len > cols - 3 ? len - (cols - 3) : 0;
+        snprintf(lines[n++], sizeof(lines[0]), "> %s_", t + from);
+        snprintf(lines[n++], sizeof(lines[0]), "Enter: OK   Esc: cancel");
+        break;
+    }
+    case PAL_SHELL_BUSY: snprintf(lines[n++], sizeof(lines[0]), "%c %.*s", "|/-\\"[v->sel & 3], cols - 2, v->text ? v->text : ""); break;
+    default: break;
+    }
+    int h = (n + 1) * f->h, y = c->h - h;
+    pal_fill(c, 0, y - 2, c->w, h + 2, PAL_C_PANEL);
+    pal_fill(c, 0, y - 2, c->w, 1, PAL_C_ACCENT);
+    for (int i = 0; i < n; i++) pal_text(c, f, f->w, y + f->h / 2 + i * f->h, lines[i], i == 0 && v->title && v->title[0] ? PAL_C_INK : PAL_C_TERM_FG, PAL_C_PANEL);
+}
+
 void pal_console_render(bool full) {
     if (!C.ready || !C.front || !pal_dpm_display_on()) return;
     if (full) C.full = true;
@@ -423,6 +462,15 @@ void pal_console_render(bool full) {
         if (cy != C.cursor_row) pal_term_mark_row(C.term, C.cursor_row);
         C.cursor_row = cy;
         pal_term_draw(C.term, &C.cv, font(), C.x0, C.y0, C.cursor_on && C.mode >= M_LOGIN);
+        pal_shell_view_t sv;
+        bool box = !pal_desktops_active()[0] && pal_shell_top(&sv);
+        if (box) shell_box(&sv);
+        else if (C.shell_box) { /* the service closed: the terminal under it again */
+            pal_clear(&C.cv, PAL_C_TERM_BG);
+            pal_term_mark_all(C.term);
+            pal_term_draw(C.term, &C.cv, font(), C.x0, C.y0, C.cursor_on && C.mode >= M_LOGIN);
+        }
+        C.shell_box = box;
     }
     C.full = false;
     pal_rect_t r;

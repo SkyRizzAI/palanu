@@ -479,7 +479,7 @@ static void draw_layer(pal_view_t *v, uint32_t flags, bool full) {
 
 /* The reference toast: a full-width band right under the status bar (kui_toast_band), not a box in the middle. */
 static void draw_toast(pal_canvas_t *c) {
-    if (!pal_toast_showing()) return;
+    if (!pal_toast_showing() || (D.chrome && D.chrome->services)) return; /* a session that draws the services shows its toasts */
     const pal_theme_t *t = pal_theme_active();
     char text[PAL_TOAST_CHARS + 1];
     nema_strlcpy(text, pal_toast_text(), sizeof(text));

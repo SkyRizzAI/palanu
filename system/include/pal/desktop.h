@@ -24,6 +24,7 @@
 #define PAL_VIEW_NOLEGEND 0x20u  /* no legend bar while this view is the top layer, or the layer the bar would show for */
 
 typedef struct pal_view pal_view_t;
+struct pal_shell_view;
 struct pal_view {
     const char *id;
     const char *title;
@@ -45,6 +46,9 @@ struct pal_view {
      * must outlive the view's use of it. NULL and 0: no legends. */
     const pal_legend_item_t *legends;
     int nlegends;
+    /* Appended later; optional. A shell service (a dialog, a picker, a text entry, the busy box, the on-screen keyboard) describes
+     * its state as data, so a session can draw it in its own look (pal/shell.h). */
+    bool (*describe)(pal_view_t *v, struct pal_shell_view *out);
 };
 
 typedef struct {
@@ -125,6 +129,8 @@ typedef struct {
     void (*frame)(uint32_t now_ms);
     /* Milliseconds until frame wants to run again, or -1 for no deadline. NULL: no deadline. */
     int32_t (*next_ms)(uint32_t now_ms);
+    /* The session draws the shell services and the toasts itself (pal/shell.h): the compositor draws neither. */
+    bool services;
 } pal_desktop_chrome_t;
 
 /* Set by a desktop environment's start (NULL for classic); applied on the desktop task before the next frame, with a full redraw. The

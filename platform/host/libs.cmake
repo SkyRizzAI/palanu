@@ -79,6 +79,7 @@ add_library(lvgl STATIC ${LVGL_SRC})
 target_include_directories(lvgl PUBLIC ${ROOT}/third_party/lvgl ${ROOT}/system/src/athena)
 target_compile_definitions(lvgl PUBLIC LV_CONF_INCLUDE_SIMPLE LV_LVGL_H_INCLUDE_SIMPLE)
 target_compile_options(lvgl PRIVATE -w) # vendored unmodified
-add_library(palathena STATIC ${ROOT}/system/src/athena/athena.c)
+file(GLOB ATHENA_SRC CONFIGURE_DEPENDS ${ROOT}/system/src/athena/*.c)
+add_library(palathena STATIC ${ATHENA_SRC})
 target_compile_options(palathena PRIVATE -Wall -Wextra -Wshadow -Werror -Wno-unused-parameter)
 target_link_libraries(palathena PUBLIC palsys lvgl)

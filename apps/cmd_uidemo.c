@@ -2,6 +2,7 @@
  * is a test aid, not a user command: the registry hides the command, and nothing else calls it. Each dialog reports its answer
  * as a toast, so a person at the device sees the callback ran. */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "builtin.h"
@@ -23,6 +24,13 @@ static void on_input(bool ok, const char *text, void *ctx) {
     psys_toast(msg, 1500);
 }
 
+static void on_pick(int index, void *ctx) {
+    (void)ctx;
+    char msg[32];
+    snprintf(msg, sizeof(msg), index < 0 ? "Nothing picked" : "Picked item %d", index + 1);
+    psys_toast(msg, 1500);
+}
+
 static int cmd_uidemo(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "dialog") == 0) {
         pal_dialog_confirm("Erase data", "Erase every file in /home? This cannot be undone.", "Erase", "Keep", on_confirm, NULL);
@@ -36,11 +44,22 @@ static int cmd_uidemo(int argc, char **argv) {
         psys_toast("Saved to /home/notes.txt", 60000);
         return 0;
     }
+    if (argc == 2 && strcmp(argv[1], "picker") == 0) {
+        static const char *const ITEMS[] = {"Light", "Dark", "Follow the time", "High contrast"};
+        pal_picker_open("Appearance", ITEMS, 4, on_pick, NULL);
+        return 0;
+    }
+    if (argc == 3 && strcmp(argv[1], "busy") == 0) { /* the busy box for N seconds */
+        pal_busy_show("Connecting to the network");
+        nema_sleep_ms((uint32_t)atoi(argv[2]) * 1000u);
+        pal_busy_hide();
+        return 0;
+    }
     if (argc == 2 && strcmp(argv[1], "switcher") == 0) {
         pal_desktop_switcher_show();
         return 0;
     }
-    pal_eprintf("usage: uidemo dialog | input | toast | switcher\n");
+    pal_eprintf("usage: uidemo dialog | input | picker | busy SECONDS | toast | switcher\n");
     return 1;
 }
 
