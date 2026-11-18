@@ -33,6 +33,7 @@ struct pal_link {
 
     /* screen mirror */
     bool screen_on;
+    bool screen_rgb; /* the client asked for RGB565 rectangles (SUBSCRIBE 2): the screen frame as it is */
     nema_port_mutex_t *dlock;
     nema_port_mutex_t *tlock; /* the shell session: the worker reads it while the receive path opens and closes it */
     pal_rect_t dirty; /* empty when w == 0 */

@@ -162,7 +162,7 @@ function paint(d: { x: number; y: number; w: number; h: number }) {
   const px = img.data;
   for (let y = d.y; y < d.y + d.h && y < s.h; y++)
     for (let x = d.x; x < d.x + d.w && x < s.w; x++) {
-      const v = s.pal[s.px[y * s.w + x]], o = (y * s.w + x) * 4;
+      const v = s.is565 ? s.rgb[y * s.w + x] : s.pal[s.px[y * s.w + x]], o = (y * s.w + x) * 4;
       px[o] = ((v >> 11) & 31) * 255 / 31; px[o + 1] = ((v >> 5) & 63) * 255 / 63; px[o + 2] = (v & 31) * 255 / 31; px[o + 3] = 255;
     }
   ctx.putImageData(img, 0, 0, d.x, d.y, d.w, d.h);

@@ -56,13 +56,16 @@ and `forge/packages/link` (computer).
 ### screen (2)
 | type | name | payload |
 |---|---|---|
-| 1 | SUBSCRIBE | `on u8`. If 1, the device sends the palette and the whole screen, then only the changed areas |
+| 1 | SUBSCRIBE | `on u8`. 0 stops. 1: the device sends the palette and the whole screen as RECT, then only the changed areas. 2: the same as RECT565 (full colour), when the device has a screen frame; a device without one answers as for 1 |
 | 2 | PALETTE | `first u16`, `count u16`, then `count` little-endian RGB565 values (standard byte order, not the panel bus order) |
 | 3 | RECT | `x u16`, `y u16`, `w u16`, `h u16`, then per row: `n u16` + `n` PackBits bytes over palette indices |
 | 4 | REFRESH | ask for the whole screen to be resent |
 | 5 | SIZE | `w u16`, `h u16` (from the device on subscribe) |
+| 6 | RECT565 | as RECT, but each row is PackBits over 16-bit pixels: RGB565, little endian |
 
-PackBits: a byte `n` 0..127 means copy `n+1` literal bytes; `n` -127..-1 means repeat the next byte `1-n` times.
+PackBits: a byte `n` 0..127 means copy `n+1` literal bytes; `n` -127..-1 means repeat the next byte `1-n` times. In RECT565 the unit is a
+2-byte pixel instead of a byte. The device's screen is one RGB565 frame (docs/DESKTOPS.md); for a client that subscribed with 1 it maps
+each pixel to the palette's 6x6x6 colour cube (indices 16..231).
 
 ### input (3)
 | type | name | payload |

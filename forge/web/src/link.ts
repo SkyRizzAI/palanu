@@ -40,7 +40,8 @@ export class Link {
   onTtyClose: () => void = () => {};
   onConsole: (d: Uint8Array) => void = () => {};
   onScreen: (dirty: { x: number; y: number; w: number; h: number }) => void = () => {};
-  screen = { w: 0, h: 0, px: new Uint8Array(0), pal: new Uint16Array(256) };
+  /** rgb holds RGB565 pixels when the device sends them (SUBSCRIBE 2, RECT565); else px indexes pal. */
+  screen = { w: 0, h: 0, px: new Uint8Array(0), pal: new Uint16Array(256), rgb: new Uint16Array(0), is565: false };
 
   constructor(public t: Transport) {
     this.dec = new Decoder((f) => this.dispatch(f), (d) => this.onConsole(d));
@@ -59,7 +60,7 @@ export class Link {
   private screenFrame(f: Frame) {
     const p = f.payload, s = this.screen, dv = new DataView(p.buffer, p.byteOffset, p.byteLength);
     if (f.type === 5) {
-      s.w = dv.getUint16(0, true); s.h = dv.getUint16(2, true); s.px = new Uint8Array(s.w * s.h);
+      s.w = dv.getUint16(0, true); s.h = dv.getUint16(2, true); s.px = new Uint8Array(s.w * s.h); s.rgb = new Uint16Array(s.w * s.h);
     } else if (f.type === 2) {
       const first = dv.getUint16(0, true), n = dv.getUint16(2, true);
       for (let i = 0; i < n; i++) s.pal[first + i] = dv.getUint16(4 + 2 * i, true);
@@ -78,6 +79,23 @@ export class Link {
         }
         o = end;
       }
+      s.is565 = false;
+      this.onScreen({ x, y, w, h: rows });
+    } else if (f.type === 6 && s.w) { /* RGB565 rows, PackBits over 16-bit pixels */
+      const x = dv.getUint16(0, true), y = dv.getUint16(2, true), w = dv.getUint16(4, true), rows = dv.getUint16(6, true);
+      let o = 8;
+      for (let r = 0; r < rows && o + 2 <= p.length; r++) {
+        const n = dv.getUint16(o, true); o += 2;
+        let i = o, col = 0;
+        const end = o + n, base = (y + r) * s.w + x;
+        while (i < end && col < w) {
+          const c = i8(p[i++]);
+          if (c >= 0) for (let k = 0; k <= c && col < w; k++, i += 2) s.rgb[base + col++] = p[i] | (p[i + 1] << 8);
+          else { const v = p[i] | (p[i + 1] << 8); i += 2; for (let k = 0; k < 1 - c && col < w; k++) s.rgb[base + col++] = v; }
+        }
+        o = end;
+      }
+      s.is565 = true;
       this.onScreen({ x, y, w, h: rows });
     }
   }
@@ -161,7 +179,7 @@ export class Link {
   closeShell() { return this.send(CH.tty, 4); }
 
   // ---- screen and keys ----
-  subscribeScreen(on: boolean) { return this.send(CH.screen, 1, Uint8Array.of(on ? 1 : 0)); }
+  subscribeScreen(on: boolean) { return this.send(CH.screen, 1, Uint8Array.of(on ? 2 : 0)); } // 2: full colour (RGB565) when the device has a screen frame
   refreshScreen() { return this.send(CH.screen, 4); }
   key(sym: number, cp = 0, mods = 0) {
     return this.send(CH.input, 1, Uint8Array.from([sym, mods, cp & 255, (cp >> 8) & 255, (cp >> 16) & 255, cp >>> 24]));

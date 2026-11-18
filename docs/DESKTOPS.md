@@ -1,8 +1,8 @@
 # Desktop environments
 
 > **Being replaced.** This page describes the current hook-based model. ADR-0010 (`docs/adr/0010-system-console-and-desktop-sessions.md`)
-> replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console) and P2 (whole
-> sessions) are done and described below.
+> replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console), P2 (whole
+> sessions) and P4 (one screen frame) are done and described below.
 
 PalanuOS is built like a Linux system. The base system is the kernel, the services and the **system console** (below), a shell on a
 text screen of its own. Everything graphical around the
@@ -87,7 +87,11 @@ typedef struct {          /* pal_desktop_set_chrome(&chrome) in start; cleared a
 } pal_desktop_chrome_t;
 ```
 
-A session that draws in full colour sends RGB565 images with `pal_display_present_rgb565`. It reads the bar's data with
+**The screen frame (P4).** The system owns one RGB565 frame the size of the panel, in PSRAM (`pal_display_frame`). Everything reaches the
+panel through it: the compositor's 8-bit canvas (through the theme's palette), the system console (through its own fixed palette) and a
+full-colour session (`pal_display_present_rgb565`, copied as it is). Remote mirroring reads the frame, so a client sees Athena and the
+console in full colour (`docs/PLP.md`, RECT565); an older client gets the frame mapped onto the palette's colour cube. A panel driver
+without `present_rgb565` keeps the 8-bit path and has no frame (no full-colour session then). A session reads the bar's data with
 `pal_desktop_status()`, at most once a second: the battery is an ADC sample.
 
 ## How apps look under each desktop (decision, ADR-0009)

@@ -15,7 +15,41 @@ static struct {
     void (*tap)(void *ctx, pal_rect_t r);
     void *tap_ctx;
     int reserved_top;
+    uint16_t *frame; /* the screen frame (RGB565, native order); NULL when the driver has no present_rgb565 */
+    nema_port_mutex_t *flock;
 } D;
+
+static uint16_t bswap16(uint16_t v) { return (uint16_t)((v >> 8) | (v << 8)); }
+
+/* An 8-bit rectangle through a palette (byte-swapped, the panel bus order) into the frame. */
+static void to_frame(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *pal) {
+    nema_port_mutex_lock(D.flock);
+    for (int y = r.y; y < r.y + r.h; y++) {
+        const uint8_t *src = px + (size_t)y * (size_t)stride + (size_t)r.x;
+        uint16_t *dst = D.frame + (size_t)y * (size_t)D.ops.width + (size_t)r.x;
+        for (int x = 0; x < r.w; x++) dst[x] = bswap16(pal[src[x]]);
+    }
+    nema_port_mutex_unlock(D.flock);
+}
+
+/* The rectangle of the frame to the panel, then to the mirror. */
+static void send_frame(pal_rect_t r) {
+    D.ops.present_rgb565(D.ops.ctx, D.frame, D.ops.width, r);
+    D.flushes++;
+    if (D.tap) D.tap(D.tap_ctx, r);
+}
+
+/* Every path to the panel: through the frame when there is one, else the 8-bit image straight to the driver. */
+static void present_8(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *pal, bool tap) {
+    if (D.frame) {
+        to_frame(px, stride, r, pal);
+        send_frame(r);
+        return;
+    }
+    D.ops.present(D.ops.ctx, px, stride, r, pal);
+    D.flushes++;
+    if (tap && D.tap) D.tap(D.tap_ctx, r);
+}
 
 nema_err_t pal_display_init(const pal_display_ops_t *ops) {
     memset(&D, 0, sizeof(D));
@@ -24,6 +58,12 @@ nema_err_t pal_display_init(const pal_display_ops_t *ops) {
     void *fb = nema_alloc_ex(NEMA_MEM_ANY, owner, (size_t)ops->width * (size_t)ops->height, 64, NEMA_ALLOC_ZERO);
     if (!fb) return NEMA_ERR_NOMEM;
     pal_canvas_init(&D.canvas, fb, ops->width, ops->height);
+    if (ops->present_rgb565) {
+        D.frame = nema_alloc_ex(NEMA_MEM_EXTERNAL, owner, (size_t)ops->width * (size_t)ops->height * 2u, 64, NEMA_ALLOC_ZERO);
+        if (!D.frame) D.frame = nema_alloc_ex(NEMA_MEM_ANY, owner, (size_t)ops->width * (size_t)ops->height * 2u, 64, NEMA_ALLOC_ZERO);
+        if (!D.frame) return NEMA_ERR_NOMEM;
+    }
+    D.flock = nema_port_mutex_create();
     D.brightness = 80;
     pal_theme_palette(D.palette);
     pal_clear(&D.canvas, PAL_C_PAPER);
@@ -39,7 +79,7 @@ static void overlay_present(bool any, pal_rect_t dirty) {
     pal_canvas_t *c = &D.canvas;
     int x0 = c->dirty_x0, y0 = c->dirty_y0, x1 = c->dirty_x1, y1 = c->dirty_y1;
     pal_rect_t o;
-    if (pal_perf_overlay_paint(c, any, dirty, &o)) D.ops.present(D.ops.ctx, c->px, c->stride, o, D.palette);
+    if (pal_perf_overlay_paint(c, any, dirty, &o)) present_8(c->px, c->stride, o, D.palette, false);
     c->dirty_x0 = x0, c->dirty_y0 = y0, c->dirty_x1 = x1, c->dirty_y1 = y1;
 }
 
@@ -56,10 +96,8 @@ int pal_display_flush(void) {
     int sent = 0;
     if (any) {
         uint32_t p0 = (uint32_t)nema_port_time_us();
-        D.ops.present(D.ops.ctx, D.canvas.px, D.canvas.stride, r, D.palette);
+        present_8(D.canvas.px, D.canvas.stride, r, D.palette, true);
         uint32_t p1 = (uint32_t)nema_port_time_us();
-        D.flushes++;
-        if (D.tap) D.tap(D.tap_ctx, r);
         uint32_t t1 = (uint32_t)nema_port_time_us();
         sent = r.w * r.h;
         pal_perf_flush_done(t1 - t0, p1 - p0, (uint32_t)sent);
@@ -93,15 +131,24 @@ bool pal_display_has_rgb565(void) { return D.ready && D.ops.present_rgb565 != NU
 
 bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r) {
     if (!pal_display_has_rgb565() || r.w <= 0 || r.h <= 0) return false;
-    D.ops.present_rgb565(D.ops.ctx, px, stride, r);
-    D.flushes++;
+    nema_port_mutex_lock(D.flock);
+    for (int y = r.y; y < r.y + r.h; y++)
+        memcpy(D.frame + (size_t)y * (size_t)D.ops.width + (size_t)r.x, px + (size_t)y * (size_t)stride + (size_t)r.x, (size_t)r.w * 2u);
+    nema_port_mutex_unlock(D.flock);
+    send_frame(r);
     return true;
 }
 
 void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette) {
     if (!D.ready || r.w <= 0 || r.h <= 0) return;
-    D.ops.present(D.ops.ctx, px, stride, r, palette);
-    D.flushes++;
+    present_8(px, stride, r, palette, true);
+}
+
+const uint16_t *pal_display_frame(void) { return D.frame; }
+void pal_display_frame_lock(bool on) {
+    if (!D.flock) return;
+    if (on) nema_port_mutex_lock(D.flock);
+    else nema_port_mutex_unlock(D.flock);
 }
 
 void pal_display_reserve_top(int rows) { D.reserved_top = rows < 0 ? 0 : rows; }

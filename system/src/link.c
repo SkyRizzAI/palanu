@@ -9,6 +9,7 @@
 #include "settings_api.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "nema/nema.h"
@@ -27,7 +28,7 @@
 enum { CH_CTL = 0, CH_TTY = 1, CH_SCREEN = 2, CH_INPUT = 3, CH_FS = 4, CH_OTA = 5 };
 enum { CTL_HELLO = 1, CTL_INFO = 2, CTL_PING = 3, CTL_PONG = 4, ERR = 0x7F };
 enum { TTY_OPEN = 1, TTY_DATA = 2, TTY_RESIZE = 3, TTY_CLOSE = 4 };
-enum { SCR_SUBSCRIBE = 1, SCR_PALETTE = 2, SCR_RECT = 3, SCR_REFRESH = 4, SCR_SIZE = 5 };
+enum { SCR_SUBSCRIBE = 1, SCR_PALETTE = 2, SCR_RECT = 3, SCR_REFRESH = 4, SCR_SIZE = 5, SCR_RECT565 = 6 };
 enum { OTA_BEGIN = 1, OTA_DATA = 2, OTA_END = 3, OTA_OK = 4 };
 enum { FS_LIST = 1, FS_ENTRY = 2, FS_END = 3, FS_READ = 4, FS_DATA = 5, FS_WRITE = 6, FS_OK = 7 };
 
@@ -178,15 +179,16 @@ static void screen_all(pal_link_t *l) {
     pal_canvas_t *c = pal_display_canvas();
     nema_port_mutex_lock(l->dlock);
     l->dirty = (pal_rect_t){0, 0, c->w, c->h};
-    l->send_palette = true;
+    l->send_palette = !l->screen_rgb;
     nema_port_mutex_unlock(l->dlock);
 }
 
-static void screen_subscribe(pal_link_t *l, bool on) {
+static void screen_subscribe(pal_link_t *l, bool on, bool rgb) {
     if (on && !l->screen_on) {
         s_screen_link = l;
         pal_display_set_tap(tap, l);
         l->screen_on = true;
+        l->screen_rgb = rgb && pal_display_frame() != NULL;
         pal_canvas_t *c = pal_display_canvas();
         uint8_t sz[4] = {(uint8_t)c->w, (uint8_t)(c->w >> 8), (uint8_t)c->h, (uint8_t)(c->h >> 8)};
         send_frame(l, CH_SCREEN, SCR_SIZE, sz, 4);
@@ -247,6 +249,61 @@ static size_t packbits(const uint8_t *src, int w, uint8_t *dst) {
     return o;
 }
 
+/* PackBits over 16-bit pixels (little endian): a control byte n >= 0 is n + 1 literal pixels, a negative one a run of 1 - n copies of
+ * the next pixel. dst needs 2w + w/128 + 4 bytes. */
+static size_t packbits16(const uint16_t *src, int w, uint8_t *dst) {
+    size_t o = 0;
+    int i = 0;
+    while (i < w) {
+        int run = 1;
+        while (i + run < w && run < 128 && src[i + run] == src[i]) run++;
+        if (run >= 2) {
+            dst[o++] = (uint8_t)(1 - run);
+            dst[o++] = (uint8_t)src[i], dst[o++] = (uint8_t)(src[i] >> 8);
+            i += run;
+            continue;
+        }
+        int s = i, n = 0;
+        while (i < w && n < 128 && !(i + 1 < w && src[i] == src[i + 1])) i++, n++;
+        dst[o++] = (uint8_t)(n - 1);
+        for (int k = 0; k < n; k++) dst[o++] = (uint8_t)src[s + k], dst[o++] = (uint8_t)(src[s + k] >> 8);
+    }
+    return o;
+}
+
+/* A screen frame pixel to the palette's colour cube (16 + 36r + 6g + b): what a client that only knows the 8-bit screen gets. */
+static uint8_t to_cube(uint16_t p) {
+    static const uint8_t lv[6] = {0, 95, 135, 175, 215, 255};
+    uint8_t c[3] = {(uint8_t)((((p >> 11) & 31) * 255 + 15) / 31), (uint8_t)((((p >> 5) & 63) * 255 + 31) / 63), (uint8_t)(((p & 31) * 255 + 15) / 31)};
+    int q[3];
+    for (int k = 0; k < 3; k++) {
+        int best = 0;
+        for (int j = 1; j < 6; j++)
+            if (abs((int)c[k] - lv[j]) < abs((int)c[k] - lv[best])) best = j;
+        q[k] = best;
+    }
+    return (uint8_t)(16 + 36 * q[0] + 6 * q[1] + q[2]);
+}
+
+/* One row of the screen as the client takes it: RGB565 PackBits16, or 8-bit PackBits (from the frame through the cube, or the canvas
+ * on the older path). */
+static size_t encode_row(pal_link_t *l, int y, pal_rect_t r, uint8_t *out) {
+    const uint16_t *frame = pal_display_frame();
+    if (!frame) {
+        pal_canvas_t *c = pal_display_canvas();
+        return packbits(c->px + (size_t)y * (size_t)c->stride + (size_t)r.x, r.w, out);
+    }
+    static uint16_t px[480] NEMA_EXT_BSS; /* one screen link at a time, and the link task's stack is small */
+    int w = pal_display_canvas()->w;
+    pal_display_frame_lock(true);
+    memcpy(px, frame + (size_t)y * (size_t)w + (size_t)r.x, (size_t)r.w * 2u);
+    pal_display_frame_lock(false);
+    if (l->screen_rgb) return packbits16(px, r.w, out);
+    static uint8_t idx[480] NEMA_EXT_BSS;
+    for (int x = 0; x < r.w; x++) idx[x] = to_cube(px[x]);
+    return packbits(idx, r.w, out);
+}
+
 static void send_rect(pal_link_t *l, pal_rect_t r) {
     pal_canvas_t *c = pal_display_canvas();
     if (r.x < 0) r.x = 0;
@@ -254,7 +311,7 @@ static void send_rect(pal_link_t *l, pal_rect_t r) {
     if (r.x + r.w > c->w) r.w = c->w - r.x;
     if (r.y + r.h > c->h) r.h = c->h - r.y;
     if (r.w <= 0 || r.h <= 0 || r.w > 480) return;
-    uint8_t row[480 + 8];
+    static uint8_t row[2 * 480 + 16] NEMA_EXT_BSS; /* one screen link at a time */
     int y = r.y, end = r.y + r.h;
     while (y < end && !l->dying) {
         nema_port_mutex_lock(l->txlock);
@@ -262,7 +319,7 @@ static void send_rect(pal_link_t *l, pal_rect_t r) {
         size_t used = 8;
         int rows = 0;
         while (y + rows < end) {
-            size_t n = packbits(c->px + (size_t)(y + rows) * (size_t)c->stride + (size_t)r.x, r.w, row);
+            size_t n = encode_row(l, y + rows, r, row);
             if (used + 2 + n > MAX_PAYLOAD) break;
             p[used++] = (uint8_t)n;
             p[used++] = (uint8_t)(n >> 8);
@@ -274,7 +331,7 @@ static void send_rect(pal_link_t *l, pal_rect_t r) {
         p[2] = (uint8_t)y;   p[3] = (uint8_t)(y >> 8);
         p[4] = (uint8_t)r.w; p[5] = (uint8_t)(r.w >> 8);
         p[6] = (uint8_t)rows; p[7] = (uint8_t)(rows >> 8);
-        int rc = rows ? send_built(l, CH_SCREEN, SCR_RECT, used) : -1;
+        int rc = rows ? send_built(l, CH_SCREEN, l->screen_rgb ? SCR_RECT565 : SCR_RECT, used) : -1;
         nema_port_mutex_unlock(l->txlock);
         if (rc < 0) return;
         y += rows;
@@ -432,7 +489,7 @@ static void handle_ota(pal_link_t *l, uint8_t type, const uint8_t *p, size_t n) 
 /* ---- sessions ---- */
 
 void link_session_end(pal_link_t *l) {
-    screen_subscribe(l, false);
+    screen_subscribe(l, false, false);
     tty_close(l);
     if (l->ota_open && pal_ota()) pal_ota()->abort();
     l->ota_open = false;
@@ -495,7 +552,7 @@ static void handle_frame(pal_link_t *l, uint8_t chan, uint8_t type, const uint8_
         else if (type == TTY_CLOSE) tty_close(l);
         break;
     case CH_SCREEN:
-        if (type == SCR_SUBSCRIBE && n >= 1) screen_subscribe(l, p[0] != 0);
+        if (type == SCR_SUBSCRIBE && n >= 1) screen_subscribe(l, p[0] != 0, p[0] == 2);
         else if (type == SCR_REFRESH && l->screen_on) screen_all(l);
         break;
     case CH_INPUT:

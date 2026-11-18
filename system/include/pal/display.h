@@ -1,4 +1,9 @@
-/* PalanuOS display: owns the framebuffer and hands changed rectangles to the board's panel driver. */
+/* PalanuOS display: owns the screen frame and hands changed rectangles to the board's panel driver.
+ *
+ * The screen frame (ADR-0010 P4) is one RGB565 image the size of the panel, in external RAM, owned by the system. Everything that
+ * reaches the panel goes through it: the compositor's 8-bit canvas (converted through the theme's palette), the system console (through
+ * its own palette) and a full-colour session (copied as it is). Remote mirroring reads it, so it shows every session. A panel driver
+ * without present_rgb565 keeps the older path: the 8-bit canvas goes to the panel directly and there is no frame. */
 #ifndef PAL_DISPLAY_H
 #define PAL_DISPLAY_H
 
@@ -35,10 +40,14 @@ void pal_display_set_tap(void (*tap)(void *ctx, pal_rect_t r), void *ctx);
  * coordinates, stride in pixels); it returns false and sends nothing when the driver cannot. Desktop task only. */
 bool pal_display_has_rgb565(void);
 bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r);
-/* Rows at the top that a flush of the 8-bit framebuffer never sends (a desktop draws its own bar there); 0 by default. */
 /* Sends an 8-bit image of the caller's with the caller's palette (byte-swapped RGB565, as pal_theme_palette makes it). The system
- * console draws this way: its pixels and colours are its own, never the theme's or the compositor's frame. */
+ * console draws this way: its pixels and colours are its own, never the theme's or the compositor's canvas. */
 void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette);
+/* Rows at the top that a flush of the 8-bit canvas never sends (a session draws its own bar there); 0 by default. */
 void pal_display_reserve_top(int rows);
+/* The screen frame: RGB565, native byte order, stride = width; NULL on the older path. Read it on the desktop task (a session copies
+ * what is on screen under a modal from it); pal_display_frame_lock guards a reader on another task (mirroring). */
+const uint16_t *pal_display_frame(void);
+void pal_display_frame_lock(bool on);
 
 #endif
