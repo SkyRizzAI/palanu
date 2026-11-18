@@ -1,5 +1,9 @@
 # Desktop environments
 
+> **Being replaced.** This page describes the current hook-based model. ADR-0010 (`docs/adr/0010-system-console-and-desktop-sessions.md`)
+> replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. Known faults until P2 is done: shell screens
+> such as Control and Notifications are the classic ones under every desktop, and leaving them opens the classic home.
+
 PalanuOS is built like a Linux system. The base system is the kernel, the services and a shell on a TTY. Everything graphical around the
 apps is a **desktop environment**: the status bar, the global keys (Fn twice, the cycle key), the home screen, the menus those keys open,
 and the way apps are listed and launched. The compositor underneath (`pal/desktop.h`: views, overlays, dialogs, lock, power) is shared

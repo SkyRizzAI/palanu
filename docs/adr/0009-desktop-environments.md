@@ -1,6 +1,6 @@
 # ADR-0009: Desktop environments own the chrome, and one of them is drawn with LVGL in full colour
 
-Status: accepted.
+Status: accepted; the desktop model (chrome hooks, the `console` desktop, app adaptation) is superseded by ADR-0010. LVGL and RGB565 present stay.
 
 ## Context
 The compositor had a replaceable home view, a launcher with four skins and themes with replaceable components, but the status bar, the
