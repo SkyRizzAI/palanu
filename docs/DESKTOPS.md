@@ -2,7 +2,7 @@
 
 > **Being replaced.** This page describes the current hook-based model. ADR-0010 (`docs/adr/0010-system-console-and-desktop-sessions.md`)
 > replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console), P2 (whole
-> sessions), P3 (shell services) and P4 (one screen frame) are done and described below.
+> sessions), P3 (shell services), P4 (one screen frame) and P5 (settings schema) are done and described below.
 
 PalanuOS is built like a Linux system. The base system is the kernel, the services and the **system console** (below), a shell on a
 text screen of its own. Everything graphical around the
@@ -99,6 +99,13 @@ items, selection, caret, keyboard caps). How they look is the session's:
 
 `uidemo dialog | input | picker | busy SECONDS | toast` opens each one (a test aid).
 
+**Settings (P5).** Every settings key has one descriptor in the schema (`pal/settings_schema.h`): kind, range or choices, label,
+group, help, the board capability it needs, and its owner: the system, `classic` or `athena`. One Settings app serves every session in
+the session's look. A row of another session's key, or a page that belongs to another session (`owner` on a menu row), is left out:
+the classic Appearances page shows only under classic. **Settings > Desktop** switches the session (now, and at every start) and shows
+the running session's own keys, laid out from the schema; under Athena that is its theme. `test_settings_reach` checks under every
+session that each system key can be reached and that no other session's key shows.
+
 **The screen frame (P4).** The system owns one RGB565 frame the size of the panel, in PSRAM (`pal_display_frame`). Everything reaches the
 panel through it: the compositor's 8-bit canvas (through the theme's palette), the system console (through its own fixed palette) and a
 full-colour session (`pal_display_present_rgb565`, copied as it is). Remote mirroring reads the frame, so a client sees Athena and the
@@ -130,6 +137,15 @@ Under Athena, what is not a bound menu keeps the classic drawing below Athena's 
 pickers, text entries and the on-screen keyboard they open are Athena's (P3).
 
 ## Athena
+
+**Themes.** Athena's look is a theme of tokens (`system/src/athena/athena_theme.c`): colours (wallpaper, surface, rows, accent, text,
+switches, danger, keyboard mode keys, the bar over apps) and shape (corner radii of cards, rows and icons, centred or left-aligned
+titles, upper-case buttons, shadows or flat). Two ship as a demo: **Cupertino** (the default: centred titles, round corners, soft
+shadows, inset grouped lists) and **Material** (flat, small radii, round icons, left-aligned titles, upper-case buttons, edge-to-edge
+lists, a teal accent). The choice is the `athena.theme` setting (`cupertino` or `material`); Athena follows a change within a second
+by building its objects again. A classic theme only swaps colour tokens; an Athena theme also changes shapes and layout rules, which
+costs a rebuild of the objects, nothing more.
+
 
 `system/src/athena/athena.c`, LVGL 9.2.2 (`third_party/lvgl`, MIT) configured in `system/src/athena/lv_conf.h`: software rendering, LVGL's
 allocator on a 192 KB pool in PSRAM, the Montserrat fonts (SIL OFL), only plain objects and labels. LVGL renders one RGB565 frame the size

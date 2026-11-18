@@ -34,18 +34,34 @@
 #define MAX_PAGE_ROWS 40
 #define VALUE_MAX 40
 
-#define C_WALL_TOP lv_color_hex(0x1A1750)
-#define C_WALL_BOT lv_color_hex(0x7A3C8C)
+/* The theme's tokens (athena_theme.c). Every colour and shape Athena draws comes from here. */
+typedef struct {
+    const char *id, *name;
+    uint32_t wall_top, wall_bot; /* the home's wallpaper, top to bottom */
+    uint32_t surface, row;       /* a card or page, and a row or control on it */
+    uint32_t accent, ink, muted; /* the focus and buttons, the text, the secondary text */
+    uint32_t on, danger, track;  /* a switch that is on, a destructive row, a switch that is off */
+    uint32_t key_mod, bar_bg;    /* a keyboard's mode keys; the status bar over an app */
+    int r_card, r_row, r_icon;   /* corner radii (LV_RADIUS_CIRCLE for round) */
+    bool title_left, caps_buttons, flat;
+} ath_theme_t;
+
+extern const ath_theme_t *ath_T;
+extern const char *const ATH_THEME_IDS[];
+const ath_theme_t *ath_theme_wanted(void);
+
+#define C_WALL_TOP lv_color_hex(ath_T->wall_top)
+#define C_WALL_BOT lv_color_hex(ath_T->wall_bot)
 #define C_WHITE lv_color_hex(0xFFFFFF)
 #define C_BLACK lv_color_hex(0x000000)
-#define C_SHEET lv_color_hex(0xF2F2F7) /* a grouped-list background */
-#define C_ROW lv_color_hex(0xFFFFFF)
-#define C_BLUE lv_color_hex(0x0A84FF)
-#define C_INK lv_color_hex(0x1C1C1E)
-#define C_GREY lv_color_hex(0x8E8E93)
-#define C_GREEN lv_color_hex(0x34C759)
-#define C_RED lv_color_hex(0xFF3B30)
-#define C_TRACK lv_color_hex(0xE5E5EA)
+#define C_SHEET lv_color_hex(ath_T->surface)
+#define C_ROW lv_color_hex(ath_T->row)
+#define C_BLUE lv_color_hex(ath_T->accent)
+#define C_INK lv_color_hex(ath_T->ink)
+#define C_GREY lv_color_hex(ath_T->muted)
+#define C_GREEN lv_color_hex(ath_T->on)
+#define C_RED lv_color_hex(ath_T->danger)
+#define C_TRACK lv_color_hex(ath_T->track)
 
 typedef enum { SHEET_NONE, SHEET_KEYBOARD, SHEET_SHORTCUTS, SHEET_RECENTS } sheet_t;
 

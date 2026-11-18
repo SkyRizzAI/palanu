@@ -1,6 +1,6 @@
 # ADR-0010: A system console under desktop sessions; a desktop is a whole session, not a skin
 
-Status: accepted (18 November 2026); P1 to P4 done (19 November 2026). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
+Status: accepted (18 November 2026); P1 to P5 done (19 November 2026); §7 amended in P5 (below). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
 
 ## Context
 ADR-0009 added desktop environments as a hook table (`pal_desktop_chrome_t`) on a compositor that is itself the classic desktop. Testing
@@ -100,6 +100,21 @@ The owner wants the Linux model:
 - A test walks the schema in every session and fails when a `system` key is not reachable. A system setting cannot exist in one desktop
   and be missing in another.
 - `pal_menu_bind` is removed once both Settings apps read the schema.
+
+**Amendment (P5).** One Settings app serves every session, in the session's look, instead of a Settings app per session. The
+reason is the dependency direction: the feature pages (Wi-Fi networks and joining, Remote pairing, Apps, Services, Storage, About)
+belong to the apps layer and run background jobs there, and a session lives in the system layer below it; a second copy of each page
+per session would double the code and drift. What §7 is for still holds:
+
+- every key has one descriptor in `system/src/settings_schema.c` with its owner (the system, `classic` or `athena`);
+- a row that shows a key of another session, or a page that belongs to another session (`owner` on the row), is left out, so the
+  classic Appearances page does not show under Athena;
+- Settings > Desktop lists the sessions (switching now) and lays out the running session's own keys from the schema
+  (`pal_settings_schema_rows`), so Athena's theme shows only under Athena;
+- `tests/unit/test_settings_reach.c` walks Settings under each session and fails when a system key cannot be reached, or when a
+  key of another session shows. It found that brightness was only in the classic control center; Display has it now.
+
+`pal_menu_bind` stays: it is how a session draws a menu (a form) in its own look, and P6 builds the form API on it.
 
 ### 8. How apps look under each desktop
 The manifest declares `ui`:

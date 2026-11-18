@@ -172,7 +172,8 @@ static void build_wifi(pal_menu_page_t *p) {
         pal_menu_add(p, &r);
         return;
     }
-    r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "Wi-Fi", .icon = "wifi", .get = wifi_get, .set = wifi_set};
+    r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "Wi-Fi", .icon = "wifi", .get = wifi_get, .set = wifi_set,
+                         .key = "radio.wifi"};
     pal_menu_add(p, &r);
     if (!wifi_get(NULL)) return; /* the reference: the rows are left out while the radio is off */
 

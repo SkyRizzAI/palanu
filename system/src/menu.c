@@ -7,7 +7,9 @@
 
 #include "pal/desktop.h"
 #include "pal/dialog.h"
+#include "pal/desktops.h"
 #include "pal/menu.h"
+#include "pal/settings_schema.h"
 #include "pal/nav.h"
 #include "pal/overlay.h"
 #include "pal/toast.h"
@@ -85,7 +87,7 @@ void pal_menu_toast(const char *text) {
 bool pal_menu_gauge(const pal_menu_row_t *r) { return r && r->kind == PAL_MENU_SLIDER && !r->set; }
 
 bool pal_menu_selectable(const pal_menu_row_t *r) {
-    return r && !r->hidden && !r->inert && r->kind != PAL_MENU_SECTION && !pal_menu_gauge(r);
+    return r && !pal_menu_row_hidden(r) && !r->inert && r->kind != PAL_MENU_SECTION && !pal_menu_gauge(r);
 }
 
 static const pal_menu_row_t *row_at(const pal_menu_page_t *p, size_t i) {
@@ -463,4 +465,10 @@ void pal_menu_value_text(const pal_menu_row_t *r, char *out, size_t cap) {
         break;
     default: break;
     }
+}
+
+bool pal_menu_row_hidden(const pal_menu_row_t *r) {
+    if (r->hidden) return true;
+    if (r->owner && strcmp(r->owner, pal_desktops_active()) != 0) return true;
+    return r->key && !pal_setting_visible(r->key);
 }

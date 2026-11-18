@@ -118,7 +118,8 @@ static void build_bluetooth(pal_menu_page_t *p) {
         pal_menu_add(p, &r);
         return;
     }
-    r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "Bluetooth", .icon = "bluetooth", .get = ble_get, .set = ble_set};
+    r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "Bluetooth", .icon = "bluetooth", .get = ble_get, .set = ble_set,
+                         .key = "radio.ble"};
     pal_menu_add(p, &r);
     if (ble_get(NULL)) {
         char name[32];

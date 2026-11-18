@@ -77,7 +77,14 @@ struct pal_menu_row {
     const char *title;                   /* TEXT: title on the keyboard (NULL = label) */
     bool wrap;                           /* INFO: the value wraps below the label */
     bool show_value;                     /* ACTION: draw the text value on the right (the reference Wi-Fi network rows) */
+    /* Appended later (ADR-0010 §7). key: the settings key the row shows; the row is left out while the key belongs to another session
+     * (pal/settings_schema.h). owner: the row belongs to one session (a page of its look); left out under the others. */
+    const char *key;
+    const char *owner;
 };
+
+/* The row is left out of its page: hidden, or it belongs to another session than the running one. */
+bool pal_menu_row_hidden(const pal_menu_row_t *r);
 
 struct pal_menu_page {
     const char *title;

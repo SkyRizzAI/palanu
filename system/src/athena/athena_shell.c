@@ -3,10 +3,12 @@
  * top. The dialog has two buttons, the picker a list, the text entry a field with a caret, the busy box a turning glyph, and the
  * on-screen keyboard a sheet of keys at the bottom. The keys still go to the service (the compositor gives them to the top overlay),
  * so the behaviour is the system's. A toast shows in the status bar, over the clock, for as long as the system keeps it. */
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "athena_int.h"
+#include "pal/dialog.h"
 #include "pal/shell.h"
 
 static lv_image_dsc_t s_snap_dsc;
@@ -40,10 +42,10 @@ void ath_shell_build(void) {
     lv_obj_add_flag(A.dim, LV_OBJ_FLAG_HIDDEN);
     A.modal = lv_obj_create(lv_layer_top());
     lv_obj_remove_style_all(A.modal);
-    lv_obj_set_style_radius(A.modal, 14, 0);
+    lv_obj_set_style_radius(A.modal, ath_T->r_card, 0);
     lv_obj_set_style_bg_color(A.modal, C_SHEET, 0);
     lv_obj_set_style_bg_opa(A.modal, LV_OPA_COVER, 0);
-    lv_obj_set_style_shadow_width(A.modal, 16, 0);
+    lv_obj_set_style_shadow_width(A.modal, ath_T->flat ? 4 : 16, 0);
     lv_obj_set_style_shadow_opa(A.modal, LV_OPA_40, 0);
     lv_obj_set_style_shadow_color(A.modal, C_BLACK, 0);
     lv_obj_remove_flag(A.modal, LV_OBJ_FLAG_SCROLLABLE);
@@ -55,9 +57,9 @@ static lv_obj_t *pill(lv_obj_t *parent, int x, int y, int w, int h, bool on, con
     lv_obj_remove_style_all(b);
     lv_obj_set_pos(b, x, y);
     lv_obj_set_size(b, w, h);
-    lv_obj_set_style_radius(b, 8, 0);
+    lv_obj_set_style_radius(b, ath_T->r_row, 0);
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(b, on ? C_BLUE : accent ? lv_color_hex(0xD1D1D6) : C_ROW, 0);
+    lv_obj_set_style_bg_color(b, on ? C_BLUE : accent ? lv_color_hex(ath_T->key_mod) : C_ROW, 0);
     lv_obj_t *l = ath_text(b, &lv_font_montserrat_12, on ? C_WHITE : C_INK);
     lv_label_set_text(l, label);
     lv_obj_center(l);
@@ -70,7 +72,7 @@ static void field(lv_obj_t *parent, int x, int y, int w, const char *text, int c
     lv_obj_remove_style_all(f);
     lv_obj_set_pos(f, x, y);
     lv_obj_set_size(f, w, 26);
-    lv_obj_set_style_radius(f, 8, 0);
+    lv_obj_set_style_radius(f, ath_T->r_row, 0);
     lv_obj_set_style_bg_color(f, C_ROW, 0);
     lv_obj_set_style_bg_opa(f, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(f, C_BLUE, 0);
@@ -96,7 +98,8 @@ static void card(int w, int h, bool bottom) {
 static lv_obj_t *title(const char *t, int y) {
     lv_obj_t *l = ath_text(A.modal, &lv_font_montserrat_16, C_INK);
     lv_label_set_text(l, t ? t : "");
-    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, y);
+    if (ath_T->title_left) lv_obj_align(l, LV_ALIGN_TOP_LEFT, 14, y);
+    else lv_obj_align(l, LV_ALIGN_TOP_MID, 0, y);
     return l;
 }
 
@@ -107,12 +110,17 @@ static void build_dialog(const pal_shell_view_t *v) {
     lv_obj_t *body = ath_text(A.modal, &lv_font_montserrat_12, C_GREY);
     lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(body, w - 28);
-    lv_obj_set_style_text_align(body, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(body, ath_T->title_left ? LV_TEXT_ALIGN_LEFT : LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(body, v->text ? v->text : "");
     lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 36);
     int bw = (w - 36) / 2;
-    pill(A.modal, 12, 118 - 38, bw, 28, v->sel == 0, v->items[0], true);
-    pill(A.modal, 24 + bw, 118 - 38, bw, 28, v->sel == 1, v->items[1], false);
+    char b0[PAL_DIALOG_LABEL], b1[PAL_DIALOG_LABEL];
+    nema_strlcpy(b0, v->items[0], sizeof(b0));
+    nema_strlcpy(b1, v->items[1], sizeof(b1));
+    for (int i = 0; ath_T->caps_buttons && b0[i]; i++) b0[i] = (char)toupper((unsigned char)b0[i]);
+    for (int i = 0; ath_T->caps_buttons && b1[i]; i++) b1[i] = (char)toupper((unsigned char)b1[i]);
+    pill(A.modal, 12, 118 - 38, bw, 28, v->sel == 0, b0, true);
+    pill(A.modal, 24 + bw, 118 - 38, bw, 28, v->sel == 1, b1, false);
 }
 
 static void build_picker(const pal_shell_view_t *v) {

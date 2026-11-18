@@ -11,7 +11,7 @@ void ath_build_lock(void) {
     lv_obj_remove_style_all(A.lock);
     lv_obj_set_pos(A.lock, 0, 0);
     lv_obj_set_size(A.lock, A.w, A.h);
-    lv_obj_set_style_bg_color(A.lock, lv_color_hex(0x0B0B1E), 0);
+    lv_obj_set_style_bg_color(A.lock, C_WALL_BOT, 0);
     lv_obj_set_style_bg_grad_color(A.lock, C_WALL_TOP, 0);
     lv_obj_set_style_bg_grad_dir(A.lock, LV_GRAD_DIR_VER, 0);
     lv_obj_set_style_bg_opa(A.lock, LV_OPA_COVER, 0);

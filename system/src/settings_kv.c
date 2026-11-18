@@ -32,6 +32,7 @@ typedef struct {
 static const char *const PROFILE_NAMES[] = {"performance", "balanced", "saver", NULL};
 static const char *const LOG_NAMES[] = {"error", "warn", "info", "debug", NULL};
 static const char *const TARGET_NAMES[] = {"desktop", "console", NULL};
+static const char *const ATHENA_THEMES[] = {"cupertino", "material", NULL}; /* athena_theme.c */
 
 static void apply_repeat(const char *name, int32_t v) {
     static uint32_t delay = 420, rate = 55;
@@ -75,6 +76,7 @@ static const kv_def_t DEFS[] = {
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},
     {"boot.quiet", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the system console's splash covers the boot log until a key (console.c) */
     {"profile.user", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL},
+    {"athena.theme", KV_CHOICE, 0, 1, ATHENA_THEMES, 0, NULL, NULL}, /* the Athena session's look (athena_theme.c) */
     {"desktop.env", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "classic", NULL}, /* the active desktop environment (pal/desktops.h) */
 };
 #define NDEFS ((int)(sizeof(DEFS) / sizeof(DEFS[0])))

@@ -61,10 +61,11 @@ static void page_build(void) {
         title = fv && fv->title ? fv->title : "";
     }
     lv_label_set_text_fmt(A.page_title, "%s%s", pal_menu_depth(A.pm) > 1 ? LV_SYMBOL_LEFT "  " : "", title);
-    int y = 2, w = A.w - 20;
+    /* inset rounded rows with gaps (Cupertino), or rows edge to edge with no gap (Material) */
+    int inset = ath_T->flat ? 0 : 10, y = 2, w = A.w - 2 * inset, rh = ath_T->flat ? 30 : 26, step = ath_T->flat ? 30 : 30;
     for (size_t k = 0; k < A.ppage->n && A.pn < MAX_PAGE_ROWS; k++) {
         const pal_menu_row_t *r = &A.ppage->rows[k];
-        if (r->hidden) continue;
+        if (pal_menu_row_hidden(r)) continue;
         int i = A.pn++;
         A.pidx[i] = (int)k;
         A.pval[i] = NULL;
@@ -74,16 +75,16 @@ static void page_build(void) {
         A.prow[i] = row;
         if (r->kind == PAL_MENU_SECTION) { /* a small grey header above its group */
             lv_obj_set_size(row, w, 18);
-            lv_obj_set_pos(row, 10, y + 2);
+            lv_obj_set_pos(row, inset, y + 2);
             lv_obj_t *l = ath_text(row, &lv_font_montserrat_12, C_GREY);
             lv_label_set_text(l, r->label ? r->label : "");
             lv_obj_align(l, LV_ALIGN_BOTTOM_LEFT, 6, 0);
             y += 22;
             continue;
         }
-        lv_obj_set_size(row, w, 26);
-        lv_obj_set_pos(row, 10, y);
-        lv_obj_set_style_radius(row, 8, 0);
+        lv_obj_set_size(row, w, rh);
+        lv_obj_set_pos(row, inset, y);
+        lv_obj_set_style_radius(row, ath_T->r_row, 0);
         lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
         lv_obj_t *l = ath_text(row, &lv_font_montserrat_16, C_INK);
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
@@ -115,7 +116,7 @@ static void page_build(void) {
         }
         page_value(i);
         page_style_row(i);
-        y += 30;
+        y += step;
     }
     if (A.pn == 0) lv_label_set_text(A.page_empty, A.ppage->empty ? A.ppage->empty : "Nothing here");
     else lv_label_set_text(A.page_empty, "");

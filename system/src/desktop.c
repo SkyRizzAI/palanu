@@ -271,7 +271,7 @@ void desk_session_reset(const char *id) {
     if (pal_dpm_locked()) pal_dpm_set_locked(false, now_ms()); /* its lock screen is gone with it */
     pal_display_reserve_top(0);
     D.inval_all = true;
-    pal_mark_all(pal_display_canvas());
+    if (pal_display_canvas()) pal_mark_all(pal_display_canvas()); /* no display (a host test): nothing to redraw */
     nema_notify(&D.wake);
 }
 
@@ -799,7 +799,7 @@ static void post_chrome(void *arg) {
     D.owned = false;
     pal_display_reserve_top(chrome_top());
     D.inval_all = true;
-    pal_mark_all(pal_display_canvas());
+    if (pal_display_canvas()) pal_mark_all(pal_display_canvas());
 }
 
 void pal_desktop_set_chrome(const pal_desktop_chrome_t *chrome) {

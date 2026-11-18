@@ -285,6 +285,8 @@
     "athena-dialog": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "2000", "--key", "enter", "--wait", "800", "--cmd", "clear", "--wait", "300", "--cmd", "uidemo dialog", "--wait", "800"],
     "athena-vk": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "2000", "--key", "enter", "--wait", "800", "--cmd", "clear", "--wait", "300", "--cmd", "vkeyboard", "--wait", "800"],
     "console-dialog": ["--key", "ctrl-alt-esc", "--wait", "500", "--cmd", "desktop stop", "--wait", "600", "--cmd", "clear", "--wait", "300", "--cmd", "uidemo dialog", "--wait", "600"],
+    "athena-material-home": ["--key", "enter", "--wait", "300", "--cmd", "setting athena.theme material", "--wait", "200", "--cmd", "desktop use athena", "--wait", "2000"],
+    "athena-material-settings": ["--key", "enter", "--wait", "300", "--cmd", "setting athena.theme material", "--wait", "200", "--cmd", "desktop use athena", "--wait", "2000", "--key", "right", "--wait", "200", "--key", "enter", "--wait", "1200"],
     "console-shell": ["--key", "ctrl-alt-esc", "--wait", "500", "--cmd", "clear", "--wait", "300", "--cmd", "desktop", "--wait", "400"],
     "athena-settings": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "2000", "--key", "right", "--wait", "200", "--key", "enter", "--wait", "1200"],
     "athena-settings-display": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "2000", "--key", "right", "--wait", "200", "--key", "enter", "--wait", "1200", "--key", "enter", "--wait", "1200"],

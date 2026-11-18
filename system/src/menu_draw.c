@@ -140,7 +140,7 @@ static int wrap_count(const char *v, int w) {
 int pal_menu_row_h(const pal_menu_page_t *p, size_t i, const pal_theme_t *t, int w) {
     (void)t;
     const pal_menu_row_t *r = &p->rows[i];
-    if (r->hidden) return 0;
+    if (pal_menu_row_hidden(r)) return 0;
     if (r->kind == PAL_MENU_SECTION) return SECTION_H;
     if (r->kind == PAL_MENU_INFO && r->wrap && r->text) {
         char v[PAL_MENU_VALUE_MAX];
@@ -175,13 +175,13 @@ void pal_menu_layout(pal_menu_t *m, const pal_theme_t *t, int w, int list_h, int
     int view = list_h;
     int cont = content_h(p, t, w);
     int maxs = cont > view ? cont - view : 0;
-    if (p->follow && p->sel >= 0 && !p->rows[p->sel].hidden && pal_menu_selectable(&p->rows[p->sel])) {
+    if (p->follow && p->sel >= 0 && !pal_menu_row_hidden(&p->rows[p->sel]) && pal_menu_selectable(&p->rows[p->sel])) {
         int top = row_top(p, (size_t)p->sel, t, w);
         int bottom = top + ROW_H;
         /* The section headers right above the row come with it. */
         int want = top;
-        for (int j = p->sel - 1; j >= 0 && (p->rows[j].hidden || p->rows[j].kind == PAL_MENU_SECTION); j--)
-            if (!p->rows[j].hidden) want = row_top(p, (size_t)j, t, w);
+        for (int j = p->sel - 1; j >= 0 && (pal_menu_row_hidden(&p->rows[j]) || p->rows[j].kind == PAL_MENU_SECTION); j--)
+            if (!pal_menu_row_hidden(&p->rows[j])) want = row_top(p, (size_t)j, t, w);
         if (bottom - want > view) want = bottom - view; /* a tall block: at least the row itself */
         if (want < p->spx) p->spx = want;
         else if (bottom > p->spx + view) p->spx = bottom - view;
@@ -371,7 +371,7 @@ bool pal_menu_reveal(pal_menu_t *m, int dir) {
             found = true;
             break;
         }
-        if (r->hidden) continue;
+        if (pal_menu_row_hidden(r)) continue;
         any = j;
         if (r->kind != PAL_MENU_SECTION) edge = j;
     }
@@ -496,7 +496,7 @@ void pal_menu_draw(pal_menu_t *m, pal_canvas_t *c, pal_rect_t a, const pal_theme
         if (bar) { /* the thumb: every visible row at its own height (a section header is SECTION_BASE), gaps between */
             int content = 0, rows = 0;
             for (size_t i = 0; i < p->n; i++) {
-                if (p->rows[i].hidden) continue;
+                if (pal_menu_row_hidden(&p->rows[i])) continue;
                 content += p->rows[i].kind == PAL_MENU_SECTION ? SECTION_BASE : ROW_H;
                 rows++;
             }

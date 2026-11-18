@@ -11,7 +11,9 @@
 #include "pal/board.h"
 #include "pal/desktop.h"
 #include "pal/dialog.h"
+#include "pal/desktops.h"
 #include "pal/menu.h"
+#include "pal/settings_schema.h"
 #include "pal/settings.h"
 #include "pal/theme.h"
 #include "pal/toast.h"
@@ -29,7 +31,8 @@ static bool s_route_pending;
  * Battery; Developer holds the rest). */
 static const pal_menu_row_t ROOT_ROWS[] = {
     SET_SUB("Display", "brightness", PG_DISPLAY),
-    SET_SUB("Appearances", "moon", PG_APPEARANCE),
+    {.kind = PAL_MENU_SUBMENU, .label = "Appearances", .icon = "moon", .ctx = (void *)&PG_APPEARANCE, .open = settings_open_ctx,
+     .owner = "classic"}, /* the classic session's look: left out under the others (ADR-0010 §7) */
     SET_SUB("Controls", "terminal", PG_CONTROLS),
     SET_SUB("Wi-Fi", "wifi", PG_WIFI),
     SET_SUB("Bluetooth", "bluetooth", PG_BLUETOOTH),
@@ -43,6 +46,7 @@ static const pal_menu_row_t ROOT_ROWS[] = {
     SET_SUB("Updates", "power", PG_UPDATES),
     SET_SUB("Developer", "monitor", PG_DEVELOPER),
     SET_SUB("About", "info", PG_ABOUT),
+    SET_SUB("Desktop", "default", PG_SESSION),
 };
 
 /* Device & Hardware: a section header, then Sounds, LEDs and Battery as the reference
@@ -64,6 +68,19 @@ static void build_device(pal_menu_page_t *p) {
     if (pal_has(PAL_CAP_SENSORS)) add_sub(p, "Sensors", "default", &PG_SENSORS);
     add_sub(p, "Battery", "battery", &PG_BATTERY);
 }
+
+/* Desktop: the session (switches now) and the running session's own settings, laid out from the settings schema. */
+static pal_menu_row_t SESSION_STORE[16] NEMA_EXT_BSS;
+
+static void build_session(pal_menu_page_t *p) {
+    pal_menu_clear(p);
+    pal_settings_schema_rows(p, NULL, "Desktop");
+    pal_menu_row_t r = {.kind = PAL_MENU_SECTION, .label = "This desktop"};
+    pal_menu_add(p, &r);
+    pal_settings_schema_rows(p, pal_desktops_active(), NULL);
+}
+
+pal_menu_page_t PG_SESSION = {.title = "Desktop", .store = SESSION_STORE, .cap = 16, .build = build_session};
 
 pal_menu_page_t PG_DEVICE = {.title = "Device & Hardware", .store = DEVICE_STORE, .cap = 8, .build = build_device};
 
@@ -115,6 +132,7 @@ static const route_t ROUTES[] = {
     {"updates", &PG_UPDATES, &PG_DEVELOPER},
     {"developer", &PG_DEVELOPER, NULL},
     {"about", &PG_ABOUT, NULL},
+    {"desktop", &PG_SESSION, NULL},
     {"about-detail", &PG_ABOUT_DETAIL, &PG_DEVELOPER},
     {"about-notices", &PG_ABOUT_NOTICES, &PG_ABOUT_DETAIL},
 };

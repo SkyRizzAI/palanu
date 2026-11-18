@@ -69,13 +69,16 @@ static const pal_menu_row_t DISPLAY_ROWS[] = {
     {.kind = PAL_MENU_TOGGLE, .label = "Debug FPS", .icon = "monitor", .ctx = (void *)"perf.overlay",
      .get = settings_bool_get, .set = settings_bool_set, .hint = "Frame time and key latency over the screen"},
     {.kind = PAL_MENU_TOGGLE, .label = "Status Bar", .icon = "info", .ctx = (void *)"ui.statusbar",
-     .get = settings_bool_get, .set = settings_bool_set, .hint = "The clock and status icons on top"},
+     .get = settings_bool_get, .set = settings_bool_set, .hint = "The clock and status icons on top", .key = "ui.statusbar"},
     {.kind = PAL_MENU_CHOICE, .label = "UI Scale", .icon = "settings", .ctx = (void *)&MAP_SCALE,
      .choices = SCALE_LABELS, .get = settings_map_get, .set = settings_map_set,
-     .hint = "Zoom: 1x shows the most, 2x is the board's size, 2.5x the biggest"},
+     .hint = "Zoom: 1x shows the most, 2x is the board's size, 2.5x the biggest", .key = "ui.scale"},
     {.kind = PAL_MENU_CHOICE, .label = "Terminal Font", .icon = "terminal", .ctx = (void *)&MAP_TERM_FONT,
      .choices = TERM_FONT_LABELS, .get = settings_map_get, .set = settings_map_set,
      .hint = "Small 5x8: 64 columns, Medium 6x12: 53, Large 8x16: 40"},
+    /* the backlight: here for every session (the classic control center has it too) */
+    {.kind = PAL_MENU_SLIDER, .label = "Brightness", .icon = "brightness", .ctx = (void *)"display.brightness", .get = settings_int_get,
+     .set = settings_int_set, .min = 5, .max = 100, .step = 5, .hint = "The backlight"},
     /* hidden until the panel turns: the setting is stored but the driver and the canvas do not rotate (docs/RELEASE.md) */
     {.kind = PAL_MENU_CHOICE, .label = "Rotation", .icon = "default", .ctx = (void *)&MAP_ROT, .hidden = true,
      .choices = ROT_LABELS, .get = settings_map_get, .set = settings_map_set,

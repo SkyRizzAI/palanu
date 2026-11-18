@@ -98,7 +98,7 @@ static void build_bar(void) {
     lv_obj_remove_style_all(A.bar);
     lv_obj_set_size(A.bar, A.w, BAR_H);
     lv_obj_set_pos(A.bar, 0, 0);
-    lv_obj_set_style_bg_color(A.bar, C_BLACK, 0);
+    lv_obj_set_style_bg_color(A.bar, lv_color_hex(ath_T->bar_bg), 0);
     lv_obj_set_style_bg_opa(A.bar, LV_OPA_TRANSP, 0);
     A.bar_solid = false;
     A.bar_time = lv_label_create(A.bar);
@@ -199,12 +199,12 @@ static void build_home(void) {
         lv_obj_remove_style_all(icon);
         lv_obj_set_size(icon, ICON, ICON);
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 2);
-        lv_obj_set_style_radius(icon, 10, 0);
+        lv_obj_set_style_radius(icon, ath_T->r_icon, 0);
         lv_obj_set_style_bg_opa(icon, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(icon, lv_color_hex(st->top), 0);
         lv_obj_set_style_bg_grad_color(icon, lv_color_hex(st->bot), 0);
         lv_obj_set_style_bg_grad_dir(icon, LV_GRAD_DIR_VER, 0);
-        lv_obj_set_style_shadow_width(icon, 8, 0);
+        lv_obj_set_style_shadow_width(icon, ath_T->flat ? 0 : 8, 0);
         lv_obj_set_style_shadow_offset_y(icon, 2, 0);
         lv_obj_set_style_shadow_opa(icon, LV_OPA_40, 0);
         lv_obj_set_style_shadow_color(icon, C_BLACK, 0);
@@ -270,7 +270,7 @@ static void sheet_open(sheet_t kind, const char *title, const char *const *rows,
         lv_obj_remove_style_all(r);
         lv_obj_set_size(r, A.w - 16 - 20, rh);
         lv_obj_set_pos(r, 10, y + i * (rh + 4));
-        lv_obj_set_style_radius(r, 8, 0);
+        lv_obj_set_style_radius(r, ath_T->r_row, 0);
         lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
         lv_obj_t *l = ath_text(r, info ? &lv_font_montserrat_12 : &lv_font_montserrat_16, C_INK);
         lv_label_set_text(l, rows[i]);
@@ -351,6 +351,8 @@ static bool owns_screen(void) {
     return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || pal_shell_top(NULL) || ath_home_in_front() || ath_page_menu());
 }
 
+static void build_all(void);
+
 static void ensure(void) {
     if (A.disp) return;
     pal_canvas_t *c = pal_display_canvas();
@@ -361,6 +363,12 @@ static void ensure(void) {
     lv_display_set_color_format(A.disp, LV_COLOR_FORMAT_RGB565);
     lv_display_set_flush_cb(A.disp, flush);
     lv_display_set_buffers(A.disp, s_frame, NULL, (uint32_t)A.w * (uint32_t)A.h * 2u, LV_DISPLAY_RENDER_MODE_DIRECT);
+    ath_T = ath_theme_wanted();
+    build_all();
+}
+
+/* Everything Athena shows, in the theme of the moment. The order is the stacking order on the top layer. */
+static void build_all(void) {
     lv_obj_t *scr = lv_screen_active();
     lv_obj_set_style_bg_color(scr, C_WALL_TOP, 0);
     lv_obj_set_style_bg_grad_color(scr, C_WALL_BOT, 0);
@@ -373,7 +381,7 @@ static void ensure(void) {
     lv_obj_remove_style_all(A.sheet);
     lv_obj_set_pos(A.sheet, 8, BAR_H + 4);
     lv_obj_set_size(A.sheet, A.w - 16, A.h - BAR_H - 8);
-    lv_obj_set_style_radius(A.sheet, 14, 0);
+    lv_obj_set_style_radius(A.sheet, ath_T->r_card, 0);
     lv_obj_set_style_bg_color(A.sheet, C_SHEET, 0);
     lv_obj_set_style_bg_opa(A.sheet, LV_OPA_COVER, 0);
     lv_obj_add_flag(A.sheet, LV_OBJ_FLAG_HIDDEN);
@@ -382,6 +390,24 @@ static void ensure(void) {
     ath_build_lock();  /* above the modal, below the bar */
     build_bar();
     A.force = true;
+}
+
+/* A new theme: every object goes and comes back in the new look; what is open (a sheet, a modal) is built again on the next frame. */
+static void theme_follow(void) {
+    const ath_theme_t *want = ath_theme_wanted();
+    if (want == ath_T) return;
+    ath_T = want;
+    lv_obj_clean(lv_layer_top());
+    lv_obj_clean(lv_screen_active());
+    A.home = A.page = A.sheet = A.lock = A.backdrop = A.dim = A.modal = A.bar = NULL;
+    A.kind = SHEET_NONE;
+    A.svc_kind = 0, A.svc_sig = 0;
+    A.lock_shown = A.toast_shown = false;
+    A.pm = NULL;
+    A.mode = -1;
+    A.bar_solid = false;
+    build_all();
+    bar_update(true, 0);
 }
 
 static bool chrome_key(const pal_key_t *k) {
@@ -430,6 +456,11 @@ static void chrome_frame(uint32_t now) {
     ensure();
     lv_tick_inc(A.last_ms ? now - A.last_ms : 0);
     A.last_ms = now;
+    static uint32_t theme_at;
+    if (now - theme_at >= 1000u) { /* the setting is read once a second, as the bar's data is */
+        theme_at = now;
+        theme_follow();
+    }
     bar_update(false, now);
     pal_tm_t t;
     pal_time_local(&t);

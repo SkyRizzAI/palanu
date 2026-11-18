@@ -124,7 +124,7 @@ static void build_datetime(pal_menu_page_t *p) {
                         .hint = "No battery clock: set it after a restart"};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_CHOICE, .label = "Time zone", .icon = "clock", .ctx = NULL,
-                         .choices = TZ_LABELS, .get = tz_get, .set = tz_set, .hint = "Nearest common offset"};
+                         .choices = TZ_LABELS, .get = tz_get, .set = tz_set, .hint = "Nearest common offset", .key = "time.tz"};
     pal_menu_add(p, &r);
     /* hidden until the clock screens read it: a 12-hour clock needs an AM/PM suffix in the home and lock layouts, and a
      * switch that changes nothing is worse than no switch */
@@ -203,7 +203,7 @@ static void build_profile(pal_menu_page_t *p) {
                          .text = settings_text_get, .apply_text = settings_text_apply, .max_len = 31};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_SUBMENU, .label = "Password", .icon = "lock", .text = password_text, .open = settings_open_ctx,
-                         .ctx = &PG_PIN};
+                         .ctx = &PG_PIN, .key = "security.pin"};
     pal_menu_add(p, &r);
 }
 
@@ -353,7 +353,7 @@ static const pal_menu_row_t DEV_ROWS[] = {
      .set = settings_bool_set, .hint = "A splash over the boot log; any key shows the log"},
     {.kind = PAL_MENU_CHOICE, .label = "Log level", .icon = "logs", .ctx = (void *)&MAP_LOG, .choices = LOG_LABELS,
      .get = settings_map_get, .set = settings_map_set, .hint = "What the device logs to the console"},
-    {.kind = PAL_MENU_TOGGLE, .label = "Developer mode", .icon = "monitor", .get = dev_get, .set = dev_set,
+    {.kind = PAL_MENU_TOGGLE, .label = "Developer mode", .icon = "monitor", .get = dev_get, .set = dev_set, .key = "dev.mode",
      .hint = "Turning it on asks first"},
     {.kind = PAL_MENU_INFO, .label = "Safe mode", .text = safe_text},
     {.kind = PAL_MENU_ACTION, .label = "Clear safe mode", .icon = "monitor", .run = safe_clear_run,
