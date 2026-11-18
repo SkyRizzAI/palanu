@@ -110,6 +110,23 @@ palanu deploy net-client.papp --run --args '192.168.1.10 9000 ping' --tcp 192.16
 - The address can also be given through `PALANU_TARGET=tcp:host:port` or `--serial` without `--tcp`.
 - Simulator on a Mac: `./pal sim --link 7100 --wait 120000`, then `--tcp 127.0.0.1:7100`. TCP is closed until paired: run `palanu pair --tcp 127.0.0.1:7100` and enter the code from `link pair` in the simulator shell; or use `--link-open` (for tests only).
 
+## 5a. Screens: form and canvas (API level 6)
+
+A `kind = "gui"` app has no terminal; it opens one screen (`api/palanu/ui.h`, `api = 6` in its manifest):
+
+- **Form**: `pal_form_open(title)`, then `pal_form_add(id, kind, label, value)` for each field (PAL_FORM_SECTION, INFO, TOGGLE, CHOICE
+  `"a|b|c"`, SLIDER `"min|max|step|value"`, ACTION, TEXT), and a loop on `pal_form_next(rec, 12, timeout)`: each record is
+  `{id, kind, value}` (CHANGED, ACTIVATED, CLOSED). The desktop session draws the form in its own look.
+- **Canvas**: `pal_canvas_open(title)` returns `(width << 16) | height`; `pal_canvas_present(px, len, x, y, w)` shows rows of RGB565
+  pixels; `pal_canvas_key(rec, 8, timeout)` reads keys (`PAL_SYM_*`), and returns 2 when the person left the screen.
+
+```bash
+bun forge/tools/palanu.ts build sdk/examples/form-demo.c --id form-demo --name "Form demo" --kind gui --api 6 -o form-demo.papp
+bun forge/tools/palanu.ts build sdk/examples/canvas-demo.c --id canvas-demo --name "Canvas demo" --kind gui --api 6 --mem 256 -o canvas-demo.papp
+```
+
+Install them like any package; the launchers and Athena's home list them, and choosing one starts it as a process of its own.
+
 ## 6. Permissions
 
 `caps` lists the permissions requested. A permission that is not requested is denied by the system: an API call that needs it fails

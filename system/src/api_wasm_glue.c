@@ -640,6 +640,83 @@ static int32_t g_pal_tty_caps(wasm_exec_env_t env) {
     return r;
 }
 
+static int32_t g_pal_form_open(wasm_exec_env_t env, const char *a0) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_open(ctx, a0);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_add(wasm_exec_env_t env, int32_t a0, int32_t a1, const char *a2, const char *a3) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_add(ctx, a0, a1, a2, a3);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_set(wasm_exec_env_t env, int32_t a0, const char *a1) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_set(ctx, a0, a1);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_get(wasm_exec_env_t env, int32_t a0, void *a1, uint32_t a2) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_get(ctx, a0, a1, a2);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_clear(wasm_exec_env_t env) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_clear(ctx);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_next(wasm_exec_env_t env, void *a0, uint32_t a1, int32_t a2) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_next(ctx, a0, a1, a2);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_form_close(wasm_exec_env_t env) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_form_close(ctx);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_canvas_open(wasm_exec_env_t env, const char *a0) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_canvas_open(ctx, a0);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_canvas_present(wasm_exec_env_t env, const void *a0, uint32_t a1, int32_t a2, int32_t a3, int32_t a4) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_canvas_present(ctx, a0, a1, a2, a3, a4);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_canvas_key(wasm_exec_env_t env, void *a0, uint32_t a1, int32_t a2) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_canvas_key(ctx, a0, a1, a2);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_canvas_close(wasm_exec_env_t env) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    int32_t r = psys_api_canvas_close(ctx);
+    api_after(env, ctx);
+    return r;
+}
+
 NativeSymbol api_palanu_natives[] = {
     {"random", g_pal_random, "(*~)i", NULL},
     {"hash_open", g_pal_hash_open, "(i)i", NULL},
@@ -726,5 +803,16 @@ NativeSymbol api_palanu_natives[] = {
     {"tty_get", g_pal_tty_get, "()i", NULL},
     {"term_size", g_pal_tty_size, "(*~)i", NULL},
     {"tty_caps", g_pal_tty_caps, "()i", NULL},
+    {"form_open", g_pal_form_open, "($)i", NULL},
+    {"form_add", g_pal_form_add, "(ii$$)i", NULL},
+    {"form_set", g_pal_form_set, "(i$)i", NULL},
+    {"form_get", g_pal_form_get, "(i*~)i", NULL},
+    {"form_clear", g_pal_form_clear, "()i", NULL},
+    {"form_next", g_pal_form_next, "(*~i)i", NULL},
+    {"form_close", g_pal_form_close, "()i", NULL},
+    {"canvas_open", g_pal_canvas_open, "($)i", NULL},
+    {"canvas_present", g_pal_canvas_present, "(*~iii)i", NULL},
+    {"canvas_key", g_pal_canvas_key, "(*~i)i", NULL},
+    {"canvas_close", g_pal_canvas_close, "()i", NULL},
 };
 uint32_t api_palanu_natives_count = sizeof(api_palanu_natives) / sizeof(api_palanu_natives[0]);

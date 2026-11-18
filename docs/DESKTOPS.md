@@ -2,7 +2,8 @@
 
 > **Being replaced.** This page describes the current hook-based model. ADR-0010 (`docs/adr/0010-system-console-and-desktop-sessions.md`)
 > replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console), P2 (whole
-> sessions), P3 (shell services), P4 (one screen frame) and P5 (settings schema) are done and described below.
+> sessions), P3 (shell services), P4 (one screen frame), P5 (settings schema) and P6 (form and canvas apps) are done
+> and described below.
 
 PalanuOS is built like a Linux system. The base system is the kernel, the services and the **system console** (below), a shell on a
 text screen of its own. Everything graphical around the
@@ -126,28 +127,23 @@ console in full colour (`docs/PLP.md`, RECT565); an older client gets the frame 
 without `present_rgb565` keeps the 8-bit path and has no frame (no full-colour session then). A session reads the bar's data with
 `pal_desktop_status()`, at most once a second: the battery is an ADC sample.
 
-## How apps look under each desktop (decision, ADR-0009)
+## How apps look under each desktop (P6, ADR-0010 §8)
 
-An app never draws a status bar or handles the global keys; it gets an area and keys. How much of the desktop's look it takes depends on
-how it draws:
+An app never draws a status bar or handles the global keys; it gets an area and keys. There are three kinds:
 
-1. **TTY apps** (shell commands, `.papp` tty apps) run in the Terminal. They look the same everywhere; the desktop only frames the Terminal.
-2. **Toolkit apps** draw through the system UI toolkit (`pal/ui.h`, the theme's component table: title bar, list rows, dialogs, text
-   fields, toasts, `pal/menu.h`). They take the look of the active theme. A desktop may ship a theme of its own and select it in `start`;
-   then every toolkit app follows the desktop without a change. This is the way to write an app that fits every desktop.
-3. **Canvas apps** draw raw pixels on the canvas they are given (games, viewers, custom screens). They look the same under every desktop;
-   the desktop only decides where the area is (below its bar) and handles the keys around it.
+| Kind | What the app provides | How it looks |
+|---|---|---|
+| tty | text on a terminal (shell commands, `.papp` tty apps) | the same everywhere, inside the session's Terminal |
+| form | fields as data: sections, information, switches, choices, sliders, actions, editable text (`pal_form_*`, API level 6) | native in each session: the classic theme's list, Athena's grouped list with switches and bars |
+| canvas | RGB565 pixels in the area below the session's bar (`pal_canvas_*`, API level 6) | the same pixels everywhere |
 
-   A toolkit whose content is data goes further: a view that shows a menu (`pal/menu.h`) binds it with `pal_menu_bind(view_id, menu)`, and
-   a desktop may lay the rows out itself. Athena draws bound menus as a grouped list in full colour (large title with a back chevron,
-   section headers, rounded rows, switches for toggles, values and chevrons on the right); the keys still go to the view and
-   `pal_menu_key`, so the behaviour is the app's. Settings binds its menu, so every Settings page follows the desktop.
+A `.papp` with `kind = "gui"` is launched as a process of its own (from a launcher or a home) and opens a form or a canvas; which one
+is the app's call at run time, so the manifest does not repeat it. Examples: `sdk/examples/form-demo.c`, `sdk/examples/canvas-demo.c`.
+Apps do not carry code per desktop. A built-in app that shows a menu binds it to its view (`pal_menu_bind`), the same mechanism a form
+uses, so Settings and Monitor follow the session.
 
-Apps that need full colour and their own widgets (an LVGL app) are a later step: they need a surface API (an RGB565 buffer and a present
-call for the app's area) in the app API, with its own `PAL_SINCE` level.
-
-Under Athena, what is not a bound menu keeps the classic drawing below Athena's bar: Files, Logs, Monitor and the Terminal. The dialogs,
-pickers, text entries and the on-screen keyboard they open are Athena's (P3).
+Still drawn the classic way under Athena (below Athena's bar): Files, Logs, the text viewer and the Terminal. They are canvas-style
+built-in apps with list layouts of their own; turning them into forms is follow-up work (docs/STATE.md).
 
 ## Athena
 

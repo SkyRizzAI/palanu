@@ -30,6 +30,11 @@ static void page_value(int i) {
         return;
     }
     pal_menu_value_text(r, v, sizeof(v));
+    if (r->kind == PAL_MENU_SLIDER && A.pbar[i] && r->get) { /* a slider or gauge: a bar next to its number */
+        int span = r->max > r->min ? r->max - r->min : 1, x = r->get(r->ctx) - r->min;
+        int pct = x < 0 ? 0 : x > span ? 100 : x * 100 / span;
+        lv_obj_set_width(lv_obj_get_child(A.pbar[i], 0), (int32_t)(64 * pct / 100 < 2 ? 2 : 64 * pct / 100));
+    }
     if (r->kind == PAL_MENU_SUBMENU || (r->kind == PAL_MENU_CHOICE)) {
         size_t n = strlen(v);
         snprintf(v + n, sizeof(v) - n, "%s%s", n ? "  " : "", LV_SYMBOL_RIGHT);
@@ -69,6 +74,7 @@ static void page_build(void) {
         int i = A.pn++;
         A.pidx[i] = (int)k;
         A.pval[i] = NULL;
+        A.pbar[i] = NULL;
         A.ptext[i][0] = 0;
         lv_obj_t *row = lv_obj_create(A.page_list);
         lv_obj_remove_style_all(row);
@@ -106,6 +112,23 @@ static void page_build(void) {
             lv_obj_set_style_bg_opa(knob, LV_OPA_COVER, 0);
             A.pval[i] = sw;
         } else {
+            A.pbar[i] = NULL;
+            if (r->kind == PAL_MENU_SLIDER) { /* a track with a fill, left of the number */
+                lv_obj_t *track = lv_obj_create(row);
+                lv_obj_remove_style_all(track);
+                lv_obj_set_size(track, 64, 6);
+                lv_obj_align(track, LV_ALIGN_RIGHT_MID, -44, 0);
+                lv_obj_set_style_radius(track, 3, 0);
+                lv_obj_set_style_bg_color(track, C_TRACK, 0);
+                lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
+                lv_obj_t *fill = lv_obj_create(track);
+                lv_obj_remove_style_all(fill);
+                lv_obj_set_size(fill, 2, 6);
+                lv_obj_set_style_radius(fill, 3, 0);
+                lv_obj_set_style_bg_color(fill, C_BLUE, 0);
+                lv_obj_set_style_bg_opa(fill, LV_OPA_COVER, 0);
+                A.pbar[i] = track;
+            }
             lv_obj_t *v = ath_text(row, &lv_font_montserrat_12, C_GREY);
             lv_label_set_long_mode(v, LV_LABEL_LONG_DOT);
             lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);

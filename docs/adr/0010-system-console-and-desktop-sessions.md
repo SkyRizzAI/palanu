@@ -1,6 +1,6 @@
 # ADR-0010: A system console under desktop sessions; a desktop is a whole session, not a skin
 
-Status: accepted (18 November 2026); P1 to P5 done (19 November 2026); §7 amended in P5 (below). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
+Status: accepted (18 November 2026); P1 to P6 done (19 November 2026); §7 and §8 amended (below). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
 
 ## Context
 ADR-0009 added desktop environments as a hook table (`pal_desktop_chrome_t`) on a compositor that is itself the classic desktop. Testing
@@ -132,6 +132,13 @@ The manifest declares `ui`:
   - Files, Logs and Monitor: become `form` apps.
   - Text viewer: becomes `form`, with a text-block field.
   - Terminal: per session, on the shared engine.
+
+**Amendment (P6).** The public API is level 6 (`api/palanu/ui.h`): `pal_form_*` and `pal_canvas_*`, records instead of structs
+and waiting calls instead of callbacks, as the app ABI requires. A form is kept by the system (`system/src/appui.c`) as a menu page
+bound to its view, so every session draws it with what it already draws menus with. A canvas is copied into the screen frame after
+the compositor's frame. The manifest has no `ui` field: `kind = "gui"` means the app opens a form or a canvas, and which one is its
+choice at run time. Monitor is a form now. Files, Logs and the text viewer keep their own layouts for now; they are canvas-style apps
+under every session until they are rewritten as forms, which is follow-up work.
 
 ### 9. Lock and PIN
 - The system owns the PIN: the stored hash (`security.pin`, already in `ui_prefs.c`), verification, and the retry delay.

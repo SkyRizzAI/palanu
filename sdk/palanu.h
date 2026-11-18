@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#define PAL_API 5
+#define PAL_API 6
 #define PAL_IMPORT(n) __attribute__((import_module("palanu"), import_name(#n)))
 
 typedef int32_t pal_handle_t;
@@ -391,6 +391,61 @@ __attribute__((deprecated("use pal_tty_size"))) static inline int32_t pal_term_s
 
 /* pal_tty_caps (since 2): Returns the terminal capability bits: PAL_TERM_256COLOR (1), PAL_TERM_UTF8 (2), PAL_TERM_ALTSCREEN (4). The on-device terminal has all three. */
 PAL_IMPORT(tty_caps) int32_t pal_tty_caps(void);
+
+/* ---- ui: App screens (API level 6, ADR-0010 §8). An app that is not a terminal app shows one screen of one of two kinds: A form is data: a list of fields (sections, information, switches, choices, sliders, actions, editable text), each with an id the app picks. The running desktop session lays it out in its own look, so the same app looks native under every desktop. The app waits for events (a field changed, an action ran, the screen closed) with pal_form_next. A canvas is pixels: an RGB565 area the size the system gives (below the session's bar), which looks the same under every desktop. The app sends rows of pixels with pal_canvas_present and reads keys with pal_canvas_key. An app has at most one screen at a time; opening one brings it to the front. The screen goes when the app closes it or ends. The records are little endian. No permission is needed. ---- */
+#define PAL_FORM_SECTION 1
+#define PAL_FORM_INFO 2
+#define PAL_FORM_TOGGLE 3
+#define PAL_FORM_CHOICE 4
+#define PAL_FORM_SLIDER 5
+#define PAL_FORM_ACTION 6
+#define PAL_FORM_TEXT 7
+#define PAL_SYM_CHAR 1
+#define PAL_SYM_ENTER 2
+#define PAL_SYM_ESC 3
+#define PAL_SYM_BACKSPACE 4
+#define PAL_SYM_TAB 5
+#define PAL_SYM_DELETE 6
+#define PAL_SYM_UP 7
+#define PAL_SYM_DOWN 8
+#define PAL_SYM_LEFT 9
+#define PAL_SYM_RIGHT 10
+#define PAL_FORM_CHANGED 1
+#define PAL_FORM_ACTIVATED 2
+#define PAL_FORM_CLOSED 3
+
+/* pal_form_open (since 6): Opens the app's form screen with title (up to 31 bytes) and brings it to the front, with no fields. Returns 0, PAL_ERR_BUSY (the app has a canvas open, or every screen slot is taken), or PAL_ERR_UNSUPPORTED when there is no screen. */
+PAL_IMPORT(form_open) int32_t pal_form_open(const char *title);
+
+/* pal_form_add (since 6): Adds a field at the end of the form: id (0 to 65535, unique in the form), kind (PAL_FORM_*), label (up to 31 bytes) and value (its text, as each kind says, up to 95 bytes). Returns 0, PAL_ERR_INVAL, PAL_ERR_EXIST (the id is taken), PAL_ERR_FULL (32 fields), or PAL_ERR_NOENT (no form open). */
+PAL_IMPORT(form_add) int32_t pal_form_add(int32_t id, int32_t kind, const char *label, const char *value);
+
+/* pal_form_set (since 6): Sets the value of field id as its kind reads it: the text of an info or text field, 0 or 1 for a toggle, the index for a choice, the number for a slider. Returns 0, PAL_ERR_NOENT, or PAL_ERR_INVAL. */
+PAL_IMPORT(form_set) int32_t pal_form_set(int32_t id, const char *value);
+
+/* pal_form_get (since 6): Copies the value of field id as text (NUL-terminated) into buf. Returns its length, PAL_ERR_NOENT, or PAL_ERR_INVAL (buf too small). */
+PAL_IMPORT(form_get) int32_t pal_form_get(int32_t id, void *buf, uint32_t len);
+
+/* pal_form_clear (since 6): Removes every field of the app's form (to build it again). Returns 0 or PAL_ERR_NOENT. */
+PAL_IMPORT(form_clear) int32_t pal_form_clear(void);
+
+/* pal_form_next (since 6): Waits up to timeout_ms (-1 for ever) for the next event and copies it into rec ({int32 id, int32 kind, int32 value}, 12 bytes). Returns 1 with an event, 0 on timeout, PAL_ERR_NOENT (no form), or PAL_ERR_INVAL (rec under 12 bytes). */
+PAL_IMPORT(form_next) int32_t pal_form_next(void *rec, uint32_t len, int32_t timeout_ms);
+
+/* pal_form_close (since 6): Closes the app's form screen. Returns 0 or PAL_ERR_NOENT. */
+PAL_IMPORT(form_close) int32_t pal_form_close(void);
+
+/* pal_canvas_open (since 6): Opens the app's canvas screen with title and brings it to the front. Returns its size as (width << 16) | height in pixels, PAL_ERR_BUSY (the app has a form open, or every screen slot is taken), PAL_ERR_NOMEM, or PAL_ERR_UNSUPPORTED (no full-colour screen). */
+PAL_IMPORT(canvas_open) int32_t pal_canvas_open(const char *title);
+
+/* pal_canvas_present (since 6): Shows rows of w RGB565 pixels (2 bytes each, little endian) from px at x, y on the canvas; len is a whole number of rows. Returns 0, PAL_ERR_INVAL (outside the canvas, or len not whole rows), or PAL_ERR_NOENT (no canvas). */
+PAL_IMPORT(canvas_present) int32_t pal_canvas_present(const void *px, uint32_t len, int32_t x, int32_t y, int32_t w);
+
+/* pal_canvas_key (since 6): Waits up to timeout_ms (-1 for ever) for a key on the canvas and copies it into rec ({uint8 sym, uint8 mods, uint16 0, uint32 code point}, 8 bytes; sym as pal_key events). Returns 1 with a key, 0 on timeout, 2 when the person left the screen, PAL_ERR_NOENT, or PAL_ERR_INVAL. */
+PAL_IMPORT(canvas_key) int32_t pal_canvas_key(void *rec, uint32_t len, int32_t timeout_ms);
+
+/* pal_canvas_close (since 6): Closes the app's canvas screen. Returns 0 or PAL_ERR_NOENT. */
+PAL_IMPORT(canvas_close) int32_t pal_canvas_close(void);
 
 /* Helpers (not imports): text output on top of pal_write. */
 static inline unsigned pal_strlen(const char *s) {

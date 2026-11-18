@@ -177,6 +177,7 @@ void api_ctx_free(api_ctx_t *c) {
     if (!c) return;
     api_tty_restore(c);
     api_legend_release(c);
+    api_ui_release(c);
     api_kids_release(c);
     for (int i = 0; i < OPEN_MAX_APP; i++)
         if (c->fds[i] >= 0) nema_close(c->fds[i]);

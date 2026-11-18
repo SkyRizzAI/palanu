@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "nema/nema.h"
 #include "nema/types.h"
 #include "pal/desktop.h"
 #include "pal/desktops.h"
+#include "pal/toast.h"
 #include "pal/kui.h"
 #include "pal/registry.h"
 #include "pal/theme.h"
@@ -162,7 +164,11 @@ static void draw(pal_view_t *self, pal_canvas_t *c, pal_rect_t a, bool full) {
 /* Opens an entry: a built-in view in the desktop, an installed tty app in the Terminal (the app list uses this too). */
 void pal_launcher_run(const pal_reg_app_t *e) {
     if (e->kind == PAL_KIND_GUI && e->source == PAL_SRC_BUILTIN) pal_desktop_open(e->id);
-    else if (e->kind == PAL_KIND_TTY && L.run_tty) L.run_tty(e->id);
+    else if (e->kind == PAL_KIND_GUI) { /* an installed gui app: a process of its own that opens a form or a canvas (api/palanu/ui.h) */
+        nema_spawn_t sp = {.name = e->id, .cwd = "/home", .flags = NEMA_SPAWN_DETACH};
+        nema_pid_t pid;
+        if (nema_proc_spawn(&sp, &pid) != NEMA_OK) psys_toast("The app did not start", 2000);
+    } else if (e->kind == PAL_KIND_TTY && L.run_tty) L.run_tty(e->id);
 }
 
 static void activate(void) {

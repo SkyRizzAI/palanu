@@ -88,3 +88,14 @@ pal_tty_get,2,int32_t(),,tty_get,stable
 pal_tty_size,1,"int32_t(void *, uint32_t)",,term_size,stable
 pal_term_size,1,"int32_t(void *, uint32_t)",,term_size,deprecated
 pal_tty_caps,2,int32_t(),,tty_caps,stable
+pal_form_open,6,int32_t(const char *),,form_open,stable
+pal_form_add,6,"int32_t(int32_t, int32_t, const char *, const char *)",,form_add,stable
+pal_form_set,6,"int32_t(int32_t, const char *)",,form_set,stable
+pal_form_get,6,"int32_t(int32_t, void *, uint32_t)",,form_get,stable
+pal_form_clear,6,int32_t(),,form_clear,stable
+pal_form_next,6,"int32_t(void *, uint32_t, int32_t)",,form_next,stable
+pal_form_close,6,int32_t(),,form_close,stable
+pal_canvas_open,6,int32_t(const char *),,canvas_open,stable
+pal_canvas_present,6,"int32_t(const void *, uint32_t, int32_t, int32_t, int32_t)",,canvas_present,stable
+pal_canvas_key,6,"int32_t(void *, uint32_t, int32_t)",,canvas_key,stable
+pal_canvas_close,6,int32_t(),,canvas_close,stable

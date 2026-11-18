@@ -48,6 +48,9 @@ void pal_display_reserve_top(int rows);
 /* The screen frame: RGB565, native byte order, stride = width; NULL on the older path. Read it on the desktop task (a session copies
  * what is on screen under a modal from it); pal_display_frame_lock guards a reader on another task (mirroring). */
 const uint16_t *pal_display_frame(void);
+/* Copies an RGB565 image of the caller's (native order, its own stride) into rectangle dst of the screen frame and sends it: an app's
+ * canvas (system/src/appui.c). False on the older path (no frame). Desktop task only. */
+bool pal_display_blit_rgb565(const uint16_t *src, int stride, pal_rect_t dst);
 void pal_display_frame_lock(bool on);
 
 #endif

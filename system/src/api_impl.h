@@ -94,5 +94,16 @@ int32_t psys_api_tty_mode(api_ctx_t *c, int32_t mode);
 int32_t psys_api_tty_get(api_ctx_t *c);
 int32_t psys_api_tty_size(api_ctx_t *c, void *buf, uint32_t len);
 int32_t psys_api_tty_caps(api_ctx_t *c);
+int32_t psys_api_form_open(api_ctx_t *c, const char *title);
+int32_t psys_api_form_add(api_ctx_t *c, int32_t id, int32_t kind, const char *label, const char *value);
+int32_t psys_api_form_set(api_ctx_t *c, int32_t id, const char *value);
+int32_t psys_api_form_get(api_ctx_t *c, int32_t id, void *buf, uint32_t len);
+int32_t psys_api_form_clear(api_ctx_t *c);
+int32_t psys_api_form_next(api_ctx_t *c, void *rec, uint32_t len, int32_t timeout_ms);
+int32_t psys_api_form_close(api_ctx_t *c);
+int32_t psys_api_canvas_open(api_ctx_t *c, const char *title);
+int32_t psys_api_canvas_present(api_ctx_t *c, const void *px, uint32_t len, int32_t x, int32_t y, int32_t w);
+int32_t psys_api_canvas_key(api_ctx_t *c, void *rec, uint32_t len, int32_t timeout_ms);
+int32_t psys_api_canvas_close(api_ctx_t *c);
 
 #endif

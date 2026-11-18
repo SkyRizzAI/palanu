@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "appui.h"
 #include "desktop_int.h"
 #include "nema/log.h"
 #include "nema/nema.h"
@@ -549,6 +550,7 @@ static void render(void) {
         draw_toast(c);
     }
     pal_display_flush();
+    appui_after_render(); /* an app's canvas over its area (api/palanu/ui.h) */
 }
 
 /* ---- keys ---- */

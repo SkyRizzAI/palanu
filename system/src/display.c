@@ -145,6 +145,16 @@ void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, co
 }
 
 const uint16_t *pal_display_frame(void) { return D.frame; }
+
+bool pal_display_blit_rgb565(const uint16_t *src, int stride, pal_rect_t r) {
+    if (!D.frame || r.w <= 0 || r.h <= 0) return false;
+    nema_port_mutex_lock(D.flock);
+    for (int y = 0; y < r.h; y++)
+        memcpy(D.frame + (size_t)(r.y + y) * (size_t)D.ops.width + (size_t)r.x, src + (size_t)y * (size_t)stride, (size_t)r.w * 2u);
+    nema_port_mutex_unlock(D.flock);
+    send_frame(r);
+    return true;
+}
 void pal_display_frame_lock(bool on) {
     if (!D.flock) return;
     if (on) nema_port_mutex_lock(D.flock);

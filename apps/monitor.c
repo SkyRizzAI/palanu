@@ -1,29 +1,73 @@
+/* Monitor: processor and memory use, as a form (ADR-0010 §8). The rows are data (read-only gauges and values) bound to the view, so
+ * the running desktop session lays them out in its own look: the classic theme's list, or Athena's grouped list. Sampled twice a
+ * second while it is in front. */
 #include <stdio.h>
 #include <string.h>
 
 #include "builtin.h"
 #include "libapp.h"
+#include "pal/menu.h"
 #include "pal/sysinfo.h"
 #include "pal/theme.h"
 
-#define HIST 96
-
-static uint8_t h0[HIST], h1[HIST];
-static int hn;
-static int cpu0, cpu1;
+static int cpu[2];
+static size_t mem_t[2], mem_f[2]; /* internal, external */
+static size_t procs;
 static pal_cpu_sample_t cpu_s; /* Monitor's own sample state; top keeps its own */
 
 static void sample(void) {
-    cpu0 = pal_sys_cpu_percent(&cpu_s, 0);
-    cpu1 = pal_sys_cpu_count() > 1 ? pal_sys_cpu_percent(&cpu_s, 1) : 0;
-    if (hn == HIST) {
-        memmove(h0, h0 + 1, HIST - 1);
-        memmove(h1, h1 + 1, HIST - 1);
-        hn--;
-    }
-    h0[hn] = (uint8_t)cpu0;
-    h1[hn] = (uint8_t)cpu1;
-    hn++;
+    cpu[0] = pal_sys_cpu_percent(&cpu_s, 0);
+    cpu[1] = pal_sys_cpu_count() > 1 ? pal_sys_cpu_percent(&cpu_s, 1) : 0;
+    mem_t[0] = pal_sys_mem_total(PAL_MEM_INTERNAL), mem_f[0] = pal_sys_mem_free(PAL_MEM_INTERNAL);
+    mem_t[1] = pal_sys_mem_total(PAL_MEM_EXTERNAL), mem_f[1] = pal_sys_mem_free(PAL_MEM_EXTERNAL);
+    /* a process list is too big for the view's stack: it is counted from a heap copy */
+    nema_proc_t *pl = nema_alloc(NEMA_MEM_ANY, NEMA_OWNER_KERNEL, NEMA_PROC_MAX * sizeof(*pl));
+    procs = pl ? nema_proc_list(pl, NEMA_PROC_MAX) : 0;
+    nema_free(pl);
+}
+
+static int cpu_get(void *ctx) { return cpu[(intptr_t)ctx]; }
+static int mem_get(void *ctx) {
+    int i = (int)(intptr_t)ctx;
+    return mem_t[i] ? (int)((mem_t[i] - mem_f[i]) * 100 / mem_t[i]) : 0;
+}
+static void mem_text(void *ctx, char *out, size_t cap) {
+    int i = (int)(intptr_t)ctx;
+    size_t used = mem_t[i] - mem_f[i], total = mem_t[i];
+    if (total >= 1024 * 1024) snprintf(out, cap, "%.1f of %.0f MB", (double)used / 1048576.0, (double)total / 1048576.0);
+    else snprintf(out, cap, "%lu of %lu KB", (unsigned long)(used / 1024), (unsigned long)(total / 1024));
+}
+static void tasks_text(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    snprintf(out, cap, "%lu tasks, %lu processes", (unsigned long)nema_task_count(), (unsigned long)procs);
+}
+
+static const pal_menu_row_t ROWS[] = {
+    {.kind = PAL_MENU_SECTION, .label = "Processor"},
+    {.kind = PAL_MENU_SLIDER, .label = "Core 0 (%)", .get = cpu_get, .ctx = (void *)0, .min = 0, .max = 100, .step = 1},
+    {.kind = PAL_MENU_SLIDER, .label = "Core 1 (%)", .get = cpu_get, .ctx = (void *)1, .min = 0, .max = 100, .step = 1},
+    {.kind = PAL_MENU_SECTION, .label = "Memory"},
+    {.kind = PAL_MENU_SLIDER, .label = "Internal RAM (%)", .get = mem_get, .ctx = (void *)0, .min = 0, .max = 100, .step = 1},
+    {.kind = PAL_MENU_INFO, .label = "Internal used", .text = mem_text, .ctx = (void *)0, .inert = true},
+    {.kind = PAL_MENU_SLIDER, .label = "PSRAM (%)", .get = mem_get, .ctx = (void *)1, .min = 0, .max = 100, .step = 1},
+    {.kind = PAL_MENU_INFO, .label = "PSRAM used", .text = mem_text, .ctx = (void *)1, .inert = true},
+    {.kind = PAL_MENU_SECTION, .label = "System"},
+    {.kind = PAL_MENU_INFO, .label = "Running", .text = tasks_text, .inert = true},
+};
+
+static pal_menu_page_t PAGE = {.title = "Monitor", .rows = ROWS, .n = sizeof(ROWS) / sizeof(ROWS[0]), .live = true};
+static pal_menu_t M;
+
+static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
+    (void)v, (void)full;
+    pal_menu_draw(&M, c, a, pal_theme_active());
+}
+
+static bool key(pal_view_t *v, const pal_key_t *k) {
+    (void)v;
+    bool used = pal_menu_key(&M, k);
+    if (used) pal_desktop_invalidate();
+    return used;
 }
 
 static void tick(pal_view_t *v, uint32_t now) {
@@ -32,73 +76,15 @@ static void tick(pal_view_t *v, uint32_t now) {
     pal_desktop_invalidate();
 }
 
-static void fmt_used(char *buf, size_t n, size_t used, size_t total) {
-    if (total >= 1024 * 1024) snprintf(buf, n, "%.1f/%.0fM", (double)used / 1048576.0, (double)total / 1048576.0);
-    else snprintf(buf, n, "%lu/%luK", (unsigned long)(used / 1024), (unsigned long)(total / 1024));
-}
-
-static int gauge(pal_canvas_t *c, const pal_theme_t *t, int y, int w, const char *label, int pct, const char *val) {
-    const pal_font_t *f = t->tokens.caption;
-    int h = f->h + 3, px = t->tokens.pad_x;
-    int lw = 5 * f->w + 4, vw = 12 * f->w;
-    pal_text(c, f, px, y + 1, label, PAL_C_INK, PAL_TRANSPARENT);
-    pal_text(c, f, w - px - pal_text_w(f, val), y + 1, val, PAL_C_INK, PAL_TRANSPARENT);
-    int bx = px + lw, bw = w - px - vw - bx;
-    pal_rect(c, bx, y + 2, bw, h - 3, PAL_C_INK);
-    pal_fill(c, bx + 1, y + 3, (bw - 2) * (pct < 0 ? 0 : pct > 100 ? 100 : pct) / 100, h - 5, PAL_C_ACCENT);
-    return h + 2;
-}
-
-static void draw(pal_view_t *self, pal_canvas_t *c, pal_rect_t a, bool full) {
-    (void)self, (void)full;
-    const pal_theme_t *t = pal_theme_active();
-    pal_fill(c, a.x, a.y, a.w, a.h, PAL_C_PAPER);
-    int y = a.y + t->comp.title_bar(c, t, a.y, "Monitor");
-    char v[32];
-    snprintf(v, sizeof(v), "%d%%", cpu0);
-    y += gauge(c, t, y, a.w, "CPU0", cpu0, v);
-    snprintf(v, sizeof(v), "%d%%", cpu1);
-    y += gauge(c, t, y, a.w, "CPU1", cpu1, v);
-    size_t it = pal_sys_mem_total(PAL_MEM_INTERNAL), ifr = pal_sys_mem_free(PAL_MEM_INTERNAL);
-    fmt_used(v, sizeof(v), it - ifr, it);
-    y += gauge(c, t, y, a.w, "RAM", it ? (int)((it - ifr) * 100 / it) : 0, v);
-    size_t et = pal_sys_mem_total(PAL_MEM_EXTERNAL), efr = pal_sys_mem_free(PAL_MEM_EXTERNAL);
-    fmt_used(v, sizeof(v), et - efr, et);
-    y += gauge(c, t, y, a.w, "PSRAM", et ? (int)((et - efr) * 100 / et) : 0, v);
-    const pal_font_t *f = t->tokens.caption;
-    snprintf(v, sizeof(v), "tasks %lu   procs", (unsigned long)nema_task_count());
-    /* only the count is shown: a process list is too big for the view's stack, so it is counted from a heap copy */
-    nema_proc_t *pl = nema_alloc(NEMA_MEM_ANY, NEMA_OWNER_KERNEL, NEMA_PROC_MAX * sizeof(*pl));
-    size_t procs = pl ? nema_proc_list(pl, NEMA_PROC_MAX) : 0;
-    nema_free(pl);
-    snprintf(v + strlen("tasks "), sizeof(v) - 6, "%lu  procs %lu", (unsigned long)nema_task_count(), (unsigned long)procs);
-    pal_text(c, f, t->tokens.pad_x, y + 1, v, PAL_C_DIM, PAL_TRANSPARENT);
-    y += f->h + 4;
-    /* CPU history: core 0 solid, core 1 dotted */
-    int gh = a.y + a.h - y - 3, gw = a.w - 2 * t->tokens.pad_x, gx = t->tokens.pad_x;
-    if (gh > 12) {
-        pal_rect(c, gx, y, gw, gh, PAL_C_DIM);
-        int n = hn < gw - 2 ? hn : gw - 2;
-        for (int core = 0; core < 2; core++) {
-            const uint8_t *h = core ? h1 : h0;
-            int prev = -1;
-            for (int i = 0; i < n; i++) {
-                int x = gx + gw - 1 - n + i;
-                int yy = y + gh - 2 - h[hn - n + i] * (gh - 4) / 100;
-                if (core == 0) {
-                    if (prev >= 0) pal_line(c, x - 1, prev, x, yy, PAL_C_ACCENT);
-                } else if (i & 1) {
-                    pal_pixel(c, x, yy, PAL_C_INK);
-                }
-                prev = yy;
-            }
-        }
-    }
-}
-
 static void enter(pal_view_t *v) {
     (void)v;
+    static bool inited;
+    if (!inited) {
+        inited = true;
+        pal_menu_init(&M, &PAGE);
+    }
     sample();
+    pal_menu_bind("monitor", &M); /* the session lays the rows out in its own look */
 }
 
-pal_view_t pal_monitor_view = {.id = "monitor", .title = "Monitor", .enter = enter, .draw = draw, .tick = tick, .tick_ms = 500};
+pal_view_t pal_monitor_view = {.id = "monitor", .title = "Monitor", .enter = enter, .draw = draw, .key = key, .tick = tick, .tick_ms = 500};

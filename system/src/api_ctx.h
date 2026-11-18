@@ -72,5 +72,6 @@ void api_tty_restore(api_ctx_t *c);      /* tty.c: puts the terminal back as the
 int api_ctty_fd(void);                   /* tty.c: the first of fd 0, 1, 2 that is a terminal, or -1 */
 void api_legend_release(api_ctx_t *c);   /* legend.c: removes the app's legends from its terminal (called when the app ends) */
 void api_kids_release(api_ctx_t *c);     /* proc.c: children left running are reaped by the system (called when the app ends) */
+void api_ui_release(api_ctx_t *c);       /* ui.c: the app's form or canvas screen goes (called when the app ends) */
 
 #endif

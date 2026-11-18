@@ -66,10 +66,12 @@ async function offline(cmd: string, a: string[]): Promise<boolean> {
     stack: num("--stack"),
     fuel: num("--fuel"),
     perm: (opt(a, "--perm") ?? "").split(",").filter(Boolean) as Manifest["perm"],
+    api: num("--api"),
+    kind: opt(a, "--kind") as Manifest["kind"],
   };
   const out = opt(a, "-o");
   const input = a[0];
-  if (!input || !m.id) throw new Error(`usage: palanu ${cmd} ${cmd === "build" ? "app.c" : "app.wasm"} --id ID [--name N] [--ver V] [--perm fs,net] [--mem KB] [--stack KB] [--fuel M] [-o out.papp]`);
+  if (!input || !m.id) throw new Error(`usage: palanu ${cmd} ${cmd === "build" ? "app.c" : "app.wasm"} --id ID [--name N] [--ver V] [--perm fs,net] [--kind tty|gui|service] [--api N] [--mem KB] [--stack KB] [--fuel M] [-o out.papp]`);
   let wasmPath = input;
   if (cmd === "build") {
     wasmPath = join(mkdtempSync(join(tmpdir(), "palanu-build-")), "app.wasm");

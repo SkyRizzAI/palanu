@@ -3,7 +3,7 @@
 Generated from `api/palanu/*.h` by `forge/packages/apigen`. Do not edit it by hand: change the definitions,
 then run `bun forge/packages/apigen/src/cli.ts`. `./pal check` rejects a file that is out of sync.
 
-API level: **5**. WebAssembly import module: `palanu`. SDK header: `sdk/palanu.h`.
+API level: **6**. WebAssembly import module: `palanu`. SDK header: `sdk/palanu.h`.
 The full list of names, signatures and permissions is in `api/symbols.csv`; `./pal check` enforces the change rules.
 
 ## Modules
@@ -27,6 +27,7 @@ The full list of names, signatures and permissions is in `api/symbols.csv`; `./p
 | `svc` | Services (API level 2). A service is a background app the supervisor starts (kind=service); it calls pal_svc_ready when it has finished starting, which makes its state RUNNING at once instead of after the start timeout. No permission is needed for this call. Starting, stopping, and reading other services is the svc shell command and, later, the svc.control permission. |
 | `time` | Time: the clock since boot (for measuring), sleeping, and the calendar time (for showing). Sleeping and the wait calls stop an app that Ctrl-C or kill has asked to end. The calendar clock has no battery: it starts at the firmware's build time until the user, SNTP or a connected Palanu Link client sets it. |
 | `tty` | The terminal the app talks to through stdin and stdout. The app's terminal is its controlling terminal: the first of stdin, stdout and stderr that is a terminal. A mode replaces the one before it: PAL_TTY_COOKED (0) lines are edited and echoed, and Ctrl-C stops the app. This is the default. PAL_TTY_RAW (1) every byte arrives as it is typed, Ctrl-C included (as byte 0x03; it does not stop the app). PAL_TTY_NOSIG (2) identical to RAW on this system: raw input and no signals from the keyboard. Kept for code written for terminals where raw and no-signal modes differ. PAL_TTY_NOECHO (4) cooked lines without echo, for typing passwords. When the app ends, the terminal goes back to the mode it had before the app first changed it, however the app ended. |
+| `ui` | App screens (API level 6, ADR-0010 §8). An app that is not a terminal app shows one screen of one of two kinds: A form is data: a list of fields (sections, information, switches, choices, sliders, actions, editable text), each with an id the app picks. The running desktop session lays it out in its own look, so the same app looks native under every desktop. The app waits for events (a field changed, an action ran, the screen closed) with pal_form_next. A canvas is pixels: an RGB565 area the size the system gives (below the session's bar), which looks the same under every desktop. The app sends rows of pixels with pal_canvas_present and reads keys with pal_canvas_key. An app has at most one screen at a time; opening one brings it to the front. The screen goes when the app closes it or ends. The records are little endian. No permission is needed. |
 
 ## crypto
 
@@ -1109,6 +1110,147 @@ int32_t pal_tty_caps(void);
 Returns the terminal capability bits: PAL_TERM_256COLOR (1), PAL_TERM_UTF8 (2), PAL_TERM_ALTSCREEN (4). The on-device terminal has all three.
 
 import `tty_caps` · since 2
+
+## ui
+
+App screens (API level 6, ADR-0010 §8). An app that is not a terminal app shows one screen of one of two kinds: A form is data: a list of fields (sections, information, switches, choices, sliders, actions, editable text), each with an id the app picks. The running desktop session lays it out in its own look, so the same app looks native under every desktop. The app waits for events (a field changed, an action ran, the screen closed) with pal_form_next. A canvas is pixels: an RGB565 area the size the system gives (below the session's bar), which looks the same under every desktop. The app sends rows of pixels with pal_canvas_present and reads keys with pal_canvas_key. An app has at most one screen at a time; opening one brings it to the front. The screen goes when the app closes it or ends. The records are little endian. No permission is needed.
+
+### Constants
+
+| Name | Value |
+|---|---|
+| `PAL_FORM_SECTION` | `1` |
+| `PAL_FORM_INFO` | `2` |
+| `PAL_FORM_TOGGLE` | `3` |
+| `PAL_FORM_CHOICE` | `4` |
+| `PAL_FORM_SLIDER` | `5` |
+| `PAL_FORM_ACTION` | `6` |
+| `PAL_FORM_TEXT` | `7` |
+| `PAL_SYM_CHAR` | `1` |
+| `PAL_SYM_ENTER` | `2` |
+| `PAL_SYM_ESC` | `3` |
+| `PAL_SYM_BACKSPACE` | `4` |
+| `PAL_SYM_TAB` | `5` |
+| `PAL_SYM_DELETE` | `6` |
+| `PAL_SYM_UP` | `7` |
+| `PAL_SYM_DOWN` | `8` |
+| `PAL_SYM_LEFT` | `9` |
+| `PAL_SYM_RIGHT` | `10` |
+| `PAL_FORM_CHANGED` | `1` |
+| `PAL_FORM_ACTIVATED` | `2` |
+| `PAL_FORM_CLOSED` | `3` |
+
+### Functions
+
+#### `pal_form_open`
+
+```c
+int32_t pal_form_open(const char *title);
+```
+
+Opens the app's form screen with title (up to 31 bytes) and brings it to the front, with no fields. Returns 0, PAL_ERR_BUSY (the app has a canvas open, or every screen slot is taken), or PAL_ERR_UNSUPPORTED when there is no screen.
+
+import `form_open` · since 6
+
+#### `pal_form_add`
+
+```c
+int32_t pal_form_add(int32_t id, int32_t kind, const char *label, const char *value);
+```
+
+Adds a field at the end of the form: id (0 to 65535, unique in the form), kind (PAL_FORM_*), label (up to 31 bytes) and value (its text, as each kind says, up to 95 bytes). Returns 0, PAL_ERR_INVAL, PAL_ERR_EXIST (the id is taken), PAL_ERR_FULL (32 fields), or PAL_ERR_NOENT (no form open).
+
+import `form_add` · since 6
+
+#### `pal_form_set`
+
+```c
+int32_t pal_form_set(int32_t id, const char *value);
+```
+
+Sets the value of field id as its kind reads it: the text of an info or text field, 0 or 1 for a toggle, the index for a choice, the number for a slider. Returns 0, PAL_ERR_NOENT, or PAL_ERR_INVAL.
+
+import `form_set` · since 6
+
+#### `pal_form_get`
+
+```c
+int32_t pal_form_get(int32_t id, void *buf, uint32_t len);
+```
+
+Copies the value of field id as text (NUL-terminated) into buf. Returns its length, PAL_ERR_NOENT, or PAL_ERR_INVAL (buf too small).
+
+import `form_get` · since 6
+
+#### `pal_form_clear`
+
+```c
+int32_t pal_form_clear(void);
+```
+
+Removes every field of the app's form (to build it again). Returns 0 or PAL_ERR_NOENT.
+
+import `form_clear` · since 6
+
+#### `pal_form_next`
+
+```c
+int32_t pal_form_next(void *rec, uint32_t len, int32_t timeout_ms);
+```
+
+Waits up to timeout_ms (-1 for ever) for the next event and copies it into rec ({int32 id, int32 kind, int32 value}, 12 bytes). Returns 1 with an event, 0 on timeout, PAL_ERR_NOENT (no form), or PAL_ERR_INVAL (rec under 12 bytes).
+
+import `form_next` · since 6
+
+#### `pal_form_close`
+
+```c
+int32_t pal_form_close(void);
+```
+
+Closes the app's form screen. Returns 0 or PAL_ERR_NOENT.
+
+import `form_close` · since 6
+
+#### `pal_canvas_open`
+
+```c
+int32_t pal_canvas_open(const char *title);
+```
+
+Opens the app's canvas screen with title and brings it to the front. Returns its size as (width << 16) | height in pixels, PAL_ERR_BUSY (the app has a form open, or every screen slot is taken), PAL_ERR_NOMEM, or PAL_ERR_UNSUPPORTED (no full-colour screen).
+
+import `canvas_open` · since 6
+
+#### `pal_canvas_present`
+
+```c
+int32_t pal_canvas_present(const void *px, uint32_t len, int32_t x, int32_t y, int32_t w);
+```
+
+Shows rows of w RGB565 pixels (2 bytes each, little endian) from px at x, y on the canvas; len is a whole number of rows. Returns 0, PAL_ERR_INVAL (outside the canvas, or len not whole rows), or PAL_ERR_NOENT (no canvas).
+
+import `canvas_present` · since 6
+
+#### `pal_canvas_key`
+
+```c
+int32_t pal_canvas_key(void *rec, uint32_t len, int32_t timeout_ms);
+```
+
+Waits up to timeout_ms (-1 for ever) for a key on the canvas and copies it into rec ({uint8 sym, uint8 mods, uint16 0, uint32 code point}, 8 bytes; sym as pal_key events). Returns 1 with a key, 0 on timeout, 2 when the person left the screen, PAL_ERR_NOENT, or PAL_ERR_INVAL.
+
+import `canvas_key` · since 6
+
+#### `pal_canvas_close`
+
+```c
+int32_t pal_canvas_close(void);
+```
+
+Closes the app's canvas screen. Returns 0 or PAL_ERR_NOENT.
+
+import `canvas_close` · since 6
 
 ## Old names (deprecated)
 

@@ -3,6 +3,7 @@
  * away, so no classic screen exists while another session runs. Its keys come first after the system's and the lock's: Fn twice
  * opens the input menu, a tap of the cycle key the switcher, and on the home Enter, Up and Down open the launcher, the control
  * center and the notifications as opaque overlays. Lock and unlock go through the compositor's lock state. */
+#include "appui.h"
 #include "desktop_int.h"
 #include "pal/desktop.h"
 #include "pal/desktops.h"
@@ -48,6 +49,7 @@ void pal_ui_register_all(void) {
     pal_desktop_register(&pal_gallery_view);   /* uishow gallery */
     pal_desktop_register(&pal_animplay_view);  /* anim play */
     pal_desktop_register(&pal_animsheet_view); /* anim sheet */
+    appui_init();                              /* the apps' form and canvas screens (api/palanu/ui.h) */
 }
 
 void pal_ui_lock_now(void) { (void)pal_desktop_lock(); }

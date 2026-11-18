@@ -85,7 +85,7 @@ typedef struct {
     sheet_t kind;
     /* toolkit pages: a bound menu (pal_menu_bind) drawn as a grouped list */
     lv_obj_t *page, *page_title, *page_list, *page_empty;
-    lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS];
+    lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS], *pbar[MAX_PAGE_ROWS];
     int pidx[MAX_PAGE_ROWS]; /* the page row each drawn row shows */
     char ptext[MAX_PAGE_ROWS][VALUE_MAX];
     int pn, psel;
