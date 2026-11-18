@@ -318,7 +318,7 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
 
 static void enter(pal_view_t *v) {
     (void)v;
-    settings_menu();
+    pal_menu_bind("settings", settings_menu()); /* a desktop may draw the pages in its own look (pal/menu.h) */
 }
 
 /* Every 250 ms: the selected row's long text scrolls, and a live page (values that move) repaints every other tick. */

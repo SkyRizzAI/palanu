@@ -129,7 +129,8 @@ typedef struct {
 /* Set by a desktop environment's start (NULL for classic); applied on the desktop task before the next frame, with a full redraw. The
  * structure must outlive its use. */
 void pal_desktop_set_chrome(const pal_desktop_chrome_t *chrome);
-/* The status the bar shows (clock, battery, radios, link): for a desktop that draws its own bar. Any task. */
+/* The status the bar shows (clock, battery, radios, link): for a desktop that draws its own bar. The compositor's once-a-second
+ * reading, with the clock current: calling it does not sample the battery. Any task. */
 pal_status_t pal_desktop_status(void);
 
 #endif

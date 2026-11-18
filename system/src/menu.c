@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "nema/types.h"
+
 #include "pal/desktop.h"
 #include "pal/dialog.h"
 #include "pal/menu.h"
@@ -401,5 +403,64 @@ bool pal_menu_key(pal_menu_t *m, const pal_key_t *k) {
         return pal_menu_pop(m);
     default:
         return false;
+    }
+}
+
+/* ---- bindings for desktops (pal/menu.h) ---- */
+
+static struct {
+    char id[24];
+    pal_menu_t *m;
+} s_bound[4] NEMA_EXT_BSS;
+
+void pal_menu_bind(const char *view_id, pal_menu_t *m) {
+    if (!view_id) return;
+    int free_slot = -1;
+    for (int i = 0; i < 4; i++) {
+        if (s_bound[i].m && !strcmp(s_bound[i].id, view_id)) {
+            s_bound[i].m = m;
+            return;
+        }
+        if (!s_bound[i].m && free_slot < 0) free_slot = i;
+    }
+    if (free_slot < 0 || !m) return;
+    nema_strlcpy(s_bound[free_slot].id, view_id, sizeof(s_bound[free_slot].id));
+    s_bound[free_slot].m = m;
+}
+
+pal_menu_t *pal_menu_bound(const char *view_id) {
+    if (!view_id) return NULL;
+    for (int i = 0; i < 4; i++)
+        if (s_bound[i].m && !strcmp(s_bound[i].id, view_id)) return s_bound[i].m;
+    return NULL;
+}
+
+void pal_menu_value_text(const pal_menu_row_t *r, char *out, size_t cap) {
+    if (!cap) return;
+    out[0] = 0;
+    switch (r->kind) {
+    case PAL_MENU_TOGGLE: snprintf(out, cap, "%s", r->get && r->get(r->ctx) ? "On" : "Off"); break;
+    case PAL_MENU_CHOICE: {
+        int v = r->get ? r->get(r->ctx) : 0, n = 0;
+        while (r->choices && r->choices[n]) n++;
+        if (v >= 0 && v < n) snprintf(out, cap, "%s", r->choices[v]);
+        break;
+    }
+    case PAL_MENU_SLIDER:
+        if (r->get) snprintf(out, cap, "%d", r->get(r->ctx));
+        break;
+    case PAL_MENU_TEXT:
+        if (r->text) {
+            r->text(r->ctx, out, cap);
+            if (r->mask)
+                for (char *p = out; *p; p++) *p = '*';
+        }
+        break;
+    case PAL_MENU_INFO:
+    case PAL_MENU_SUBMENU:
+    case PAL_MENU_ACTION:
+        if (r->text && (r->kind != PAL_MENU_ACTION || r->show_value)) r->text(r->ctx, out, cap);
+        break;
+    default: break;
     }
 }

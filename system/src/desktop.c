@@ -51,6 +51,8 @@ static struct {
     nema_owner_t owner;
     uint32_t last_status_poll;
     pal_status_t last_status; /* what the status bar last showed */
+    pal_status_t polled;      /* the last once-a-second reading (a desktop's own bar reads this, never the ADC) */
+    bool polled_ok;
     volatile bool started;
     uint32_t frames; /* renders that drew the front view */
     const char *start_view;
@@ -682,6 +684,8 @@ static void desktop_task(void *arg) {
         if (t - D.last_status_poll >= 1000) { /* battery and radio state change slowly; reading them costs an ADC sample */
             D.last_status_poll = t;
             pal_status_t st = status_now();
+            D.polled = st;
+            D.polled_ok = true;
             if (!status_same(&st, &D.last_status)) D.status_dirty = true;
         }
         render();
@@ -730,4 +734,14 @@ void pal_desktop_set_chrome(const pal_desktop_chrome_t *chrome) {
     run_or_post(post_chrome, NULL);
 }
 
-pal_status_t pal_desktop_status(void) { return status_now(); }
+/* The cached reading with the clock brought up to date: the battery is an ADC sample, and a second reader doubled the chance of
+ * colliding with a Wi-Fi channel change on hhv2 (interrupt watchdog). */
+pal_status_t pal_desktop_status(void) {
+    if (!D.polled_ok) return status_now();
+    pal_status_t st = D.polled;
+    pal_tm_t tm;
+    pal_time_local(&tm);
+    st.hour = tm.hour;
+    st.minute = tm.minute;
+    return st;
+}

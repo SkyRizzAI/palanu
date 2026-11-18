@@ -200,4 +200,13 @@ bool pal_menu_gauge(const pal_menu_row_t *r); /* a SLIDER without a setter: a re
  * it with the row (kui_row_frame). Settings rows and the notification center use it. */
 void pal_menu_icon8(kui_canvas_t *k, const char *name, int x, int y);
 
+/* Desktops (appended later; docs/DESKTOPS.md). A view that shows a menu binds it to its view id, so the active desktop environment may
+ * draw the menu in its own look instead of pal_menu_draw: the rows are data, so any desktop can lay them out. The keys still go to the
+ * view and to pal_menu_key. At most 4 bindings; binding the same id again replaces the menu. */
+void pal_menu_bind(const char *view_id, pal_menu_t *m);
+pal_menu_t *pal_menu_bound(const char *view_id); /* NULL when the view shows no bound menu */
+/* The value text of a row as the classic page draws it on the right: a toggle's On/Off, a choice's label, a slider's number, a text
+ * row's text (masked rows as stars). "" for rows with no value. */
+void pal_menu_value_text(const pal_menu_row_t *r, char *out, size_t cap);
+
 #endif

@@ -61,10 +61,16 @@ how it draws:
 3. **Canvas apps** draw raw pixels on the canvas they are given (games, viewers, custom screens). They look the same under every desktop;
    the desktop only decides where the area is (below its bar) and handles the keys around it.
 
+   A toolkit whose content is data goes further: a view that shows a menu (`pal/menu.h`) binds it with `pal_menu_bind(view_id, menu)`, and
+   a desktop may lay the rows out itself. Athena draws bound menus as a grouped list in full colour (large title with a back chevron,
+   section headers, rounded rows, switches for toggles, values and chevrons on the right); the keys still go to the view and
+   `pal_menu_key`, so the behaviour is the app's. Settings binds its menu, so every Settings page follows the desktop.
+
 Apps that need full colour and their own widgets (an LVGL app) are a later step: they need a surface API (an RGB565 buffer and a present
 call for the app's area) in the app API, with its own `PAL_SINCE` level.
 
-Today Athena does not ship a theme yet: built-in toolkit apps (Settings, Files, Logs) keep the classic theme under Athena's bar.
+Under Athena, what is not a bound menu keeps the classic drawing below Athena's bar: Files, Logs, Monitor, the Terminal, and the dialogs,
+pickers and on-screen keyboard that a Settings row opens (while one is open, the page under it is drawn the classic way).
 
 ## Athena
 
@@ -81,5 +87,5 @@ of the panel (in PSRAM) in direct mode.
 Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (the image is 91% of the OTA slot), no internal RAM
 beyond a few hundred bytes (the pool, the frame and its state are in PSRAM), and the desktop task's stack went from 6 to 8 KB.
 
-Golden scenes: `athena-home`, `athena-select`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-terminal`
+Golden scenes: `athena-home`, `athena-select`, `athena-settings`, `athena-settings-display`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-terminal`
 (`forge/tools/golden-scenes.json`). Unit test: `tests/unit/test_desktops.c`.
