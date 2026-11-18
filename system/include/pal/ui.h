@@ -52,6 +52,7 @@ bool pal_launcher_pinned(const char *id);     /* the launcher shows this app (la
 void pal_launcher_run(const pal_reg_app_t *e); /* opens a launcher or app list entry (launcher.c) */
 void pal_ui_applist_fixture(bool on);         /* uishow applist ref: the reference app list (applist.c) */
 bool pal_ui_ref_fixture(const char *name);  /* uishow screen NAME: the reference dialog or page (dialog_fixture.c) */
+extern pal_view_t pal_launcher_view;           /* id "launcher": the classic launcher (launcher.c) */
 extern pal_view_t pal_applist_view;           /* id "applist": the app list, opened from the launcher's Apps entry */
 const char *pal_ui_wallpaper_name(int wall);  /* "anim:NAME" for the animation wallpaper (the desktop's only one) */
 /* The wallpapers ui.wallpaper offers: the desktop animations (the reference laptop, hacking_pc and lab_research, drawn for PalanuOS).

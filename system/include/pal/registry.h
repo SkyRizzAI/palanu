@@ -32,6 +32,7 @@ typedef struct {
     char icon[24];    /* icon id; empty means the id */
     char category[16];
     char path[48];    /* installed apps: where the package file is; empty for built-ins */
+    char desktops[32]; /* the desktop sessions it belongs to, comma-separated; empty = every session (ADR-0010) */
 } pal_reg_app_t;
 
 /* One row of apps/manifests.gen.c (the generated built-in table). */
@@ -48,6 +49,7 @@ typedef struct {
     uint32_t fuel_m;
     const char *icon;
     const char *category;
+    const char *desktops; /* "" = every session */
 } pal_reg_builtin_t;
 
 /* The defaults for built-in commands (the nema_app_t table): [defaults.command] in apps/apps.toml. */
@@ -70,6 +72,8 @@ void psys_reg_init(const pal_reg_builtin_t *tab, size_t n, const pal_reg_default
 size_t psys_reg_count(void);
 bool psys_reg_get(size_t i, pal_reg_app_t *out);
 bool psys_reg_find(const char *id, pal_reg_app_t *out);
+/* The entry belongs to the session `desktop` (its desktops list is empty or names it). */
+bool psys_reg_in_desktop(const pal_reg_app_t *e, const char *desktop);
 
 /* Installed apps: added when a package verifies and its command is registered; removed with the command. */
 nema_err_t psys_reg_add_installed(const pal_papp_t *app, const char *path);

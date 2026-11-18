@@ -4,6 +4,7 @@
 
 #include "nema/types.h"
 #include "pal/desktop.h"
+#include "pal/desktops.h"
 #include "pal/kui.h"
 #include "pal/registry.h"
 #include "pal/theme.h"
@@ -43,8 +44,9 @@ bool pal_launcher_pinned(const char *id) {
     return false;
 }
 
+/* Listed: visible, something to run, and part of the running session (the manifest's desktops). */
 static bool launchable(const pal_reg_app_t *e) {
-    return !e->hidden && (e->kind == PAL_KIND_TTY || e->kind == PAL_KIND_GUI);
+    return !e->hidden && (e->kind == PAL_KIND_TTY || e->kind == PAL_KIND_GUI) && psys_reg_in_desktop(e, pal_desktops_active());
 }
 
 size_t psys_launcher_count(void) {
@@ -177,7 +179,7 @@ static bool key(pal_view_t *self, const pal_key_t *k) {
         return true;
     }
     if (!n) {
-        if (k->sym == PAL_KEY_ESC) pal_desktop_open("home");
+        if (k->sym == PAL_KEY_ESC) pal_desktop_home();
         return k->sym == PAL_KEY_ESC;
     }
     if (k->sym == PAL_KEY_LEFT || k->sym == PAL_KEY_UP) L.sel = L.sel > 0 ? L.sel - 1 : 0;
@@ -186,7 +188,7 @@ static bool key(pal_view_t *self, const pal_key_t *k) {
     else if (k->sym == PAL_KEY_END) L.sel = n - 1;
     else if (k->sym == PAL_KEY_ENTER) activate();
     else if (k->sym == PAL_KEY_TAB) L.info = true;
-    else if (k->sym == PAL_KEY_ESC) pal_desktop_open("home");
+    else if (k->sym == PAL_KEY_ESC) pal_desktop_home();
     else if (k->sym == PAL_KEY_CHAR && !(k->mods & ~PAL_MOD_SHIFT)) { /* jump to the next app starting with that letter */
         for (int s = 1; s <= n; s++) {
             int j = (L.sel + s) % n;

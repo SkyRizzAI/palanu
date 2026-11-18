@@ -1,6 +1,6 @@
 # ADR-0010: A system console under desktop sessions; a desktop is a whole session, not a skin
 
-Status: accepted (18 November 2026); P1 done (19 November 2026). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
+Status: accepted (18 November 2026); P1 and P2 done (19 November 2026). Supersedes the desktop part of ADR-0009; the LVGL and RGB565 parts of ADR-0009 stay.
 
 ## Context
 ADR-0009 added desktop environments as a hook table (`pal_desktop_chrome_t`) on a compositor that is itself the classic desktop. Testing

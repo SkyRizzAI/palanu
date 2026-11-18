@@ -1,5 +1,5 @@
-/* LVGL configuration for Athena (docs/DESKTOPS.md): software rendering into an RGB565 buffer, LVGL's own allocator on a static
- * pool, the Montserrat fonts (SIL OFL), and no optional extras. Everything not set here keeps LVGL's default. */
+/* LVGL configuration for Athena (docs/DESKTOPS.md): software rendering into an RGB565 buffer, LVGL's own allocator on a pool the
+ * session takes at its start and gives back at its stop, the Montserrat fonts (SIL OFL), and no optional extras. Everything not set here keeps LVGL's default. */
 #ifndef LV_CONF_H
 #define LV_CONF_H
 
@@ -8,9 +8,9 @@
 #define LV_USE_STDLIB_STRING LV_STDLIB_BUILTIN
 #define LV_USE_STDLIB_SPRINTF LV_STDLIB_BUILTIN
 #define LV_MEM_SIZE (192 * 1024)
-#ifdef ESP_PLATFORM
-#define LV_ATTRIBUTE_LARGE_RAM_ARRAY __attribute__((section(".ext_ram.bss"))) /* the pool lives in PSRAM, never in internal RAM */
-#endif
+#define LV_MEM_ADR 0
+#define LV_MEM_POOL_INCLUDE "athena_pool.h"
+#define LV_MEM_POOL_ALLOC athena_pool /* the pool is taken at the session's start (PSRAM) and given back at its stop */
 #define LV_USE_OS LV_OS_NONE
 #define LV_DEF_REFR_PERIOD 33
 #define LV_DPI_DEF 130

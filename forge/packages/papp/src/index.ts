@@ -17,6 +17,7 @@ export interface Manifest {
   icon?: string; // icon id for the launcher
   category?: string; // launcher category
   hidden?: boolean; // not listed in the launcher
+  desktops?: string; // the desktop sessions it belongs to, comma-separated ("classic"); absent = every session
 }
 
 export interface PackOptions {
@@ -53,6 +54,8 @@ export function validateManifest(m: Manifest) {
   for (const p of m.perm ?? []) if (!(PERMS as readonly string[]).includes(p)) throw new Error("unknown permission " + p);
   if (m.icon !== undefined && m.icon.length > 23) throw new Error("icon must be at most 23 characters");
   if (m.category !== undefined && m.category.length > 15) throw new Error("category must be at most 15 characters");
+  if (m.desktops !== undefined && !/^[a-z0-9_-]+(,[a-z0-9_-]+)*$/.test(m.desktops)) throw new Error("desktops must be desktop ids separated by commas");
+  if (m.desktops !== undefined && m.desktops.length > 31) throw new Error("desktops must be at most 31 characters");
 }
 
 // ---- Ed25519 keys: a 32-byte seed in a file (hex text or raw bytes) ----

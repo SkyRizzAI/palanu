@@ -38,7 +38,6 @@ void pal_settings_request_page(const char *name); /* Settings opens on this page
 void pal_settings_bind_host(void); /* hands the app-owned settings to the system settings table (settings_store.c); boot */
 
 /* Views (graphical built-in apps). */
-extern pal_view_t pal_launcher_view;
 extern pal_view_t pal_terminal_view;
 extern pal_view_t pal_settings_view;
 extern pal_view_t pal_monitor_view;

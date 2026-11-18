@@ -277,6 +277,16 @@ static int cmd_flushes(int argc, char **argv) {
 }
 
 #define APP(n, h, f, s) {n, h, f, s, 0}
+/* lock: the running session's lock screen now (the PIN, when set, unlocks it). */
+static int cmd_lock(int argc, char **argv) {
+    (void)argc, (void)argv;
+    if (pal_desktop_lock() != NEMA_OK) {
+        pal_eprintf("lock: no desktop session with a lock screen is running\n");
+        return 1;
+    }
+    return 0;
+}
+
 static const nema_app_t SYS_APPS[] = {
     APP("true", "succeed", cmd_true, 0),           APP("false", "fail", cmd_false, 0),
     APP("free", "memory by owner", cmd_free, 0),    APP("ps", "list processes", cmd_ps, 0),
@@ -285,6 +295,7 @@ static const nema_app_t SYS_APPS[] = {
     APP("date", "show or set the date", cmd_date, 0), APP("sleep", "wait N seconds", cmd_sleep, 0),
     APP("kill", "signal a process", cmd_kill, 0),  APP("beep", "sound the buzzer", cmd_beep, 0), APP("battery", "supply voltage and charge", cmd_battery, 0),
     APP("rgb", "set the RGB LED", cmd_rgb, 0),     APP("reboot", "restart the board", cmd_reboot, 0),
+    APP("lock", "lock the screen now", cmd_lock, 0),
     APP("theme", "show or change the theme", cmd_theme, 0), APP("brightness", "backlight percent", cmd_brightness, 0),
     {"flushes", "display flush count", cmd_flushes, 0, NEMA_APP_HIDDEN},
     {"setting", "set a settings key (dev: golden scenes)", cmd_setting, 0, NEMA_APP_HIDDEN},

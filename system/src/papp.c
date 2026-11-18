@@ -182,6 +182,7 @@ static nema_err_t parse_manifest(const uint8_t *m, size_t len, pal_papp_t *out) 
         else if (key_is(k, kn, "ver")) ok = copy_text(&c, out->version, sizeof(out->version));
         else if (key_is(k, kn, "icon")) ok = copy_text(&c, out->icon, sizeof(out->icon));
         else if (key_is(k, kn, "category")) ok = copy_text(&c, out->category, sizeof(out->category));
+        else if (key_is(k, kn, "desktops")) ok = copy_text(&c, out->desktops, sizeof(out->desktops));
         else if (key_is(k, kn, "hidden")) ok = bool_val(&c, &out->hidden);
         else if (key_is(k, kn, "api")) {
             uint32_t v = 0;

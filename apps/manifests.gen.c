@@ -4,17 +4,17 @@
 #include "pal/registry.h"
 
 const pal_reg_builtin_t PAL_BUILTIN_APPS[] = {
-    {"launcher", "Apps", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "apps", "System"},
-    {"home", "Home", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "clock", "System"},
-    {"lock", "Lock", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "lock", "System"},
-    {"terminal", "Terminal", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "terminal", "Tools"},
-    {"settings", "Settings", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "settings", "System"},
-    {"control", "Control", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "brightness", "System"},
-    {"notifications", "Notifications", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "notifications", "System"},
-    {"monitor", "Monitor", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "monitor", "System"},
-    {"files", "Files", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "files", "Tools"},
-    {"logs", "Logs", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "logs", "System"},
-    {"applist", "Apps", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "apps", "System"},
+    {"launcher", "Apps", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "apps", "System", "classic"},
+    {"home", "Home", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "clock", "System", "classic"},
+    {"lock", "Lock", "1.0.0", 2, PAL_KIND_GUI, true, 0, 0, 0, 0, "lock", "System", "classic"},
+    {"terminal", "Terminal", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "terminal", "Tools", ""},
+    {"settings", "Settings", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "settings", "System", ""},
+    {"control", "Control", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "brightness", "System", "classic"},
+    {"notifications", "Notifications", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "notifications", "System", "classic"},
+    {"monitor", "Monitor", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "monitor", "System", ""},
+    {"files", "Files", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "files", "Tools", ""},
+    {"logs", "Logs", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "logs", "System", ""},
+    {"applist", "Apps", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "apps", "System", "classic"},
 };
 const size_t PAL_BUILTIN_APPS_COUNT = sizeof(PAL_BUILTIN_APPS) / sizeof(PAL_BUILTIN_APPS[0]);
 

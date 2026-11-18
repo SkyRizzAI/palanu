@@ -419,6 +419,15 @@ TEST(link_activity_resets_idle_and_does_not_wake) {
     pal_dpm_set_sleep_ms(PAL_DPM_SLEEP_DEFAULT_MS);
 }
 
+/* A session's part of the compositor (ADR-0010): the home, and the cycle key opening the switcher, as the classic session sets them. */
+nema_err_t pal_switcher_open(void);
+size_t pal_desktop_overlay_count(void);
+static bool session_key(const pal_key_t *k) {
+    if (k->sym == PAL_KEY_SWITCH && pal_desktop_overlay_count() == 0) return pal_switcher_open(), true;
+    return false;
+}
+static const pal_desktop_chrome_t SESSION = {.key = session_key};
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -427,6 +436,8 @@ int main(void) {
     pal_display_init(&ops);
     pal_desktop_cfg_t dc = {.status = NULL};
     pal_desktop_init(&dc);
+    pal_desktop_set_home("launcher");
+    pal_desktop_set_chrome(&SESSION);
     make_view(LAUNCH, "launcher", PAL_VIEW_HIDDEN, 50);
     make_view(A, "a", 0, 50);
     make_view(OV1, "ov1", 0, 0);

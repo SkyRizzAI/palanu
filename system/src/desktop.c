@@ -41,6 +41,8 @@ typedef struct {
 static struct {
     pal_desktop_cfg_t cfg;
     pal_view_t *views[MAX_VIEWS];
+    const char *vowner[MAX_VIEWS]; /* the session that registered the view, NULL for the system's own (ADR-0010) */
+    const char *reg_owner;         /* the session whose start is running: what it registers is its own */
     int nviews;
     int mru[MAX_VIEWS]; /* indices, most recent first; mru[0] is the front view */
     int nmru;
@@ -195,7 +197,10 @@ nema_err_t pal_desktop_register(pal_view_t *v) {
         if (strcmp(D.views[i]->id, v->id) == 0) r = NEMA_ERR_EXIST;
     if (r == NEMA_OK) {
         if (D.nviews == MAX_VIEWS) r = NEMA_ERR_FULL;
-        else D.views[D.nviews++] = v;
+        else {
+            D.vowner[D.nviews] = D.reg_owner;
+            D.views[D.nviews++] = v;
+        }
     }
     nema_port_mutex_unlock(D.lock);
     return r;
@@ -209,6 +214,66 @@ pal_view_t *pal_desktop_view(const char *id) {
 size_t pal_desktop_view_count(void) { return (size_t)D.nviews; }
 pal_view_t *pal_desktop_view_at(size_t i) { return i < (size_t)D.nviews ? D.views[i] : NULL; }
 const char *pal_desktop_front_id(void) { return front() ? front()->id : ""; }
+
+/* ---- sessions (pal/desktops.h, ADR-0010): what a session registers is its own, and its stop takes all of it away ---- */
+
+void desk_session_scope(const char *id) { D.reg_owner = id; }
+
+size_t desk_session_views(const char *id) {
+    size_t n = 0;
+    for (int i = 0; i < D.nviews; i++)
+        if (D.vowner[i] && id && !strcmp(D.vowner[i], id)) n++;
+    return n;
+}
+
+static bool owned_by(int i, const char *id) { return D.vowner[i] && id && !strcmp(D.vowner[i], id); }
+
+/* Desktop task only (or before it starts). Every view of the session leaves the overlays and the views, and everything a session
+ * sets on the compositor goes back to nothing: chrome, home, lock view, home keys and the rows kept for a bar. */
+void desk_session_reset(const char *id) {
+    for (int i = ovl_count() - 1; i >= 0; i--) {
+        pal_view_t *ov = ovl_view(i);
+        for (int j = 0; j < D.nviews; j++)
+            if (D.views[j] == ov && owned_by(j, id)) {
+                ovl_remove_now(ov);
+                break;
+            }
+    }
+    pal_view_t *f = front();
+    for (int j = 0; j < D.nviews; j++)
+        if (D.views[j] == f && owned_by(j, id) && f->leave) {
+            D.cur = f;
+            f->leave(f);
+        }
+    int map[MAX_VIEWS], n = 0;
+    nema_port_mutex_lock(D.lock);
+    for (int i = 0; i < D.nviews; i++) {
+        if (owned_by(i, id)) {
+            map[i] = -1;
+            continue;
+        }
+        map[i] = n;
+        D.views[n] = D.views[i];
+        D.vowner[n] = D.vowner[i];
+        n++;
+    }
+    D.nviews = n;
+    int m = 0;
+    for (int i = 0; i < D.nmru; i++)
+        if (map[D.mru[i]] >= 0) D.mru[m++] = map[D.mru[i]];
+    D.nmru = m;
+    D.chrome = NULL;
+    D.owned = false;
+    D.home[0] = 0;
+    D.lock_id[0] = 0;
+    for (int i = 0; i < BINDS; i++) D.binds[i].used = false;
+    nema_port_mutex_unlock(D.lock);
+    if (pal_dpm_locked()) pal_dpm_set_locked(false, now_ms()); /* its lock screen is gone with it */
+    pal_display_reserve_top(0);
+    D.inval_all = true;
+    pal_mark_all(pal_display_canvas());
+    nema_notify(&D.wake);
+}
 
 nema_err_t pal_desktop_watch(nema_obj_t *o) {
     nema_err_t r = NEMA_ERR_FULL;
@@ -304,7 +369,12 @@ void pal_desktop_set_home(const char *id) {
 }
 const char *pal_desktop_home_id(void) { return D.home; }
 
-void pal_desktop_home(void) { pal_desktop_open(D.home); }
+void pal_desktop_home(void) {
+    if (D.home[0]) pal_desktop_open(D.home);
+}
+
+/* The app in front is done: the session decides what comes next (its home). Apps never name a session's view. */
+void pal_app_exit(void) { pal_desktop_home(); }
 
 /* ---- lock ---- */
 
@@ -343,6 +413,7 @@ void pal_desktop_set_lock_view(const char *view_id) {
 }
 
 nema_err_t pal_desktop_lock(void) {
+    if (!D.lock_id[0]) return NEMA_ERR_NOENT; /* no session, or one without a lock screen */
     if (!D.started || desk_on_task()) return lock_now();
     return desk_post(post_lock, NULL);
 }
@@ -513,21 +584,11 @@ static void handle_key(const pal_key_t *k) {
         D.inval = true;
         return;
     }
-    if (k->sym == PAL_KEY_GOHOME) {
-        desk_open_now(D.home);
-        return;
-    }
-    if (k->sym == PAL_KEY_VKB) { /* Fn tapped twice: the input menu, and from it the full-page keyboard (pal/input_menu.h) */
-        pal_input_menu_fn_double();
-        D.inval = true;
+    if (k->sym == PAL_KEY_GOHOME) { /* the session's home; with no session, nothing */
+        if (D.home[0]) desk_open_now(D.home);
         return;
     }
     pal_view_t *ov = ovl_count() ? ovl_view(ovl_count() - 1) : NULL;
-    if (k->sym == PAL_KEY_SWITCH && !ov) {
-        pal_switcher_open();
-        D.inval = true;
-        return;
-    }
     if (ov) {
         D.cur = ov;
         bool handled = ov->key && ov->key(ov, k);
@@ -542,7 +603,7 @@ static void handle_key(const pal_key_t *k) {
     pal_view_t *v = front();
     D.cur = v;
     bool handled = v && v->key && v->key(v, k);
-    if (!handled && k->sym == PAL_KEY_ESC && v && strcmp(v->id, D.home) != 0) desk_open_now(D.home);
+    if (!handled && k->sym == PAL_KEY_ESC && v && D.home[0] && strcmp(v->id, D.home) != 0) desk_open_now(D.home); /* back to the session */
     pal_desktop_invalidate();
 }
 
@@ -636,8 +697,8 @@ static void desktop_task(void *arg) {
     nema_wait_on(NULL, 0, always, NULL, 0); /* creates this task's nema context, which is its TLS pointer */
     desk_tls = nema_port_tls_get();
     const char *first = D.start_view ? D.start_view : D.home;
-    desk_open_now(first);
-    if (!front()) desk_open_now(D.home);
+    if (first[0]) desk_open_now(first);
+    if (!front() && D.home[0]) desk_open_now(D.home);
     uint32_t last_tick = now_ms();
     for (;;) {
         uint32_t t = now_ms();
@@ -712,7 +773,7 @@ void pal_desktop_init(const pal_desktop_cfg_t *cfg) {
     D.lock = nema_port_mutex_create();
     D.owner = nema_owner_register("desktop");
     nema_obj_init(&D.wake, &WAKE_OPS);
-    nema_strlcpy(D.home, "launcher", sizeof(D.home));
+    D.home[0] = 0; /* no session yet: the session that starts sets its home */
     pal_dpm_hooks_t hooks = {dpm_display, dpm_lock};
     pal_dpm_init(&hooks, now_ms());
     const pal_status_item_t *items = NULL;

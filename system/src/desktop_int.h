@@ -20,6 +20,12 @@ const char *desk_home_id(void);
 void desk_wake(void);                          /* wake the desktop loop */
 bool desk_locked_view(const pal_view_t *v); /* v is the lock view and the device is locked */
 
+/* Sessions (desktops.c, ADR-0010). desk_session_scope(id) makes what is registered until desk_session_scope(NULL) the session's;
+ * desk_session_reset(id) takes all of it away (desktop task only) and clears what the session set on the compositor. */
+void desk_session_scope(const char *id);
+void desk_session_reset(const char *id);
+size_t desk_session_views(const char *id);
+
 /* Overlay stack (overlay.c). Desktop task only. */
 int ovl_count(void);
 pal_view_t *ovl_view(int i);

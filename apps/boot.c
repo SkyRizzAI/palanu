@@ -162,9 +162,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_console_printf("[\x1b[32m  OK  \x1b[0m] Display %dx%d.\n", panel.width, panel.height);
         pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = NULL /* the session's home */};
         pal_desktop_init(&dc);
-        pal_desktop_register(&pal_launcher_view);
-        pal_desktop_register(&pal_applist_view); /* the app list, opened from the launcher's Apps entry (applist.c) */
-        pal_ui_register_all(); /* home, lock, control, notifications (ui_wire.c) */
+        pal_ui_register_all(); /* the system's dev screens and the classic session (ui_wire.c); a session registers its screens at its start */
         pal_desktop_register(&pal_terminal_view);
         pal_desktop_register(&pal_settings_view);
         pal_desktop_register(&pal_monitor_view);

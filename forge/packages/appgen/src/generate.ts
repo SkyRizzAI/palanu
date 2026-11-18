@@ -32,7 +32,7 @@ export interface Generated {
   problems: string[];
 }
 
-type Row = { id: string; name: string; version: string; api: number; kind: string; hidden: boolean; caps: string[]; stack_kb: number; mem_kb: number; fuel_m: number; icon: string; category: string };
+type Row = { id: string; name: string; version: string; api: number; kind: string; hidden: boolean; caps: string[]; stack_kb: number; mem_kb: number; fuel_m: number; icon: string; category: string; desktops: string };
 
 const ID_RE = /^[a-z0-9_-]{1,23}$/;
 
@@ -76,6 +76,19 @@ function caps(t: Table, where: string, problems: string[]): string[] {
   }
   for (const c of v) if (!(c in CAP_BITS)) problems.push(`${where}: unknown capability "${c}"`);
   return v;
+}
+
+/* desktops = ["classic"]: the sessions an app belongs to (ADR-0010); none means every session. Stored as one comma-separated text. */
+function desktops(t: Table, where: string, problems: string[]): string {
+  const v = t.desktops;
+  if (v === undefined) return "";
+  if (!Array.isArray(v) || v.some((d) => typeof d !== "string" || !ID_RE.test(d))) {
+    problems.push(`${where}: desktops must be an array of desktop ids`);
+    return "";
+  }
+  const s = (v as string[]).join(",");
+  if (s.length > 31) problems.push(`${where}: desktops is longer than 31 characters`);
+  return s;
 }
 
 function kindOf(t: Table, where: string, dflt: string | undefined, problems: string[]): string {
@@ -140,6 +153,7 @@ export function generate(root: string): Generated {
       fuel_m: num(t, "fuel_m", where, 1000000, problems),
       icon: str(t, "icon", where, 23, "", problems),
       category: str(t, "category", where, 15, "", problems),
+      desktops: desktops(t, where, problems),
     });
   });
   if (problems.length) return { file: "", problems };
@@ -159,7 +173,7 @@ function emit(rows: Row[], cmd: { kind: string; hidden: boolean; api: number }):
   for (const r of rows) {
     const caps = r.caps.length ? r.caps.map((c) => CAP_BITS[c]).join(" | ") : "0";
     out.push(
-      `    {${q(r.id)}, ${q(r.name)}, ${q(r.version)}, ${r.api}, ${KINDS[r.kind]}, ${r.hidden}, ${caps}, ${r.stack_kb}, ${r.mem_kb}, ${r.fuel_m}, ${q(r.icon)}, ${q(r.category)}},`,
+      `    {${q(r.id)}, ${q(r.name)}, ${q(r.version)}, ${r.api}, ${KINDS[r.kind]}, ${r.hidden}, ${caps}, ${r.stack_kb}, ${r.mem_kb}, ${r.fuel_m}, ${q(r.icon)}, ${q(r.category)}, ${q(r.desktops)}},`,
     );
   }
   out.push("};");

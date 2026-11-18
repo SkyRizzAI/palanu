@@ -58,8 +58,9 @@ nema_err_t pal_desktop_register(pal_view_t *v);
 /* Open a registered view as the front layer (overlays are closed first). From any task: when the desktop runs, the change
  * is queued for the desktop task and happens before the next frame. */
 void pal_desktop_open(const char *id);
-void pal_desktop_home(void);                       /* opens the home view (pal_desktop_set_home) */
-void pal_desktop_set_home(const char *id);         /* default "launcher" */
+void pal_desktop_home(void);                       /* opens the running session's home view; nothing without a session */
+void pal_app_exit(void);                           /* the app in front is done: the session decides where to go */
+void pal_desktop_set_home(const char *id);         /* set by the session at its start; none without a session */
 const char *pal_desktop_home_id(void);
 void pal_desktop_invalidate(void);              /* ask for a redraw of the top layer; any task */
 void pal_desktop_invalidate_all(void);          /* also redraw status bar and background; any task */

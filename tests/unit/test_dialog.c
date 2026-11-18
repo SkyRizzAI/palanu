@@ -327,6 +327,15 @@ TEST(blocking_call_on_the_desktop_task_returns_false_at_once) {
     pal_desktop_home();
 }
 
+/* A session's part of the compositor (ADR-0010): the home, and the cycle key opening the switcher, as the classic session sets them. */
+nema_err_t pal_switcher_open(void);
+size_t pal_desktop_overlay_count(void);
+static bool session_key(const pal_key_t *k) {
+    if (k->sym == PAL_KEY_SWITCH && pal_desktop_overlay_count() == 0) return pal_switcher_open(), true;
+    return false;
+}
+static const pal_desktop_chrome_t SESSION = {.key = session_key};
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -335,6 +344,8 @@ int main(void) {
     pal_display_init(&ops);
     pal_desktop_cfg_t dc = {.status = NULL};
     pal_desktop_init(&dc);
+    pal_desktop_set_home("launcher");
+    pal_desktop_set_chrome(&SESSION);
     static pal_view_t launcher = {.id = "launcher", .title = "Home", .flags = PAL_VIEW_HIDDEN, .draw = dw_draw};
     CHECK(pal_desktop_register(&launcher) == NEMA_OK);
     CHECK(pal_desktop_start() == NEMA_OK);

@@ -261,7 +261,7 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
         if (N.n > 0) (void)pal_dialog_confirm("Clear all", "Remove all notifications?", "Clear", "Cancel", on_clear, NULL);
         return true;
     case PAL_KEY_ESC:
-        pal_desktop_open("home");
+        pal_desktop_home();
         return true;
     default:
         return false;

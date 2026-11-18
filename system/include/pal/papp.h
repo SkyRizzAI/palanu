@@ -56,6 +56,7 @@ typedef struct {
     bool hidden;     /* manifest [launcher] hidden: not listed in the launcher */
     char icon[24];     /* icon id for the launcher; empty = the id's default */
     char category[16]; /* launcher category */
+    char desktops[32]; /* manifest "desktops": the sessions it belongs to, comma-separated; empty = every session */
     const uint8_t *payload; /* the module: points into the file buffer, or into `owned` for a compressed code section */
     size_t payload_len;
     uint8_t *owned;         /* the inflated module when the code section was compressed (pal_papp_release frees it) */

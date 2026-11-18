@@ -133,7 +133,7 @@ static void fire(ctl_item_t it) {
     case CTL_WIFI: toggle_radio(PAL_RADIO_WIFI); break;
     case CTL_DARK: (void)psys_settings_set("ui.dark", pal_theme_dark() ? "0" : "1"); break;
     case CTL_LOCK:
-        pal_desktop_open("home"); /* back to the desktop first, as the reference does, then lock */
+        pal_desktop_home(); /* back to the desktop first, as the reference does, then lock */
         pal_ui_lock_now();
         break;
     case CTL_SETTINGS: pal_desktop_open("settings"); break;
@@ -149,7 +149,7 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     bool slider = C.focus == CTL_BRIGHT || C.focus == CTL_VOL;
     switch (k->sym) {
     case PAL_KEY_ESC:
-        pal_desktop_open("home");
+        pal_desktop_home();
         return true;
     case PAL_KEY_ENTER:
         if (!slider) fire(C.focus);

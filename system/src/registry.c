@@ -78,6 +78,7 @@ static void builtin_entry(const pal_reg_builtin_t *b, pal_reg_app_t *e) {
     nema_strlcpy(e->version, b->version ? b->version : "", sizeof(e->version));
     nema_strlcpy(e->icon, b->icon ? b->icon : "", sizeof(e->icon));
     nema_strlcpy(e->category, b->category ? b->category : "", sizeof(e->category));
+    nema_strlcpy(e->desktops, b->desktops ? b->desktops : "", sizeof(e->desktops));
     e->api = b->api;
     e->kind = b->kind;
     e->hidden = b->hidden;
@@ -152,6 +153,7 @@ nema_err_t psys_reg_add_installed(const pal_papp_t *app, const char *path) {
     nema_strlcpy(e.version, app->version, sizeof(e.version));
     nema_strlcpy(e.icon, app->icon, sizeof(e.icon));
     nema_strlcpy(e.category, app->category, sizeof(e.category));
+    nema_strlcpy(e.desktops, app->desktops, sizeof(e.desktops));
     nema_strlcpy(e.path, path ? path : "", sizeof(e.path));
     e.api = app->api;
     e.kind = app->kind;
@@ -205,4 +207,18 @@ nema_err_t psys_reg_admit(const pal_reg_app_t *app, int32_t self, char *msg, siz
         else snprintf(msg, cap, "%s: %d services are already running (limit %d)", app->id, (int)services, PSYS_REG_MAX_SERVICES);
     }
     return r;
+}
+
+bool psys_reg_in_desktop(const pal_reg_app_t *e, const char *desktop) {
+    if (!e->desktops[0]) return true;
+    if (!desktop || !desktop[0]) return false;
+    size_t n = strlen(desktop);
+    for (const char *p = e->desktops; *p;) {
+        const char *end = strchr(p, ',');
+        size_t len = end ? (size_t)(end - p) : strlen(p);
+        if (len == n && !strncmp(p, desktop, n)) return true;
+        if (!end) break;
+        p = end + 1;
+    }
+    return false;
 }

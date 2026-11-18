@@ -1,9 +1,8 @@
 # Desktop environments
 
 > **Being replaced.** This page describes the current hook-based model. ADR-0010 (`docs/adr/0010-system-console-and-desktop-sessions.md`)
-> replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console) is done and is
-> described below. Known faults until P2 is done: shell screens such as Control and Notifications are the classic ones under every
-> desktop, and leaving them opens the classic home.
+> replaces it with a system console under whole desktop sessions, migrated in phases P1 to P6. P1 (the system console) and P2 (whole
+> sessions) are done and described below.
 
 PalanuOS is built like a Linux system. The base system is the kernel, the services and the **system console** (below), a shell on a
 text screen of its own. Everything graphical around the
@@ -51,28 +50,45 @@ started in its place. Safe mode starts no session and leaves `desktop.env` for t
 
 Shell keys (Ctrl+C, Ctrl+D, history, Tab) belong to the TTY and work the same under every desktop.
 
-## What a desktop is
+## What a session is
 
 ```c
 typedef struct {
     const char *id, *title, *about;
-    bool (*start)(void);  /* register its views once, set its chrome, home view and home keys */
-    void (*stop)(void);   /* undo what the next desktop will not set itself; may be NULL */
+    bool (*start)(void);  /* register its screens, set its chrome, home view, lock view and home keys */
+    void (*stop)(void);   /* give back what it took outside the compositor (memory, libraries); may be NULL */
 } pal_desktop_env_t;
+```
 
-typedef struct {          /* pal_desktop_set_chrome(&chrome); NULL is classic */
+- **Whole sessions.** What a session registers during its `start` is its own. Its stop takes every one of its screens away (out of the
+  overlays, the recent views and the registry) and clears everything it set on the compositor: chrome, home, lock view, home keys,
+  the rows kept for its bar. Switching is a full stop, then a full start, on the screen loop's task (`desktop use` from the shell waits
+  for it). No screen of one session exists while another runs; `tests/unit/test_sessions.c` checks it for the real sessions.
+- **Classic** registers home, lock, launcher, app list, control center, notifications and the splash at its start, and handles Fn twice
+  (input menu) and a tap of the cycle key (switcher) in its key hook. **Athena** registers its home and its own lock screen
+  (`athena-lock`: clock, date, PIN dots; the PIN and its check stay the system's), takes LVGL's pool and its frame at its start and
+  gives them back at its stop (`lv_deinit`).
+- **Leaving a screen.** Esc that a screen does not take, the home key, and `pal_app_exit()` all go to the running session's home. No
+  code outside a session names a session's screen. With no session, Esc and the home key go nowhere and `lock` is refused.
+- **Key order.** The system's (Ctrl+Alt+Esc, the screen wake), then the lock screen, then the session's keys (`chrome.key`, then its home
+  keys), then the top overlay, then the front view.
+- **Apps per session.** An app manifest may say `desktops = ["classic"]` (`apps/apps.toml`; in a package, `"desktops": "classic"`): the
+  launchers of other sessions do not list it. Control, Notifications, the app list, the launcher, home and lock are classic's.
+- `lock` (shell) locks the screen of the running session.
+
+```c
+typedef struct {          /* pal_desktop_set_chrome(&chrome) in start; cleared at stop */
     bool hide_bar, hide_legend;          /* the compositor draws neither */
-    int top_px;                          /* rows kept for the desktop's own bar: views start below, flushes never touch them */
-    bool (*key)(const pal_key_t *k);     /* every key after power and lock, before the compositor's global keys */
-    bool (*owns_screen)(void);           /* true while the desktop presents the whole screen itself */
+    int top_px;                          /* rows kept for the session's own bar: views start below, flushes never touch them */
+    bool (*key)(const pal_key_t *k);     /* every key after the system's and the lock's */
+    bool (*owns_screen)(void);           /* true while the session presents the whole screen itself */
     void (*frame)(uint32_t now_ms);      /* once per loop on the desktop task, after the compositor's frame */
     int32_t (*next_ms)(uint32_t now_ms); /* when frame wants to run again */
 } pal_desktop_chrome_t;
 ```
 
-A desktop that draws in full colour sends RGB565 images straight to the panel with `pal_display_present_rgb565` (a panel driver opts in
-through `present_rgb565` in `pal_display_ops_t`; hhv2 and both simulators do). It reads the bar's data with `pal_desktop_status()`, at
-most once a second: the battery is an ADC sample.
+A session that draws in full colour sends RGB565 images with `pal_display_present_rgb565`. It reads the bar's data with
+`pal_desktop_status()`, at most once a second: the battery is an ADC sample.
 
 ## How apps look under each desktop (decision, ADR-0009)
 

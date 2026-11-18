@@ -15,6 +15,8 @@
 #include "../desktop_int.h"
 #include "lvgl.h"
 #include "nema/types.h"
+#include "athena_pool.h"
+#include "nema/nema.h"
 #include "pal/athena.h"
 #include "pal/console.h"
 #include "pal/desktop.h"
@@ -103,6 +105,11 @@ static struct {
     size_t prows;
     uint32_t pvals_ms;
     int mode; /* 0 home, 1 toolkit page, 2 an app drawn by the compositor */
+    /* the lock greeter (the session's own lock screen; the PIN is the system's) */
+    lv_obj_t *lock, *lock_clock, *lock_date, *lock_dots, *lock_msg, *lock_hint;
+    bool lock_shown, lock_dirty;
+    pal_ui_pin_t pin;
+    int enters;
     /* sending */
     uint32_t last_ms;
     bool pending, force, owned, display_on;
@@ -110,7 +117,11 @@ static struct {
     int dx0, dy0, dx1, dy1; /* dirty union of what LVGL has drawn since the last send */
 } A NEMA_EXT_BSS;
 
-static uint16_t s_frame[MAX_W * MAX_H] NEMA_EXT_BSS __attribute__((aligned(4)));
+static uint16_t *s_frame; /* the LVGL frame, taken at the start */
+static void *s_pool;      /* LVGL's pool, taken at the start */
+static nema_owner_t s_owner;
+
+void *athena_pool(size_t size) { return size <= LV_MEM_SIZE ? s_pool : NULL; }
 
 /* ---- frame ---- */
 
@@ -591,13 +602,93 @@ static void build_page(void) {
     lv_obj_add_flag(A.page, LV_OBJ_FLAG_HIDDEN);
 }
 
+/* ---- the lock greeter: Athena's lock screen. The PIN, its check and the lock state are the system's (pal/ui.h, pal/desktop.h). ---- */
+
+static void build_lock(void) {
+    A.lock = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(A.lock);
+    lv_obj_set_pos(A.lock, 0, 0);
+    lv_obj_set_size(A.lock, A.w, A.h);
+    lv_obj_set_style_bg_color(A.lock, lv_color_hex(0x0B0B1E), 0);
+    lv_obj_set_style_bg_grad_color(A.lock, C_WALL_TOP, 0);
+    lv_obj_set_style_bg_grad_dir(A.lock, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_opa(A.lock, LV_OPA_COVER, 0);
+    lv_obj_remove_flag(A.lock, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *glyph = text(A.lock, &lv_font_montserrat_16, C_WHITE);
+    lv_label_set_text(glyph, LV_SYMBOL_EYE_CLOSE);
+    lv_obj_align(glyph, LV_ALIGN_TOP_MID, 0, BAR_H + 6);
+    A.lock_clock = text(A.lock, &lv_font_montserrat_48, C_WHITE);
+    lv_obj_align(A.lock_clock, LV_ALIGN_TOP_MID, 0, BAR_H + 26);
+    A.lock_date = text(A.lock, &lv_font_montserrat_16, C_WHITE);
+    lv_obj_set_style_text_opa(A.lock_date, LV_OPA_70, 0);
+    lv_obj_align(A.lock_date, LV_ALIGN_TOP_MID, 0, BAR_H + 84);
+    A.lock_dots = text(A.lock, &lv_font_montserrat_20, C_WHITE);
+    lv_obj_align(A.lock_dots, LV_ALIGN_TOP_MID, 0, BAR_H + 116);
+    A.lock_msg = text(A.lock, &lv_font_montserrat_12, lv_color_hex(0xFF6B6B));
+    lv_obj_align(A.lock_msg, LV_ALIGN_TOP_MID, 0, BAR_H + 146);
+    A.lock_hint = text(A.lock, &lv_font_montserrat_12, C_WHITE);
+    lv_obj_set_style_text_opa(A.lock_hint, LV_OPA_70, 0);
+    lv_obj_align(A.lock_hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_add_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void lock_sync(void) {
+    bool locked = pal_desktop_locked();
+    if (locked != A.lock_shown) {
+        A.lock_shown = locked;
+        if (locked) lv_obj_remove_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(A.lock, LV_OBJ_FLAG_HIDDEN);
+        A.lock_dirty = true;
+        A.force = true;
+    }
+    if (!locked || !A.lock_dirty) return;
+    A.lock_dirty = false;
+    pal_tm_t t;
+    pal_time_local(&t);
+    lv_label_set_text_fmt(A.lock_clock, "%02d:%02d", t.hour, t.minute);
+    lv_label_set_text(A.lock_date, lv_label_get_text(A.date));
+    bool pin = pal_ui_pin_is_set();
+    char dots[3 * PAL_UI_PIN_MAX + 1] = "";
+    for (int i = 0; pin && i < A.pin.len && i < PAL_UI_PIN_MAX; i++) strcat(dots, "\xE2\x97\x8F"); /* a filled circle */
+    lv_label_set_text(A.lock_dots, dots);
+    lv_label_set_text(A.lock_msg, pin && A.pin.last_wrong ? "Wrong PIN" : "");
+    lv_label_set_text(A.lock_hint, pin ? "Type the PIN, then Enter" : "Press Enter twice to unlock");
+}
+
+static void lock_enter(pal_view_t *v) {
+    (void)v;
+    pal_ui_pin_reset(&A.pin);
+    A.enters = 0;
+    A.lock_dirty = true;
+}
+
+static bool lock_key(pal_view_t *v, const pal_key_t *k) {
+    (void)v;
+    A.lock_dirty = true;
+    if (pal_ui_pin_is_set()) {
+        if (pal_ui_pin_key(&A.pin, k, pal_ui_pin_check) == PAL_UI_PIN_OK) pal_ui_unlock();
+        return true;
+    }
+    if (k->sym == PAL_KEY_ENTER) {
+        if (++A.enters >= 2) pal_ui_unlock();
+    } else {
+        A.enters = 0;
+    }
+    return true;
+}
+
+static pal_view_t LOCK_VIEW = {.id = "athena-lock", .title = "Locked", .flags = PAL_VIEW_FULLSCREEN | PAL_VIEW_HIDDEN,
+                               .enter = lock_enter, .key = lock_key};
+
 /* ---- the chrome ---- */
 
 static bool home_in_front(void) {
     return !strcmp(pal_desktop_front_id(), "athena") && pal_desktop_overlay_count() == 0 && !pal_desktop_locked();
 }
 
-static bool owns_screen(void) { return A.disp && (A.kind != SHEET_NONE || (home_in_front() && !pal_toast_showing()) || page_menu()); }
+static bool owns_screen(void) {
+    return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || (home_in_front() && !pal_toast_showing()) || page_menu());
+}
 
 static void ensure(void) {
     if (A.disp) return;
@@ -626,6 +717,7 @@ static void ensure(void) {
     lv_obj_set_style_bg_opa(A.sheet, LV_OPA_COVER, 0);
     lv_obj_add_flag(A.sheet, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(A.sheet, LV_OBJ_FLAG_SCROLLABLE);
+    build_lock(); /* above the sheet, below the bar */
     build_bar();
     A.force = true;
 }
@@ -679,7 +771,10 @@ static void chrome_frame(uint32_t now) {
     bar_update(false, now);
     pal_tm_t t;
     pal_time_local(&t);
-    if (t.hour * 60 + t.minute != A.last_minute) update_clock();
+    if (t.hour * 60 + t.minute != A.last_minute) {
+        update_clock();
+        A.lock_dirty = true;
+    }
     pal_menu_t *pm = page_menu();
     int mode = home_in_front() ? 0 : pm ? 1 : 2;
     if (mode != A.mode) { /* the home and the page share the screen: show one */
@@ -696,6 +791,7 @@ static void chrome_frame(uint32_t now) {
         A.force = true;
     }
     if (pm) page_sync(pm, now);
+    lock_sync();
     bool owned = owns_screen();
     bar_style(!home_in_front());
     bool on = pal_dpm_display_on();
@@ -767,27 +863,39 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
 
 static pal_view_t ATHENA_VIEW = {.id = "athena", .title = "Athena", .flags = PAL_VIEW_HIDDEN, .enter = enter, .draw = draw, .key = key};
 
-static bool s_view_registered;
+/* The session's start takes the pool and the frame and registers its views (they are its own: its stop takes them away). LVGL
+ * starts on the first frame. Its stop shuts LVGL down and gives back all of its memory. */
+static void athena_stop(void);
 
 static bool athena_start(void) {
-    if (!pal_display_has_rgb565()) return false; /* Athena draws in full colour; a panel driver without it keeps classic */
-    if (!s_view_registered) {
-        nema_err_t r = pal_desktop_register(&ATHENA_VIEW);
-        if (r != NEMA_OK && r != NEMA_ERR_EXIST) return false;
-        s_view_registered = true;
+    if (!pal_display_has_rgb565()) return false; /* Athena draws in full colour */
+    if (!s_owner) s_owner = nema_owner_register("athena");
+    pal_canvas_t *c = pal_display_canvas();
+    int w = c->w > MAX_W ? MAX_W : c->w, h = c->h > MAX_H ? MAX_H : c->h;
+    s_pool = nema_alloc_ex(NEMA_MEM_EXTERNAL, s_owner, LV_MEM_SIZE, 8, 0);
+    s_frame = nema_alloc_ex(NEMA_MEM_EXTERNAL, s_owner, (size_t)w * (size_t)h * 2u, 4, NEMA_ALLOC_ZERO);
+    if (!s_pool || !s_frame) {
+        nema_free(s_pool), nema_free(s_frame);
+        s_pool = NULL, s_frame = NULL;
+        return false;
+    }
+    memset(&A, 0, sizeof(A));
+    if (pal_desktop_register(&ATHENA_VIEW) != NEMA_OK || pal_desktop_register(&LOCK_VIEW) != NEMA_OK) {
+        athena_stop(); /* the registry takes the views it got away again */
+        return false;
     }
     pal_desktop_set_chrome(&CHROME);
     pal_desktop_set_home("athena");
-    /* the home uses the arrows and Enter itself: the classic home keys go away (Settings, Files and the rest are on the home) */
-    pal_desktop_bind_home_key(PAL_KEY_ENTER, NULL);
-    pal_desktop_bind_home_key(PAL_KEY_UP, NULL);
-    pal_desktop_bind_home_key(PAL_KEY_DOWN, NULL);
+    pal_desktop_set_lock_view("athena-lock");
     A.force = true;
     return true;
 }
 
 static void athena_stop(void) {
-    if (A.disp) sheet_close();
+    if (A.disp) lv_deinit();
+    memset(&A, 0, sizeof(A));
+    nema_free(s_pool), nema_free(s_frame);
+    s_pool = NULL, s_frame = NULL;
 }
 
 static const pal_desktop_env_t ATHENA = {.id = "athena", .title = "Athena", .about = "full-colour LVGL desktop: own bar, keys and home",

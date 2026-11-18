@@ -4,6 +4,7 @@
 #
 # caps: the manifest permissions a view holds (names as in docs/PAPP.md). kind: service | tty | gui.
 # hidden = true keeps an entry out of the launcher; the launcher itself is a system view and is hidden.
+# desktops = ["classic"]: the desktop sessions the app belongs to (ADR-0010); without it, every session lists it.
 
 [defaults.command]
 kind = "tty"
@@ -12,6 +13,7 @@ api = 2
 
 [[app]]
 id = "launcher"
+desktops = ["classic"]
 name = "Apps"
 version = "1.0.0"
 kind = "gui"
@@ -21,6 +23,7 @@ category = "System"
 
 [[app]]
 id = "home"
+desktops = ["classic"]
 name = "Home"
 version = "1.0.0"
 kind = "gui"
@@ -30,6 +33,7 @@ category = "System"
 
 [[app]]
 id = "lock"
+desktops = ["classic"]
 name = "Lock"
 version = "1.0.0"
 kind = "gui"
@@ -55,6 +59,7 @@ category = "System"
 
 [[app]]
 id = "control"
+desktops = ["classic"]
 name = "Control"
 version = "1.0.0"
 kind = "gui"
@@ -63,6 +68,7 @@ category = "System"
 
 [[app]]
 id = "notifications"
+desktops = ["classic"]
 name = "Notifications"
 version = "1.0.0"
 kind = "gui"
@@ -95,6 +101,7 @@ category = "System"
 
 [[app]]
 id = "applist"
+desktops = ["classic"]
 name = "Apps"
 version = "1.0.0"
 kind = "gui"
