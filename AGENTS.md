@@ -18,7 +18,7 @@ board-agnostic: each board declares its own hardware, pins and capabilities. For
 | Current status | docs/STATE.md |
 
 ## Commands
-`./pal check` (code rules) · `./pal test` (host tests, about 6 min) · `./pal golden check|update <prefix>` · `./pal sim` · `./pal web` · `./pal build` · `./pal flash` · `./pal smoke` · `./pal release`
+`./pal check` (code rules) · `./pal test` (host tests side by side, about 40 s) · `./pal golden check|update <prefix>` · `./pal sim` · `./pal web` · `./pal build` · `./pal flash` · `./pal smoke` · `./pal release`
 
 ## Hard rules
 1. Docs and code change in the same commit; a significant design decision becomes an ADR.

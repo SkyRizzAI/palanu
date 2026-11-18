@@ -76,6 +76,7 @@ static const kv_def_t DEFS[] = {
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},
     {"boot.quiet", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the system console's splash covers the boot log until a key (console.c) */
     {"profile.user", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL},
+    {"athena.seconds", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the analog clock widget's second hand (off in the golden images) */
     {"athena.theme", KV_CHOICE, 0, 1, ATHENA_THEMES, 0, NULL, NULL}, /* the Athena session's look (athena_theme.c) */
     {"desktop.env", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL}, /* the active desktop environment (pal/desktops.h) */
 };

@@ -84,9 +84,10 @@ static const pal_menu_row_t DISPLAY_ROWS[] = {
      .choices = ROT_LABELS, .get = settings_map_get, .set = settings_map_set,
      .hint = "Degrees the screen is turned"},
     {.kind = PAL_MENU_SECTION, .label = "Screen"},
-    {.kind = PAL_MENU_INFO, .label = "Logical", .ctx = NULL, .text = info_logical},
+    /* the logical canvas and its zoom are the classic session's (ui.scale); a full-colour session draws at the panel's size */
+    {.kind = PAL_MENU_INFO, .label = "Logical", .ctx = NULL, .text = info_logical, .key = "ui.scale"},
     {.kind = PAL_MENU_INFO, .label = "Physical", .ctx = NULL, .text = info_panel},
-    {.kind = PAL_MENU_INFO, .label = "Scale", .ctx = NULL, .text = info_scale},
+    {.kind = PAL_MENU_INFO, .label = "Scale", .ctx = NULL, .text = info_scale, .key = "ui.scale"},
 };
 
 pal_menu_page_t PG_DISPLAY = {.title = "Display", .rows = DISPLAY_ROWS, .n = sizeof(DISPLAY_ROWS) / sizeof(DISPLAY_ROWS[0])};

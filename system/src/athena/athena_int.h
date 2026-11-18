@@ -28,6 +28,7 @@
 #define MAX_W 320
 #define MAX_H 240
 #define MAX_TILES 24
+#define MAX_WIDGETS 4
 #define MAX_ROWS 8
 #define BAR_H 20
 #define MAX_PAGE_ROWS 40
@@ -72,7 +73,11 @@ typedef struct {
     bool bar_solid;
     pal_status_t st;
     /* home */
-    lv_obj_t *home, *clock, *date, *grid;
+    lv_obj_t *home, *grid;
+    lv_obj_t *wbox[MAX_WIDGETS];
+    const struct ath_widget *wdef[MAX_WIDGETS];
+    int nw;
+    uint8_t tcol[MAX_TILES], trow[MAX_TILES]; /* each app's place in the home's grid */
     lv_obj_t *tile[MAX_TILES];
     pal_reg_app_t app[MAX_TILES];
     int n, sel, cols, last_minute;
@@ -84,8 +89,8 @@ typedef struct {
     bool row_info; /* shortcuts: the rows are not choices */
     sheet_t kind;
     /* toolkit pages: a bound menu (pal_menu_bind) drawn as a grouped list */
-    lv_obj_t *page, *page_title, *page_list, *page_empty;
-    lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS], *pbar[MAX_PAGE_ROWS];
+    lv_obj_t *page, *page_title, *page_back, *page_list, *page_empty;
+    lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS], *pbar[MAX_PAGE_ROWS], *plabel[MAX_PAGE_ROWS], *picon[MAX_PAGE_ROWS];
     int pidx[MAX_PAGE_ROWS]; /* the page row each drawn row shows */
     char ptext[MAX_PAGE_ROWS][VALUE_MAX];
     int pn, psel;
@@ -117,6 +122,18 @@ extern uint16_t *s_frame;
 
 
 lv_obj_t *ath_text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c);
+
+/* Home widgets (athena_widgets.c): a variant per theme; the home builds the ones ATH_HOME_WIDGETS names, in that order. */
+typedef struct ath_widget {
+    const char *id;           /* what the home asks for: "clock", "calendar" */
+    const char *style;        /* the theme id it is for, NULL for every theme */
+    uint8_t cols, rows;       /* its span on the home's grid */
+    void (*build)(lv_obj_t *box, int w, int h);
+    void (*tick)(lv_obj_t *box, const pal_tm_t *t); /* once a second while the home is in front */
+} ath_widget_t;
+extern const char *const ATH_HOME_WIDGETS[];
+const ath_widget_t *ath_widget_find(const char *id);
+void ath_date_text(const pal_tm_t *t, char *out, size_t cap);
 bool ath_home_in_front(void);
 
 /* the lock greeter (athena_lock.c) */

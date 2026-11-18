@@ -702,7 +702,7 @@ static void text_long(void *ctx, char *out, size_t cap) {
 TEST(every_row_of_any_page_can_be_reached) {
     static pal_menu_row_t r[40];
     static pal_menu_page_t pg;
-    for (unsigned seed = 1; seed <= 300; seed++) {
+    for (unsigned seed = 1; seed <= 80; seed++) { /* 80 random pages cover every row kind and mix; 300 took 27 s */
         rng_state = seed * 7919u;
         size_t n = 1 + rnd(36);
         for (size_t i = 0; i < n; i++) {

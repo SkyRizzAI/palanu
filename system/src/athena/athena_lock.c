@@ -48,7 +48,9 @@ void ath_lock_sync(void) {
     pal_tm_t t;
     pal_time_local(&t);
     lv_label_set_text_fmt(A.lock_clock, "%02d:%02d", t.hour, t.minute);
-    lv_label_set_text(A.lock_date, lv_label_get_text(A.date));
+    char date[40];
+    ath_date_text(&t, date, sizeof(date));
+    lv_label_set_text(A.lock_date, date);
     bool pin = pal_ui_pin_is_set();
     char dots[3 * PAL_UI_PIN_MAX + 1] = "";
     for (int i = 0; pin && i < A.pin.len && i < PAL_UI_PIN_MAX; i++) strcat(dots, "\xE2\x97\x8F"); /* a filled circle */

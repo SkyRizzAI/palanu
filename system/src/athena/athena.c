@@ -129,7 +129,7 @@ static void style_tile(int i) {
     lv_obj_set_style_outline_color(icon, C_WHITE, 0);
     lv_obj_set_style_outline_pad(icon, 2, 0);
     lv_obj_set_style_outline_opa(icon, LV_OPA_COVER, 0);
-    lv_obj_set_style_transform_scale(icon, on ? 272 : 256, 0); /* 256 is 100% */
+    lv_obj_set_style_transform_scale(icon, on ? 272 : 256, 0); /* 256 is 100%; it grows from its centre (the pivot, build_home) */
     lv_obj_set_style_text_opa(lv_obj_get_child(A.tile[i], 1), on ? LV_OPA_COVER : LV_OPA_70, 0);
 }
 
@@ -139,18 +139,20 @@ static void select_tile(int i) {
     A.sel = i < 0 ? 0 : i >= A.n ? A.n - 1 : i;
     style_tile(old);
     style_tile(A.sel);
-    lv_obj_scroll_to_view(A.tile[A.sel], LV_ANIM_OFF);
+    int top_row = A.n ? A.trow[0] : 0;
+    if (A.trow[A.sel] == top_row) lv_obj_scroll_to_y(A.grid, 0, LV_ANIM_OFF); /* the first row of apps: the widgets above stay in view */
+    else lv_obj_scroll_to_view(A.tile[A.sel], LV_ANIM_OFF);
 }
 
-static void update_clock(void) {
+/* Once a second (and at once after a build): the widgets follow the clock. */
+static void widgets_tick(bool now) {
+    static int last = -1;
     pal_tm_t t;
     pal_time_local(&t);
-    A.last_minute = t.hour * 60 + t.minute;
-    static const char *const DAY[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-    static const char *const MON[] = {"January", "February", "March",     "April",   "May",      "June",
-                                      "July",    "August",   "September", "October", "November", "December"};
-    lv_label_set_text_fmt(A.clock, "%02d:%02d", t.hour, t.minute);
-    lv_label_set_text_fmt(A.date, "%s, %d %s", DAY[t.wday % 7], t.day, MON[(t.month + 11) % 12]);
+    if (!now && t.second == last) return;
+    last = t.second;
+    for (int i = 0; i < A.nw; i++)
+        if (A.wdef[i]->tick) A.wdef[i]->tick(A.wbox[i], &t);
 }
 
 lv_obj_t *ath_text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c) {
@@ -160,7 +162,28 @@ lv_obj_t *ath_text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c) {
     return l;
 }
 
-/* The home below the bar: the date and a large clock, a grid of the launcher's apps, and a translucent bar with the keys. */
+/* The home below the bar: a grid that follows the screen. The edge padding is a fortieth of the width, the columns as many cells of
+ * at least 60 pixels as fit (3 to 8), a cell 9/8 as tall as it is wide, the gap between widgets and the icon size in proportion
+ * (5 cells of 60 x 67 with 8 px edges on 320 pixels). The widgets come first and take their spans (the clock 2 x 2, the calendar
+ * 3 x 2), then the launcher's apps one cell each, every item in the first free place reading left to right. The grid scrolls when
+ * it is taller than the screen; the arrows move between the apps by their place in it. */
+#define GRID_ROWS 16
+
+static bool place(bool used[GRID_ROWS][8], int cols, int span_c, int span_r, int *pc, int *pr) {
+    for (int r = 0; r + span_r <= GRID_ROWS; r++)
+        for (int c = 0; c + span_c <= cols; c++) {
+            bool free = true;
+            for (int y = r; y < r + span_r && free; y++)
+                for (int x = c; x < c + span_c && free; x++) free = !used[y][x];
+            if (!free) continue;
+            for (int y = r; y < r + span_r; y++)
+                for (int x = c; x < c + span_c; x++) used[y][x] = true;
+            *pc = c, *pr = r;
+            return true;
+        }
+    return false;
+}
+
 static void build_home(void) {
     int w = A.w, h = A.h - BAR_H;
     if (A.home) lv_obj_delete(A.home);
@@ -170,35 +193,57 @@ static void build_home(void) {
     lv_obj_set_size(A.home, w, h);
     lv_obj_remove_flag(A.home, LV_OBJ_FLAG_SCROLLABLE);
 
-    A.date = ath_text(A.home, &lv_font_montserrat_16, C_WHITE);
-    lv_obj_set_style_text_opa(A.date, LV_OPA_70, 0);
-    lv_obj_align(A.date, LV_ALIGN_TOP_MID, 0, 0);
-    A.clock = ath_text(A.home, &lv_font_montserrat_48, C_WHITE);
-    lv_obj_align(A.clock, LV_ALIGN_TOP_MID, 0, 12);
-
-    const int top = 64, bottom = 26, ICON = 40, CELL_H = 58, CELL_W = 64;
+    int pad = w / 40, cols = (w - 2 * pad) / 60;
+    cols = cols < 3 ? 3 : cols > 8 ? 8 : cols;
+    const int CELL_W = (w - 2 * pad) / cols, CELL_H = CELL_W * 9 / 8, GAP = CELL_W / 12 < 3 ? 3 : CELL_W / 12;
+    /* the icon and the room for its focus ring (a 2 px outline 2 px out, on a 6% larger icon) above it; the name under it */
+    const int ICON = CELL_W * 5 / 8, ICON_Y = CELL_H / 10;
     A.grid = lv_obj_create(A.home);
     lv_obj_remove_style_all(A.grid);
-    lv_obj_set_pos(A.grid, 0, top);
-    lv_obj_set_size(A.grid, w, h - top - bottom);
+    lv_obj_set_pos(A.grid, 0, 0);
+    lv_obj_set_size(A.grid, w, h);
     lv_obj_add_flag(A.grid, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(A.grid, LV_SCROLLBAR_MODE_OFF);
-    A.cols = w / CELL_W;
-    if (A.cols < 1) A.cols = 1;
+    lv_obj_set_style_pad_bottom(A.grid, pad, 0);
+    A.cols = cols;
     int margin = (w - A.cols * CELL_W) / 2;
+    bool used[GRID_ROWS][8];
+    memset(used, 0, sizeof(used));
+    A.nw = 0;
+    for (int k = 0; ATH_HOME_WIDGETS[k] && A.nw < MAX_WIDGETS; k++) {
+        const ath_widget_t *wd = ath_widget_find(ATH_HOME_WIDGETS[k]);
+        int c, r;
+        if (!wd || wd->cols > A.cols || !place(used, A.cols, wd->cols, wd->rows, &c, &r)) continue;
+        lv_obj_t *box = lv_obj_create(A.grid);
+        lv_obj_remove_style_all(box);
+        int bw = wd->cols * CELL_W - GAP, bh = wd->rows * CELL_H - GAP;
+        lv_obj_set_pos(box, margin + c * CELL_W + GAP / 2, r * CELL_H + GAP / 2);
+        lv_obj_set_size(box, bw, bh);
+        lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+        wd->build(box, bw, bh);
+        A.wbox[A.nw] = box;
+        A.wdef[A.nw] = wd;
+        A.nw++;
+    }
     A.n = 0;
     for (size_t i = 0; i < psys_launcher_count() && A.n < MAX_TILES; i++) {
         if (!psys_launcher_get(i, &A.app[A.n])) continue;
+        int c, r;
+        if (!place(used, A.cols, 1, 1, &c, &r)) break;
+        A.tcol[A.n] = c, A.trow[A.n] = r;
         const icon_style_t *st = icon_for(A.app[A.n].id);
         lv_obj_t *t = lv_obj_create(A.grid); /* a cell: child 0 is the icon, child 1 the name */
         lv_obj_remove_style_all(t);
         lv_obj_set_size(t, CELL_W, CELL_H);
-        lv_obj_set_pos(t, margin + (A.n % A.cols) * CELL_W, 4 + (A.n / A.cols) * CELL_H);
+        lv_obj_set_pos(t, margin + c * CELL_W, r * CELL_H);
         A.tile[A.n] = t;
         lv_obj_t *icon = lv_obj_create(t);
         lv_obj_remove_style_all(icon);
         lv_obj_set_size(icon, ICON, ICON);
-        lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 2);
+        lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, ICON_Y);
+        lv_obj_set_style_transform_pivot_x(icon, ICON / 2, 0);
+        lv_obj_set_style_transform_pivot_y(icon, ICON / 2, 0);
+        lv_obj_add_flag(t, LV_OBJ_FLAG_OVERFLOW_VISIBLE); /* the ring may reach past the cell's edge */
         lv_obj_set_style_radius(icon, ath_T->r_icon, 0);
         lv_obj_set_style_bg_opa(icon, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(icon, lv_color_hex(st->top), 0);
@@ -225,18 +270,21 @@ static void build_home(void) {
     }
     if (A.sel >= A.n) A.sel = 0;
     for (int i = 0; i < A.n; i++) style_tile(i);
+    widgets_tick(true);
+}
 
-    lv_obj_t *pill = lv_obj_create(A.home); /* a translucent bar, like a dock: the keys, in plain words */
-    lv_obj_remove_style_all(pill);
-    lv_obj_set_size(pill, w - 32, 20);
-    lv_obj_align(pill, LV_ALIGN_BOTTOM_MID, 0, -4);
-    lv_obj_set_style_radius(pill, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(pill, C_WHITE, 0);
-    lv_obj_set_style_bg_opa(pill, LV_OPA_20, 0);
-    lv_obj_t *hint = ath_text(pill, &lv_font_montserrat_12, C_WHITE);
-    lv_label_set_text(hint, "Enter open  |  Fn Fn keyboard  |  Cycle recents");
-    lv_obj_center(hint);
-    update_clock();
+/* The arrows on the home: left and right go through the apps in order; up and down to the nearest app in the next row that has one. */
+static void home_move(int dir_row) {
+    if (A.n == 0) return;
+    int r0 = A.trow[A.sel], c0 = A.tcol[A.sel], best = -1, best_r = 0, best_d = 0;
+    for (int i = 0; i < A.n; i++) {
+        int dr = (A.trow[i] - r0) * dir_row;
+        if (dr <= 0) continue;
+        int dc = A.tcol[i] > c0 ? A.tcol[i] - c0 : c0 - A.tcol[i];
+        if (best < 0 || dr < best_r || (dr == best_r && dc < best_d)) best = i, best_r = dr, best_d = dc;
+    }
+    if (best >= 0) select_tile(best);
+    else if (dir_row < 0) lv_obj_scroll_to_y(A.grid, 0, LV_ANIM_OFF); /* above the first apps: the widgets */
 }
 
 /* ---- sheets: Keyboard (Fn twice), Shortcuts, Recent apps (cycle tap) ---- */
@@ -465,9 +513,10 @@ static void chrome_frame(uint32_t now) {
     pal_tm_t t;
     pal_time_local(&t);
     if (t.hour * 60 + t.minute != A.last_minute) {
-        update_clock();
+        A.last_minute = t.hour * 60 + t.minute;
         A.lock_dirty = true;
     }
+    if (ath_home_in_front()) widgets_tick(false);
     pal_menu_t *pm = ath_page_menu();
     int mode = ath_home_in_front() ? 0 : pm ? 1 : 2;
     if (mode != A.mode) { /* the home and the page share the screen: show one */
@@ -535,8 +584,8 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     switch (pal_nav_of(k)) {
     case PAL_NAV_LEFT: select_tile(A.sel - 1); break;
     case PAL_NAV_RIGHT: select_tile(A.sel + 1); break;
-    case PAL_NAV_UP: select_tile(A.sel - A.cols >= 0 ? A.sel - A.cols : A.sel); break;
-    case PAL_NAV_DOWN: select_tile(A.sel + A.cols < A.n ? A.sel + A.cols : A.sel); break;
+    case PAL_NAV_UP: home_move(-1); break;
+    case PAL_NAV_DOWN: home_move(1); break;
     case PAL_NAV_OK:
         if (A.n > 0) pal_launcher_run(&A.app[A.sel]);
         break;

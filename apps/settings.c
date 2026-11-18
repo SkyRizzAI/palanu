@@ -29,24 +29,31 @@ static bool s_route_pending;
 /* The root in the pre-port groups (9471f26): SCREEN, CONNECTIONS, DEVICE and SYSTEM, with the reference entries inside them. Every
  * page is reached from here or from a page below it (Device & Hardware holds Sounds, Camera, Touch, LEDs, Sensors and
  * Battery; Developer holds the rest). */
+/* GROUP: a boundary between groups without a title; a session that draws cards (Athena) starts a new one, the classic list skips it. */
+#define GROUP {.kind = PAL_MENU_SECTION, .group = true}
 static const pal_menu_row_t ROOT_ROWS[] = {
+    SET_SUB("Desktop", "apps", PG_SESSION), /* first: which desktop runs and its own settings */
+    GROUP,
     SET_SUB("Display", "brightness", PG_DISPLAY),
     {.kind = PAL_MENU_SUBMENU, .label = "Appearances", .icon = "moon", .ctx = (void *)&PG_APPEARANCE, .open = settings_open_ctx,
      .owner = "classic"}, /* the classic session's look: left out under the others (ADR-0010 §7) */
     SET_SUB("Controls", "terminal", PG_CONTROLS),
+    GROUP,
     SET_SUB("Wi-Fi", "wifi", PG_WIFI),
     SET_SUB("Bluetooth", "bluetooth", PG_BLUETOOTH),
     SET_SUB("Remote", "link", PG_REMOTE),
+    GROUP,
     SET_SUB("Device & Hardware", "default", PG_DEVICE),
     SET_SUB("Notifications", "notifications", PG_NOTIFY),
     SET_SUB("Storage", "files", PG_STORAGE),
     SET_SUB("Apps", "store", PG_APPS),
+    GROUP,
     SET_SUB("Profile", "lock", PG_PROFILE),
     SET_SUB("Date & time", "clock", PG_DATETIME),
     SET_SUB("Updates", "power", PG_UPDATES),
+    GROUP,
     SET_SUB("Developer", "monitor", PG_DEVELOPER),
     SET_SUB("About", "info", PG_ABOUT),
-    SET_SUB("Desktop", "default", PG_SESSION),
 };
 
 /* Device & Hardware: a section header, then Sounds, LEDs and Battery as the reference

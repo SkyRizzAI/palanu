@@ -74,6 +74,7 @@ static const pal_setting_desc_t S[] = {
     {.key = "ui.wall_fit", .kind = PAL_SETTING_CHOICE, .label = "Wallpaper fit", .group = "Appearance", .owner = CLASSIC, .dynamic = true},
     {.key = "ui.wall_anchor", .kind = PAL_SETTING_CHOICE, .label = "Wallpaper anchor", .group = "Appearance", .owner = CLASSIC, .dynamic = true},
     /* The Athena session's look */
+    {.key = "athena.seconds", .kind = PAL_SETTING_BOOL, .label = "Second hand", .group = "Athena", .owner = ATHENA, .internal = true},
     {.key = "athena.theme", .kind = PAL_SETTING_CHOICE, .label = "Theme", .group = "Athena", .help = "Cupertino or Material", .owner = ATHENA, .names = ATHENA_THEMES, .labels = ATHENA_THEMES_L},
 };
 

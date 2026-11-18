@@ -81,6 +81,9 @@ struct pal_menu_row {
      * (pal/settings_schema.h). owner: the row belongs to one session (a page of its look); left out under the others. */
     const char *key;
     const char *owner;
+    /* SECTION only: a boundary between groups with no title. A session that draws groups as cards starts a new card; a plain list
+     * leaves it out (pal_menu_row_hidden). */
+    bool group;
 };
 
 /* The row is left out of its page: hidden, or it belongs to another session than the running one. */

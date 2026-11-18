@@ -10,7 +10,7 @@ static const ath_theme_t THEMES[] = {
     {.id = "cupertino", .name = "Cupertino",
      .wall_top = 0x1A1750, .wall_bot = 0x7A3C8C, .surface = 0xF2F2F7, .row = 0xFFFFFF, .accent = 0x0A84FF, .ink = 0x1C1C1E,
      .muted = 0x8E8E93, .on = 0x34C759, .danger = 0xFF3B30, .track = 0xE5E5EA, .key_mod = 0xD1D1D6, .bar_bg = 0x000000,
-     .r_card = 14, .r_row = 8, .r_icon = 10, .title_left = false, .caps_buttons = false, .flat = false},
+     .r_card = 8, .r_row = 6, .r_icon = 10, .title_left = false, .caps_buttons = false, .flat = false},
     {.id = "material", .name = "Material",
      .wall_top = 0x263238, .wall_bot = 0x00695C, .surface = 0xFAFAFA, .row = 0xFFFFFF, .accent = 0x009688, .ink = 0x212121,
      .muted = 0x757575, .on = 0x009688, .danger = 0xD32F2F, .track = 0xBDBDBD, .key_mod = 0xCFD8DC, .bar_bg = 0x00796B,

@@ -45,7 +45,7 @@
 #define LV_USE_IMGBTN 0
 #define LV_USE_KEYBOARD 0
 #define LV_USE_LED 0
-#define LV_USE_LINE 0
+#define LV_USE_LINE 1 /* the hands of the analog clock widget (athena_widgets.c) */
 #define LV_USE_LIST 0
 #define LV_USE_MENU 0
 #define LV_USE_MSGBOX 0

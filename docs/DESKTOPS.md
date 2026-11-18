@@ -147,6 +147,14 @@ built-in apps with list layouts of their own; turning them into forms is follow-
 
 ## Athena
 
+**Home grid and widgets.** Athena's home is a grid of 64 x 72 cells (5 across). Widgets come first and take their span, then the apps one
+cell each, every item in the first free place reading left to right; the grid scrolls when it is taller than the screen, and the arrows
+move between the apps by their place in it. A widget (`system/src/athena/athena_widgets.c`) has an id, the theme it is drawn for (or
+every theme), a span, a build and a once-a-second tick. Two ship, each in a Cupertino and a Material version: **clock** (2 x 2: an
+analog face with an orange second hand, or big stacked digits with the day in a pill) and **calendar** (3 x 2: the day large in red
+beside the month, or the month with today on a teal square). Listing, adding, moving and removing widgets is later work; the home
+shows `ATH_HOME_WIDGETS` in order.
+
 **Themes.** Athena's look is a theme of tokens (`system/src/athena/athena_theme.c`): colours (wallpaper, surface, rows, accent, text,
 switches, danger, keyboard mode keys, the bar over apps) and shape (corner radii of cards, rows and icons, centred or left-aligned
 titles, upper-case buttons, shadows or flat). Two ship as a demo: **Cupertino** (the default: centred titles, round corners, soft

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // PalanuOS developer tool: build, test, simulate, flash, and enforce the code rules.
 //   ./pal check | test | sim | golden | build | flash | log | size | clean | hwtest
+import { cpus } from "node:os";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { apiCheckOutputs } from "../packages/apigen/src/generate.ts";
@@ -377,7 +378,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 let code = 0;
 switch (cmd) {
   case "check": code = check(); break;
-  case "test": code = check() || hostBuild() || sh(`ctest --test-dir ${HOST_BUILD} --output-on-failure`); break;
+  case "test": code = check() || hostBuild() || sh(`ctest --test-dir ${HOST_BUILD} --output-on-failure -j ${Math.max(2, Math.min(8, cpus().length))}`); break; // side by side: the slow ones overlap
   case "sim": code = hostBuild("palanu-sim") || run([`${HOST_BUILD}/palanu-sim`, ...rest]); break;
   case "golden": code = hostBuild("palanu-sim") || run([process.execPath, join(ROOT, "forge/tools/golden.ts"), ...rest]); break;
   case "build": code = check() || idf(`idf.py ${desktopsDef()}reconfigure build`) || ramcheck(); break;

@@ -3,6 +3,8 @@
 #define PAL_TEST_H
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 static int g_failures;
 static int g_checks;
@@ -27,11 +29,20 @@ static int g_checks;
     } while (0)
 
 #define TEST(name) static void name(void)
+/* PAL_TEST_TIME=1 prints how long each test took (finding the slow ones). */
+static double test_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
+}
 #define RUN(name)                                                                                            \
     do {                                                                                                     \
         int _before = g_failures;                                                                            \
+        double _t0 = test_now_ms();                                                                          \
         name();                                                                                              \
-        printf("%s %s\n", g_failures == _before ? "ok  " : "FAIL", #name), fflush(stdout);                    \
+        if (getenv("PAL_TEST_TIME")) printf("%s %s (%.0f ms)\n", g_failures == _before ? "ok  " : "FAIL", #name, test_now_ms() - _t0); \
+        else printf("%s %s\n", g_failures == _before ? "ok  " : "FAIL", #name);                               \
+        fflush(stdout);                                                                                      \
     } while (0)
 #define TEST_DONE()                                                                                          \
     (printf("%d checks, %d failures\n", g_checks, g_failures), g_failures ? 1 : 0)

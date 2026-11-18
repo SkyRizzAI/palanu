@@ -468,7 +468,7 @@ void pal_menu_value_text(const pal_menu_row_t *r, char *out, size_t cap) {
 }
 
 bool pal_menu_row_hidden(const pal_menu_row_t *r) {
-    if (r->hidden) return true;
+    if (r->hidden || (r->kind == PAL_MENU_SECTION && r->group)) return true;
     if (r->owner && strcmp(r->owner, pal_desktops_active()) != 0) return true;
     return r->key && !pal_setting_visible(r->key);
 }
