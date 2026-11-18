@@ -4,6 +4,7 @@
 
 #include "nema/log.h"
 #include "pal/desktop.h"
+#include "pal/bootcount.h"
 #include "pal/desktops.h"
 #include "pal/settings.h"
 
@@ -66,7 +67,8 @@ void pal_desktops_boot(void) {
     if (!fb) return;
     char want[24] = "";
     psys_settings_get("desktop.env", want, sizeof(want));
-    const pal_desktop_env_t *e = pal_desktops_find(want);
+    /* safe mode starts as little as it can: the fallback desktop, whatever desktop.env says (it is kept for the next normal boot) */
+    const pal_desktop_env_t *e = psys_bootcount_safe() ? NULL : pal_desktops_find(want);
     if (!e) e = fb;
     if (!start_env(e) && e != fb) start_env(fb);
 }

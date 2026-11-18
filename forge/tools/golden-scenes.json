@@ -279,6 +279,10 @@
       "600"
     ],
     "athena-home": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200"],
+    "athena-keyboard": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200", "--key", "vkb", "--wait", "400"],
+    "athena-recents": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200", "--key", "switch", "--wait", "400"],
+    "athena-app": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200", "--key", "enter", "--wait", "500", "--cmd", "clear", "--wait", "300"],
+    "console-terminal": ["--key", "enter", "--wait", "300", "--cmd", "desktop use console", "--wait", "500", "--cmd", "clear", "--wait", "300"],
     "athena-select": ["--key", "enter", "--wait", "300", "--cmd", "desktop use athena", "--wait", "1200", "--key", "right", "--key", "down", "--wait", "300"],
     "terminal-ls-bin": [
       "--key",

@@ -1,23 +1,32 @@
-# ADR-0009: Desktop environments are replaceable, and one of them is drawn with LVGL
+# ADR-0009: Desktop environments own the chrome, and one of them is drawn with LVGL in full colour
 
 Status: accepted.
 
 ## Context
-The compositor already has a home view that can be replaced (`pal_desktop_set_home`), a launcher with four skins and themes with replaceable components, but nothing
-that treats "the desktop" as a unit a user can pick: home keys, the home view and the app listing are wired in one place for one look. We want several desktops, the
-way a Linux system has several desktop environments, and installed apps that carry what a desktop needs (name, icon, category, resources). We also want to
-try LVGL, the widely used embedded GUI library, for a desktop without making the board pay for it.
+The compositor had a replaceable home view, a launcher with four skins and themes with replaceable components, but the status bar, the
+global keys (Fn twice, the cycle key) and their menus were wired into the compositor for one look. The owner wants the Linux model: the base
+system is a shell on a TTY, and a desktop environment provides everything graphical around the apps, with its own bar, keys and menus.
+We also want a full-colour desktop built with LVGL, the widely used embedded GUI library, and a rule for how apps look under each desktop.
 
 ## Decision
-- A registry of desktop environments (`pal/desktops.h`). A desktop has an id, a start and an optional stop; exactly one is active; the choice is the `desktop.env` setting; the
-  shell command `desktop` lists and switches. The compositor stays the same for every desktop. The desktop with the id `classic` is the fallback.
-- The current look becomes the `classic` desktop, unchanged: the golden images of every existing scene are the same.
-- Athena is a second desktop whose home is drawn with LVGL 9.2.2 (MIT, vendored in `third_party/lvgl`). It is built only into the simulators. LVGL renders into its own RGB565 frame and the
-  view copies it into the 8-bit canvas, dithering and snapping colours to the palette's colour cube. Its allocator is a static pool; its type is Montserrat (SIL OFL).
-- The app registry already carries name, version, icon id and category; the `.papp` format has icon and resource sections. Desktops read the registry. Reading the icon section and
-  shortcut entries are later work and need no change to the format.
+- A registry of desktop environments (`pal/desktops.h`): id, start, optional stop; one is active; `desktop.env` keeps the choice; the shell
+  command `desktop` lists and switches. `classic` is the fallback and the only one safe mode starts.
+- A desktop owns its chrome (`pal_desktop_chrome_t` in `pal/desktop.h`): whether the compositor draws its bar and legend bar, rows kept for the
+  desktop's own bar, a first look at every key, and whether it presents the whole screen itself. No chrome is the classic behaviour, so every
+  existing screen and golden image is unchanged.
+- Three desktops: `classic` (the current look), `athena` (LVGL, own bar, own Keyboard and Recent apps sheets) and `console` (no desktop: the
+  Terminal on the whole screen, no global keys).
+- Full colour: the panel driver may take RGB565 images (`present_rgb565`, appended to `pal_display_ops_t`), and a desktop sends them with
+  `pal_display_present_rgb565`. Athena renders with LVGL into one PSRAM frame and sends it directly, so it is not limited to the 8-bit palette.
+  The 8-bit framebuffer stays the surface for views and overlays.
+- Apps: TTY apps look the same everywhere (the desktop frames the Terminal); toolkit apps (`pal/ui.h`, the theme components) follow the
+  active theme, which a desktop may select; canvas apps draw raw pixels and look the same everywhere. A full-colour app surface is a later API
+  addition with its own level.
+- LVGL 9.2.2 (MIT) is vendored unmodified; its pool, frame and state live in PSRAM.
 
 ## Consequences
-- A new desktop is one file and one `pal_desktops_register` call; the firmware size is unchanged because Athena is not linked into it.
-- LVGL adds 18 MB of vendored sources and a build of about 150 files to the simulators. If it is ever put on a board it needs its own RAM budget and an ADR.
-- Two screens exist that draw home differently, so a change to the launcher contract (`psys_launcher_get`, `pal_launcher_run`) must keep both working.
+- A new desktop is one file and one `pal_desktops_register` call. The compositor gained a small hook table, not a second code path.
+- The firmware image grew by about 400 KB to 91% of the OTA slot: over the 85% release warning, under the 95% failure. Trimming LVGL further
+  or a larger OTA slot is needed before more features.
+- A desktop that reads the status (an ADC sample) too often trips the interrupt watchdog on hhv2; the rule is once a second.
+- Toolkit apps keep the classic theme under Athena until Athena ships its own theme.

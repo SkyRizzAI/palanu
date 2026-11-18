@@ -11,7 +11,7 @@
 //   3. all .bss and .data in internal RAM (ours, ESP-IDF's, the libraries') add up to more than TOTAL_BUDGET.
 // Raise a budget only with a measurement in docs/SIZE-BUDGETS.md showing Wi-Fi and BLE still start together.
 //
-// Stacks too (the components build with -fstack-usage): the desktop task has 6 KB, the supervisor 6 KB, and a screen's draw
+// Stacks too (the components build with -fstack-usage): the desktop task has 8 KB, the supervisor 6 KB, and a screen's draw
 // or key handler runs there under the file system and the display. A function whose own frame is above STACK_MAX fails
 // the build, unless it is a shell command (cmd_*, which runs on a shell's 8 to 12 KB stack, limit CMD_STACK_MAX) or it is
 // in STACK_ALLOWED with the reason. The applist's 6 KB fixture array on the desktop stack rebooted the board (2026-11-14).

@@ -1,6 +1,6 @@
-/* Athena: an optional desktop environment whose home screen is drawn with LVGL (third_party/lvgl). It is built only into the
- * simulators (platform/host, platform/web): LVGL does not fit the internal RAM budget of a board yet. A platform that links it calls
- * pal_athena_register() once before pal_boot; `desktop use athena` then switches to it (docs/DESKTOPS.md). */
+/* Athena: a desktop environment drawn in full colour with LVGL (third_party/lvgl): its own status bar, keys, sheets and home. A platform
+ * whose panel driver takes RGB565 images (present_rgb565) calls pal_athena_register() once before pal_boot; `desktop use athena` then
+ * switches to it (docs/DESKTOPS.md). */
 #ifndef PAL_ATHENA_H
 #define PAL_ATHENA_H
 

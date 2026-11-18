@@ -63,6 +63,22 @@ static void present(void *ctx, const uint8_t *px, int stride, pal_rect_t r, cons
     pthread_mutex_unlock(&s_lock);
 }
 
+static void present565(void *ctx, const uint16_t *px, int stride, pal_rect_t r) {
+    (void)ctx;
+    pthread_mutex_lock(&s_lock);
+    for (int y = r.y; y < r.y + r.h; y++)
+        for (int x = r.x; x < r.x + r.w; x++) {
+            uint16_t v = px[y * stride + x];
+            uint8_t *o = &s_rgba[(y * W + x) * 4];
+            o[0] = (uint8_t)((((v >> 11) & 31) * 255 + 15) / 31);
+            o[1] = (uint8_t)((((v >> 5) & 63) * 255 + 31) / 63);
+            o[2] = (uint8_t)(((v & 31) * 255 + 15) / 31);
+            o[3] = 255;
+        }
+    s_frame++;
+    pthread_mutex_unlock(&s_lock);
+}
+
 static void services(void) {
     psys_svc_builtin_t b;
     memset(&b, 0, sizeof(b));
@@ -109,7 +125,7 @@ int main(int argc, char **argv) {
     pal_boot_cfg_t cfg = {
         .board = &BOARD,
         .storage_root = "/data",
-        .display = {.present = present},
+        .display = {.present = present, .present_rgb565 = present565},
         .console_log = true,
         .status = status,
         .platform_services = services,

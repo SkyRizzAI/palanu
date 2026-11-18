@@ -12,6 +12,9 @@ typedef struct {
     void (*present)(void *ctx, const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette);
     void (*backlight)(void *ctx, int percent); /* may be NULL */
     void *ctx;
+    /* Appended later; may be NULL. Send the rectangle r of a full-colour RGB565 image (native byte order, stride in pixels) as it
+     * is: a desktop that renders in full colour (Athena) bypasses the 8-bit framebuffer. Blocks until the rectangle has been sent. */
+    void (*present_rgb565)(void *ctx, const uint16_t *px, int stride, pal_rect_t r);
 } pal_display_ops_t;
 
 nema_err_t pal_display_init(const pal_display_ops_t *ops);
@@ -28,5 +31,11 @@ uint32_t pal_display_flush_count(void);
 const uint16_t *pal_display_palette(void); /* 256 entries, RGB565 with the bytes swapped (panel bus order) */
 /* Called after each flush with the rectangle that was presented; for remote screen mirroring. One tap. */
 void pal_display_set_tap(void (*tap)(void *ctx, pal_rect_t r), void *ctx);
+/* Full colour (appended later): true when the panel driver takes RGB565 images. present sends the rectangle r of px (screen
+ * coordinates, stride in pixels); it returns false and sends nothing when the driver cannot. Desktop task only. */
+bool pal_display_has_rgb565(void);
+bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r);
+/* Rows at the top that a flush of the 8-bit framebuffer never sends (a desktop draws its own bar there); 0 by default. */
+void pal_display_reserve_top(int rows);
 
 #endif

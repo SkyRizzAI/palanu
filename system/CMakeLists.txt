@@ -18,13 +18,19 @@ set(TINFL_RENAME TINFL_RENAMED
     tinfl_decompress_mem_to_mem=palanu_tinfl_to_mem
     tinfl_decompress_mem_to_callback=palanu_tinfl_to_callback)
 
+# Athena, the LVGL desktop (system/src/athena, docs/DESKTOPS.md): LVGL 9.2.2 vendored unmodified in third_party/lvgl, its pool in PSRAM.
+file(GLOB_RECURSE LVGL_SRC ${CMAKE_CURRENT_LIST_DIR}/../third_party/lvgl/src/*.c)
+set(ATHENA_SRC ${CMAKE_CURRENT_LIST_DIR}/src/athena/athena.c)
+
 idf_component_register(
-    SRCS ${SYSTEM_SRC} ${SYSTEM_API_SRC} ${MONOCYPHER_SRC} ${MINIZ_SRC}
+    SRCS ${SYSTEM_SRC} ${SYSTEM_API_SRC} ${MONOCYPHER_SRC} ${MINIZ_SRC} ${LVGL_SRC} ${ATHENA_SRC}
     INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/include
     REQUIRES nema
     PRIV_REQUIRES wamr mbedtls
 )
-set_source_files_properties(${MONOCYPHER_SRC} ${MINIZ_SRC} PROPERTIES COMPILE_OPTIONS "-w")
+set_source_files_properties(${MONOCYPHER_SRC} ${MINIZ_SRC} ${LVGL_SRC} PROPERTIES COMPILE_OPTIONS "-w")
+target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../third_party/lvgl ${CMAKE_CURRENT_LIST_DIR}/src/athena)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE LV_CONF_INCLUDE_SIMPLE LV_LVGL_H_INCLUDE_SIMPLE)
 # Display strings are cut to fit on purpose (snprintf into a screen-sized buffer); GCC -O2 flags each one.
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation -fstack-usage) # stack frames checked by forge/tools/ramcheck.ts
 target_compile_definitions(${COMPONENT_LIB} PRIVATE ${TINFL_RENAME})

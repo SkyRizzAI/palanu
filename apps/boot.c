@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "builtin.h"
+#include "pal/desktops.h"
 #include "pal/sd.h"
 #include "pal/bootcount.h"
 #include "pal/link.h"
@@ -168,6 +169,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_desktop_register(&pal_logs_view);     /* Logs: launcher app */
         pal_vk_register(); /* the on-screen keyboard overlay (vk.h) */
         pal_launcher_set_runner(pal_terminal_run); /* installed tty apps open in the Terminal */
+        pal_desktops_boot(); /* the desktop environment named by desktop.env (classic when unset): home, chrome, keys */
         pal_desktop_start();
         if (!console) pal_ui_splash_show(); /* the boot splash, an overlay over home until the stages are done (ui_splash.c) */
         pal_boot_mark("desktop");

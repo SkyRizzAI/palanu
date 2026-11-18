@@ -8,6 +8,9 @@
 #define LV_USE_STDLIB_STRING LV_STDLIB_BUILTIN
 #define LV_USE_STDLIB_SPRINTF LV_STDLIB_BUILTIN
 #define LV_MEM_SIZE (192 * 1024)
+#ifdef ESP_PLATFORM
+#define LV_ATTRIBUTE_LARGE_RAM_ARRAY __attribute__((section(".ext_ram.bss"))) /* the pool lives in PSRAM, never in internal RAM */
+#endif
 #define LV_USE_OS LV_OS_NONE
 #define LV_DEF_REFR_PERIOD 33
 #define LV_DPI_DEF 130
@@ -27,6 +30,38 @@
 #define LV_USE_THEME_SIMPLE 1
 #define LV_DRAW_SW_SHADOW_CACHE_SIZE 32
 #define LV_USE_THEME_MONO 0
+
+/* Athena draws plain objects and labels only: the other widgets stay out of the image (the firmware's OTA slot is nearly full) */
+#define LV_USE_ANIMIMG 0
+#define LV_USE_ARC 0
+#define LV_USE_BAR 0
+#define LV_USE_BUTTON 0
+#define LV_USE_BUTTONMATRIX 0
+#define LV_USE_CALENDAR 0
+#define LV_USE_CANVAS 0
+#define LV_USE_CHART 0
+#define LV_USE_CHECKBOX 0
+#define LV_USE_DROPDOWN 0
+#define LV_USE_IMGBTN 0
+#define LV_USE_KEYBOARD 0
+#define LV_USE_LED 0
+#define LV_USE_LINE 0
+#define LV_USE_LIST 0
+#define LV_USE_MENU 0
+#define LV_USE_MSGBOX 0
+#define LV_USE_ROLLER 0
+#define LV_USE_SCALE 0
+#define LV_USE_SLIDER 0
+#define LV_USE_SPAN 0
+#define LV_USE_SPINBOX 0
+#define LV_USE_SPINNER 0
+#define LV_USE_SWITCH 0
+#define LV_USE_TABLE 0
+#define LV_USE_TABVIEW 0
+#define LV_USE_TEXTAREA 0
+#define LV_USE_TILEVIEW 0
+#define LV_USE_WIN 0
+#define LV_USE_LOTTIE 0
 
 #define LV_FONT_MONTSERRAT_12 1
 #define LV_FONT_MONTSERRAT_16 1

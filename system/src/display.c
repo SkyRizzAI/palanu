@@ -14,6 +14,7 @@ static struct {
     bool ready;
     void (*tap)(void *ctx, pal_rect_t r);
     void *tap_ctx;
+    int reserved_top;
 } D;
 
 nema_err_t pal_display_init(const pal_display_ops_t *ops) {
@@ -47,6 +48,11 @@ int pal_display_flush(void) {
     uint32_t t0 = (uint32_t)nema_port_time_us();
     if (!D.ready) return 0;
     bool any = pal_take_dirty(&D.canvas, &r);
+    if (any && r.y < D.reserved_top) { /* the desktop's own bar is up there: never overwrite it */
+        int cut = D.reserved_top - r.y;
+        r.y += cut, r.h -= cut;
+        any = r.h > 0;
+    }
     int sent = 0;
     if (any) {
         uint32_t p0 = (uint32_t)nema_port_time_us();
@@ -82,3 +88,14 @@ void pal_display_set_tap(void (*tap)(void *ctx, pal_rect_t r), void *ctx) {
     D.tap = tap;
 }
 uint32_t pal_display_flush_count(void) { return D.flushes; }
+
+bool pal_display_has_rgb565(void) { return D.ready && D.ops.present_rgb565 != NULL; }
+
+bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r) {
+    if (!pal_display_has_rgb565() || r.w <= 0 || r.h <= 0) return false;
+    D.ops.present_rgb565(D.ops.ctx, px, stride, r);
+    D.flushes++;
+    return true;
+}
+
+void pal_display_reserve_top(int rows) { D.reserved_top = rows < 0 ? 0 : rows; }

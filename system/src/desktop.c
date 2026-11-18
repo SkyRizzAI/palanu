@@ -64,6 +64,8 @@ static struct {
     int nitems;
     bind_t binds[BINDS];
     pal_view_t *cur; /* the view the desktop is running now: pal_legend_set changes its legends */
+    const pal_desktop_chrome_t *chrome; /* the desktop environment's chrome; NULL = classic */
+    bool owned; /* the chrome drew the whole screen at the last frame */
 } D;
 
 /* The desktop task is recognised by its per-task context: nema keeps one pointer of thread-local storage per task (its wait
@@ -137,7 +139,9 @@ const char *desk_home_id(void) { return D.home; }
 
 static int bar_h(void) { return kui_top_px(KUI_STATUS_H); } /* The reference status bar: 11 logical rows, 22 px at 2x (kui_status.c) */
 /* Settings: ui.statusbar. Off hides the bar everywhere (the layers take the whole screen). */
-static bool bar_on(void) { return psys_settings_int("ui.statusbar", 1) != 0; }
+static bool bar_on(void) { return !(D.chrome && D.chrome->hide_bar) && psys_settings_int("ui.statusbar", 1) != 0; }
+/* Rows the desktop environment keeps for its own bar (pal_desktop_chrome_t.top_px). */
+static int chrome_top(void) { return D.chrome ? D.chrome->top_px : 0; }
 
 /* Legends are shown on the home screen only for now (the owner's call: Settings and the other screens are cleaner without the bar).
  * Every view keeps declaring its legends and the API is unchanged; pal_legend_home_only(false) shows them again. */
@@ -147,7 +151,7 @@ void pal_legend_home_only(bool on) { s_legend_home_only = on; }
 /* The view whose legends the legend bar shows (pal/legend.h). Walks down from the top overlay: an overlay with no legends of
  * its own (a dialog) lets the layer under it show its legends; an opaque one with none, or a NOLEGEND one, hides the bar. */
 static pal_view_t *legend_owner_any(void) {
-    if (psys_settings_int("ui.legend", 1) == 0) return NULL;
+    if (psys_settings_int("ui.legend", 1) == 0 || (D.chrome && D.chrome->hide_legend)) return NULL;
     for (int i = ovl_count() - 1; i >= 0; i--) {
         pal_view_t *v = ovl_view(i);
         uint32_t fl = ovl_flags(i);
@@ -173,6 +177,7 @@ static int legend_h(void) { return legend_owner() ? pal_legend_h_px() : 0; }
 static pal_rect_t area_of(uint32_t flags) {
     pal_canvas_t *c = pal_display_canvas();
     int top = ((flags & (PAL_VIEW_FULLSCREEN | PAL_VIEW_NOBAR)) || !bar_on() || !pal_theme_active()->comp.status_bar) ? 0 : bar_h();
+    if (chrome_top() > top) top = chrome_top(); /* the desktop's own bar stays on screen over every layer */
     pal_rect_t r = {0, top, c->w, c->h - top - legend_h()};
     return r;
 }
@@ -428,6 +433,16 @@ static void render(void) {
     if (!pal_dpm_display_on()) return; /* asleep: the flags stay set; waking the screen redraws everything */
     pal_canvas_t *c = pal_display_canvas();
     if (!front()) return;
+    if (D.chrome && D.chrome->owns_screen && D.chrome->owns_screen()) { /* the desktop draws the screen itself now */
+        D.owned = true;
+        D.inval = D.inval_all = D.status_dirty = false; /* nothing of ours to draw; left set, they would wake this loop forever */
+        return;
+    }
+    if (D.owned) { /* it gave the screen back: everything under it is stale */
+        D.owned = false;
+        D.inval_all = true;
+        pal_mark_all(c);
+    }
     if (D.inval_all) {
         D.inval = D.inval_all = false;
         D.status_dirty = false;
@@ -480,6 +495,10 @@ static void handle_key(const pal_key_t *k) {
             D.cur = lv;
             lv->key(lv, k);
         }
+        D.inval = true;
+        return;
+    }
+    if (D.chrome && D.chrome->key && D.chrome->key(k)) { /* the desktop environment's own keys */
         D.inval = true;
         return;
     }
@@ -623,6 +642,10 @@ static void desktop_task(void *arg) {
         if (dn >= 0 && dn < wait) wait = dn;
         int32_t tn = pal_toast_next_ms(t);
         if (tn >= 0 && tn < wait) wait = tn;
+        if (D.chrome && D.chrome->next_ms) {
+            int32_t cn = D.chrome->next_ms(t);
+            if (cn >= 0 && cn < wait) wait = cn;
+        }
 
         nema_obj_t *objs[MAX_WATCH + 2];
         int n = 0;
@@ -662,6 +685,7 @@ static void desktop_task(void *arg) {
             if (!status_same(&st, &D.last_status)) D.status_dirty = true;
         }
         render();
+        if (D.chrome && D.chrome->frame && pal_dpm_display_on()) D.chrome->frame(t);
     }
 }
 
@@ -684,9 +708,26 @@ void pal_desktop_init(const pal_desktop_cfg_t *cfg) {
 nema_err_t pal_desktop_start(void) {
     if (D.started) return NEMA_ERR_BUSY;
     D.started = true;
-    nema_task_desc_t td = {.name = "desktop", .fn = desktop_task, .stack = 6144, .prio = 6, .core = -1,
+    nema_task_desc_t td = {.name = "desktop", .fn = desktop_task, .stack = 8192, .prio = 6, .core = -1,
                            .role = NEMA_TASK_SYSTEM, .owner = D.owner};
     return nema_task_create(&td);
 }
 
 uint32_t pal_desktop_frames(void) { return D.frames; }
+
+static const pal_desktop_chrome_t *s_chrome_pending;
+static void post_chrome(void *arg) {
+    (void)arg;
+    D.chrome = s_chrome_pending;
+    D.owned = false;
+    pal_display_reserve_top(chrome_top());
+    D.inval_all = true;
+    pal_mark_all(pal_display_canvas());
+}
+
+void pal_desktop_set_chrome(const pal_desktop_chrome_t *chrome) {
+    s_chrome_pending = chrome;
+    run_or_post(post_chrome, NULL);
+}
+
+pal_status_t pal_desktop_status(void) { return status_now(); }

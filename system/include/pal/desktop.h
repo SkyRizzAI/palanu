@@ -107,4 +107,29 @@ void pal_legend_clear(void);
 /* Legends are drawn on the home screen only (the default); false draws them wherever a view declares them. Any task. */
 void pal_legend_home_only(bool on);
 
+/* ---- Desktop chrome (appended later; docs/DESKTOPS.md) ----
+ * The compositor above runs views and overlays. What surrounds them belongs to the active desktop environment (pal/desktops.h): the
+ * status bar, the global keys, and whether the desktop draws the screen itself. No chrome (NULL) is the classic behaviour: the
+ * themed status bar, the legend bar, and the global keys (Fn twice: input menu; cycle tap: switcher; cycle hold: home). */
+typedef struct {
+    bool hide_bar;    /* the compositor draws no status bar */
+    bool hide_legend; /* nor the legend bar */
+    int top_px;       /* rows at the top the desktop keeps for its own bar: views start below them and the compositor never sends them */
+    /* Sees every key after the power and lock checks, before the compositor's global keys; true when the desktop consumed it. NULL: none. */
+    bool (*key)(const pal_key_t *k);
+    /* True while the desktop presents the whole screen itself (pal_display_present_rgb565): the compositor draws and sends nothing,
+     * and redraws everything once it is false again. NULL: never. */
+    bool (*owns_screen)(void);
+    /* Called on the desktop task once per loop, after the compositor sent its frame. NULL: none. */
+    void (*frame)(uint32_t now_ms);
+    /* Milliseconds until frame wants to run again, or -1 for no deadline. NULL: no deadline. */
+    int32_t (*next_ms)(uint32_t now_ms);
+} pal_desktop_chrome_t;
+
+/* Set by a desktop environment's start (NULL for classic); applied on the desktop task before the next frame, with a full redraw. The
+ * structure must outlive its use. */
+void pal_desktop_set_chrome(const pal_desktop_chrome_t *chrome);
+/* The status the bar shows (clock, battery, radios, link): for a desktop that draws its own bar. Any task. */
+pal_status_t pal_desktop_status(void);
+
 #endif

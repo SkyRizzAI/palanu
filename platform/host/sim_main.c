@@ -76,6 +76,21 @@ static void present(void *ctx, const uint8_t *px, int stride, pal_rect_t r, cons
     pthread_mutex_unlock(&g_lock);
 }
 
+static void present565(void *ctx, const uint16_t *px, int stride, pal_rect_t r) {
+    (void)ctx;
+    pthread_mutex_lock(&g_lock);
+    for (int y = r.y; y < r.y + r.h; y++)
+        for (int x = r.x; x < r.x + r.w; x++) {
+            uint16_t v = px[y * stride + x];
+            uint8_t *o = &g_rgb[(y * W + x) * 3];
+            o[0] = (uint8_t)((((v >> 11) & 31) * 255 + 15) / 31);
+            o[1] = (uint8_t)((((v >> 5) & 63) * 255 + 31) / 63);
+            o[2] = (uint8_t)(((v & 31) * 255 + 15) / 31);
+        }
+    g_frame++;
+    pthread_mutex_unlock(&g_lock);
+}
+
 static void save_ppm(const char *path) {
     FILE *f = fopen(path, "wb");
     if (!f) {
@@ -289,7 +304,7 @@ int main(int argc, char **argv) {
     pal_boot_cfg_t cfg = {
         .board = &SIM_BOARD,
         .storage_root = data,
-        .display = {.present = present},
+        .display = {.present = present, .present_rgb565 = present565},
         .console_log = has_arg(argc, argv, "--log"), /* --log: the device log on stdout (tests read the pairing code) */
         .status = status,
         .bootcount = NULL,

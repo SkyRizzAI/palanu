@@ -68,13 +68,30 @@ static void lcd_present(void *ctx, const uint8_t *px, int stride, pal_rect_t r, 
     }
 }
 
+/* Full colour (Athena): the same bands, the pixels only byte-swapped into the panel's bus order. */
+static void lcd_present565(void *ctx, const uint16_t *px, int stride, pal_rect_t r) {
+    int rows_per = BAND_BYTES / (r.w * 2);
+    if (rows_per > BAND_ROWS) rows_per = BAND_ROWS;
+    for (int y0 = r.y; y0 < r.y + r.h; y0 += rows_per) {
+        int rows = r.y + r.h - y0 < rows_per ? r.y + r.h - y0 : rows_per;
+        uint16_t *d = s_band;
+        for (int y = 0; y < rows; y++) {
+            const uint16_t *src = px + (y0 + y) * stride + r.x;
+            for (int x = 0; x < r.w; x++) *d++ = (uint16_t)((src[x] >> 8) | (src[x] << 8));
+        }
+        esp_lcd_panel_draw_bitmap(s_panel, r.x, y0, r.x + r.w, y0 + rows, s_band);
+        xSemaphoreTake(s_trans_done, portMAX_DELAY);
+    }
+}
+
 static void backlight(void *ctx, int pct) {
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, (uint32_t)(pct * 1023 / 100));
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
 
 pal_display_ops_t hhv2_display_ops(void) {
-    pal_display_ops_t o = {.width = LCD_W, .height = LCD_H, .present = lcd_present, .backlight = backlight};
+    pal_display_ops_t o = {.width = LCD_W, .height = LCD_H, .present = lcd_present, .backlight = backlight,
+                           .present_rgb565 = lcd_present565};
     return o;
 }
 

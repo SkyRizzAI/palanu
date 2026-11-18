@@ -79,7 +79,7 @@ static const kv_def_t DEFS[] = {
 #define NDEFS ((int)(sizeof(DEFS) / sizeof(DEFS[0])))
 
 static int32_t s_val[NDEFS];
-static char s_text[NDEFS][TEXT_MAX];
+static char s_text[NDEFS][TEXT_MAX] NEMA_EXT_BSS; /* PSRAM: read on a settings change, not on a hot path */
 
 static void reset_defaults(void) {
     for (int i = 0; i < NDEFS; i++) {
