@@ -4,7 +4,7 @@
  * reach the launcher, the control center and the notifications. The compositor underneath (pal/desktop.h: layers, overlays,
  * status bar, lock, power) is the same for every desktop; a desktop only decides which view is home and how the apps show.
  *
- * Desktops register themselves (the classic one in ui_wire.c; a board or a simulator adds more, see pal/athena.h). Exactly one is
+ * The target lists the sessions it ships (pal_boot_cfg_t.desktops) and boot registers them in that order. Exactly one is
  * active. `desktop use ID` in the shell switches at run time and the choice is kept in the `desktop.env` setting, so it is
  * applied again at boot (pal_desktops_boot). Under every desktop is the system console (pal/console.h, ADR-0010): a desktop
  * that fails to start, or `desktop stop`, leaves no session running and the console in front. No other desktop is started in
@@ -46,5 +46,9 @@ void pal_desktops_stop(void);
 /* At boot, after the views are registered: start the desktop named by `desktop.env`, unless boot.target is console or this is
  * safe mode. An unknown name or a failed start leaves the console in front with the reason. */
 void pal_desktops_boot(void);
+
+/* The sessions PalanuOS has. A target lists the ones it ships in pal_boot_cfg_t.desktops (in order of preference). */
+extern const pal_desktop_env_t PAL_DESKTOP_CLASSIC; /* system/src/ui_wire.c: the themed pixel desktop */
+extern const pal_desktop_env_t PAL_DESKTOP_ATHENA;  /* system/src/athena: full colour with LVGL; needs present_rgb565 */
 
 #endif

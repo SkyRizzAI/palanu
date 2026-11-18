@@ -39,15 +39,15 @@ static bool classic_start(void) {
     return true;
 }
 
-static const pal_desktop_env_t CLASSIC = {.id = "classic", .title = "Classic", .about = "clock home, launcher on Enter", .start = classic_start};
+const pal_desktop_env_t PAL_DESKTOP_CLASSIC = {.id = "classic", .title = "Classic", .about = "themed pixel desktop",
+                                             .start = classic_start};
 
-/* The system's own screens (dev tools that every session may open) and the classic session. */
+/* The system's own screens (dev tools that every session may open). The sessions are registered by boot from the target's list. */
 void pal_ui_register_all(void) {
     pal_ui_prefs_load();
     pal_desktop_register(&pal_gallery_view);   /* uishow gallery */
     pal_desktop_register(&pal_animplay_view);  /* anim play */
     pal_desktop_register(&pal_animsheet_view); /* anim sheet */
-    pal_desktops_register(&CLASSIC);
 }
 
 void pal_ui_lock_now(void) { (void)pal_desktop_lock(); }

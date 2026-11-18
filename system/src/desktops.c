@@ -109,9 +109,13 @@ static void boot_now(void) {
     char target[16] = "";
     psys_settings_get("boot.target", target, sizeof(target));
     if (!strcmp(target, "console")) return;
+    if (s_n == 0) { /* this firmware ships no desktop: the system console is the whole user interface */
+        pal_console_print("No desktop session in this build: the console is the user interface.\n");
+        return;
+    }
     char want[24] = "";
     psys_settings_get("desktop.env", want, sizeof(want));
-    const pal_desktop_env_t *e = pal_desktops_find(want);
+    const pal_desktop_env_t *e = want[0] ? pal_desktops_find(want) : s_env[0]; /* unset: the first the target lists */
     if (!e) {
         failed(want[0] ? want : "(none)", "no such desktop; `desktop` lists them");
         return;

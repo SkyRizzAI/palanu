@@ -11,7 +11,7 @@
 #include "builtin.h"
 #include "sim_hw.h"
 #include "nema/nema.h"
-#include "pal/athena.h"
+#include "pal/desktops.h"
 #include "pal/board.h"
 #include "pal/input.h"
 #include "pal/svc.h"
@@ -95,6 +95,24 @@ static pal_status_t status(void) {
     return st;
 }
 
+/* --desktops LIST: the sessions to ship, in order (classic,athena by default; "none" for the console only), as a target's list. */
+static const pal_desktop_env_t *s_desktops[4];
+static const pal_desktop_env_t *const *desktops_arg(int argc, char **argv) {
+    const char *list = "classic,athena";
+    for (int i = 1; i + 1 < argc; i++)
+        if (!strcmp(argv[i], "--desktops")) list = argv[i + 1];
+    const pal_desktop_env_t *const all[] = {&PAL_DESKTOP_CLASSIC, &PAL_DESKTOP_ATHENA};
+    int n = 0;
+    for (const char *p = list; *p && n < 3;) {
+        size_t len = strcspn(p, ",");
+        for (size_t k = 0; k < sizeof(all) / sizeof(all[0]); k++)
+            if (strlen(all[k]->id) == len && !strncmp(all[k]->id, p, len)) s_desktops[n++] = all[k];
+        p += len + (p[len] == ',');
+    }
+    s_desktops[n] = NULL;
+    return s_desktops;
+}
+
 static int arg_int(int argc, char **argv, const char *flag, int def) {
     for (int i = 1; i + 1 < argc; i++)
         if (!strcmp(argv[i], flag)) return atoi(argv[i + 1]);
@@ -129,8 +147,8 @@ int main(int argc, char **argv) {
         .console_log = true,
         .status = status,
         .platform_services = services,
+        .desktops = desktops_arg(argc, argv),
     };
-    pal_athena_register(); /* the LVGL desktop: `desktop use athena` */
     pal_boot(&cfg);
     for (;;) sleep(3600); /* main only boots; the tasks run on their own workers */
 }

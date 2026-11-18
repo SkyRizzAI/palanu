@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "nema/nema.h"
-#include "pal/athena.h"
 #include "pal/console.h"
 #include "pal/desktop.h"
 #include "pal/desktops.h"
@@ -188,7 +187,8 @@ int main(void) {
     pal_desktop_init(&dc);
     pal_console_init(false);
     pal_ui_register_all();
-    pal_athena_register();
+    pal_desktops_register(&PAL_DESKTOP_CLASSIC); /* what a target lists in pal_boot_cfg_t.desktops */
+    pal_desktops_register(&PAL_DESKTOP_ATHENA);
     pal_desktop_register(&APP);
     pal_desktops_use("classic");
     pal_console_pump(1);

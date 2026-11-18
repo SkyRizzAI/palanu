@@ -59,3 +59,8 @@ Fill `devices` with one entry per device: `PAL_DEV_BATTERY` (`percent`, `mv`), `
 `PAL_DEV_SENSOR` (`unit`, `read` which returns a value ×1000), `PAL_DEV_GPIO` (`pin`, `app`, `read`, `write`) and
 `PAL_DEV_BUS` (`type`, `app`, `probe`). The `RGB_LED`, `BUZZER`, `BATTERY`, `SD` and `SENSORS` bits are computed from the list; do not write them yourself.
 A pin is exposed to apps only if `app = true`. Try it with `dev` in the terminal and, in the simulator, `--sensors`, `--gpios`, `--i2c`.
+
+## Desktop sessions
+
+Which desktop sessions a firmware ships is the target's choice, not the board's: list them in `pal_boot_cfg_t.desktops` (first =
+default), or leave the list empty for a console-only product. Athena needs `present_rgb565` in the panel driver. See docs/DESKTOPS.md.

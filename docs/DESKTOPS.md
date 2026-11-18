@@ -27,6 +27,19 @@ canvas, fixed colours and the Spleen 6x12 font, never with the theme or a deskto
 - **Switching.** Ctrl+Alt+Esc switches between the console and the running session, from any screen, the lock screen included. The
   input layer gives this key to the console before the session sees it. Shift+PgUp/PgDn scroll its history.
 
+## Which desktops a firmware ships
+
+The product decides, not the board: a target lists the sessions it ships in `pal_boot_cfg_t.desktops`, in order of preference, and
+boot registers exactly those. The first one is the default until the user picks another (`desktop.env`). An empty list ships no
+desktop at all: the system console is the whole user interface, as on a server without a graphical session. A session that is not
+listed is not linked, so its code and libraries leave the image (LVGL with Athena).
+
+| Where | How to choose |
+|---|---|
+| hhv2 | `PALANU_DESKTOPS="athena" ./pal build` (or `"classic,athena"`, or `""` for none); the choice stays in the build until changed. Default `classic;athena` (`targets/hhv2/main/CMakeLists.txt`) |
+| simulators | `palanu-sim --desktops athena` (or `classic,athena`, or `none`); default `classic,athena`. The page of the browser simulator passes the same flag |
+| a new target | list `&PAL_DESKTOP_CLASSIC`, `&PAL_DESKTOP_ATHENA` (`pal/desktops.h`) in its boot config. Athena needs a panel driver with `present_rgb565` |
+
 ## Using the sessions
 
 In the shell (the console, the Terminal, the serial console, or a remote shell):

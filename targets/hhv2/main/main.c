@@ -1,9 +1,9 @@
 /* PalanuOS for the hhv2 board. The board's hardware is brought up by pal_boot (hw_init); the services are registered
  * by the platform (platform_services) and started by the supervisor in `after` order. This file only describes the board. */
-#include "pal/athena.h"
 #include <string.h>
 
 #include "hhv2.h"
+#include "pal/desktops.h"
 #include "pal/svc.h"
 #include "pal_services_esp.h"
 
@@ -26,6 +26,9 @@ static void platform_services(void) {
     psys_svc_register_builtin(&in);
 }
 
+/* The desktop sessions picked at build time (PALANU_DESKTOPS in main/CMakeLists.txt). */
+static const pal_desktop_env_t *const DESKTOPS[] = {PAL_DESKTOP_LIST NULL};
+
 void app_main(void) {
     pal_boot_cfg_t cfg = {
         .board = &HHV2_BOARD,
@@ -36,7 +39,7 @@ void app_main(void) {
         .bootcount = pal_bootcount_esp(),
         .platform_services = platform_services,
         .sd = hhv2_sd_ops(),
+        .desktops = DESKTOPS,
     };
-    pal_athena_register(); /* the LVGL desktop: `desktop use athena` */
     pal_boot(&cfg);
 }

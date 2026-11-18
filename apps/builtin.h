@@ -5,6 +5,7 @@
 #include "pal/bootcount.h"
 #include "pal/board.h"
 #include "pal/desktop.h"
+#include "pal/desktops.h"
 #include "pal/display.h"
 #include "pal/input.h"
 #include "pal/sd.h"
@@ -19,6 +20,10 @@ typedef struct {
     const pal_bootcount_ops_t *bootcount; /* the platform's boot-attempt counter; NULL: none, never safe mode */
     void (*platform_services)(void);      /* registers the board's built-in services (input, link-uart, time, ota-confirm); before the start */
     const pal_sd_ops_t *sd;               /* the memory card slot (pal/sd.h); NULL: none. Mounted at /sd during boot */
+    /* The desktop sessions this firmware ships, in order of preference, NULL-terminated (pal/desktops.h). The first is the default
+     * session until the user picks another. NULL or empty: no desktop at all, the system console only (boot.target console). Which
+     * desktops ship is the product's choice, not the board's: a target lists them (docs/DESKTOPS.md). */
+    const pal_desktop_env_t *const *desktops;
 } pal_boot_cfg_t;
 
 /* Bring the whole system up: kernel, storage, display, input, desktop. Returns once the desktop runs. */

@@ -162,7 +162,8 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_console_printf("[\x1b[32m  OK  \x1b[0m] Display %dx%d.\n", panel.width, panel.height);
         pal_desktop_cfg_t dc = {.status = cfg->status ? cfg->status : default_status, .start_view = NULL /* the session's home */};
         pal_desktop_init(&dc);
-        pal_ui_register_all(); /* the system's dev screens and the classic session (ui_wire.c); a session registers its screens at its start */
+        pal_ui_register_all(); /* the system's dev screens (ui_wire.c); a session registers its screens at its start */
+        for (const pal_desktop_env_t *const *d = cfg->desktops; d && *d; d++) pal_desktops_register(*d); /* what this firmware ships */
         pal_desktop_register(&pal_terminal_view);
         pal_desktop_register(&pal_settings_view);
         pal_desktop_register(&pal_monitor_view);

@@ -10,7 +10,6 @@
 #include "nema/types.h"
 #include "athena_pool.h"
 #include "nema/nema.h"
-#include "pal/athena.h"
 #include "pal/console.h"
 #include "pal/desktop.h"
 #include "pal/desktops.h"

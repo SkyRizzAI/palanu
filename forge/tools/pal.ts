@@ -27,6 +27,14 @@ function sh(cmd: string, opts: { cwd?: string; quiet?: boolean } = {}): number {
   return p.exitCode ?? 1;
 }
 
+/* PALANU_DESKTOPS="athena" (or "classic,athena", or "" for none) picks the desktop sessions the firmware ships; unset keeps the last choice. */
+function desktopsDef(): string {
+  const d = process.env.PALANU_DESKTOPS;
+  if (d === undefined) return "";
+  if (!/^[a-z,; ]*$/.test(d)) throw new Error("PALANU_DESKTOPS: desktop ids separated by commas");
+  return `-DPALANU_DESKTOPS="${d.split(/[,; ]+/).filter(Boolean).join(";")}" `;
+}
+
 function idf(cmd: string): number {
   if (!existsSync(IDF_EXPORT)) {
     console.error(`ESP-IDF not found at ${IDF_EXPORT}. See SETUP-ESP-IDF.md.`);
@@ -372,8 +380,8 @@ switch (cmd) {
   case "test": code = check() || hostBuild() || sh(`ctest --test-dir ${HOST_BUILD} --output-on-failure`); break;
   case "sim": code = hostBuild("palanu-sim") || run([`${HOST_BUILD}/palanu-sim`, ...rest]); break;
   case "golden": code = hostBuild("palanu-sim") || run([process.execPath, join(ROOT, "forge/tools/golden.ts"), ...rest]); break;
-  case "build": code = check() || idf("idf.py reconfigure build") || ramcheck(); break;
-  case "flash": code = check() || idf("idf.py reconfigure build") || ramcheck() || idf(`idf.py -p ${port()} -b ${BAUD} flash`); break;
+  case "build": code = check() || idf(`idf.py ${desktopsDef()}reconfigure build`) || ramcheck(); break;
+  case "flash": code = check() || idf(`idf.py ${desktopsDef()}reconfigure build`) || ramcheck() || idf(`idf.py -p ${port()} -b ${BAUD} flash`); break;
   case "log": code = idf(`python ${ROOT}/forge/tools/serial_capture.py ${port()} ${rest[0] ?? 8}`); break;
   case "size": code = idf("idf.py size-components"); break;
   case "release": code = Bun.spawnSync([process.execPath, join(ROOT, "forge/tools/release.ts"), ...rest], { stdout: "inherit", stderr: "inherit", stdin: "inherit" }).exitCode ?? 1; break;

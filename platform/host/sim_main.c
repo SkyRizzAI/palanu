@@ -17,7 +17,7 @@
 #include "builtin.h"
 #include "sim_hw.h"
 #include "nema/nema.h"
-#include "pal/athena.h"
+#include "pal/desktops.h"
 #include "pal/bootcount.h"
 #include "pal/link.h"
 #include "pal/radio.h"
@@ -263,6 +263,24 @@ static bool has_arg(int argc, char **argv, const char *flag) {
     return false;
 }
 
+/* --desktops LIST: the sessions to ship, in order (classic,athena by default; "none" for the console only), as a target's list. */
+static const pal_desktop_env_t *s_desktops[4];
+static const pal_desktop_env_t *const *desktops_arg(int argc, char **argv) {
+    const char *list = "classic,athena";
+    for (int i = 1; i + 1 < argc; i++)
+        if (!strcmp(argv[i], "--desktops")) list = argv[i + 1];
+    const pal_desktop_env_t *const all[] = {&PAL_DESKTOP_CLASSIC, &PAL_DESKTOP_ATHENA};
+    int n = 0;
+    for (const char *p = list; *p && n < 3;) {
+        size_t len = strcspn(p, ",");
+        for (size_t k = 0; k < sizeof(all) / sizeof(all[0]); k++)
+            if (strlen(all[k]->id) == len && !strncmp(all[k]->id, p, len)) s_desktops[n++] = all[k];
+        p += len + (p[len] == ',');
+    }
+    s_desktops[n] = NULL;
+    return s_desktops;
+}
+
 static int arg_int(int argc, char **argv, const char *flag) {
     for (int i = 1; i + 1 < argc; i++)
         if (!strcmp(argv[i], flag)) return atoi(argv[i + 1]);
@@ -310,20 +328,20 @@ int main(int argc, char **argv) {
         .status = status,
         .bootcount = NULL,
         .platform_services = sim_services,
+        .desktops = desktops_arg(argc, argv),
     };
     snprintf(s_sd_dir, sizeof(s_sd_dir), "%s/sdcard", data);
     struct stat sd_st;
     if (stat(s_sd_dir, &sd_st) == 0 && S_ISDIR(sd_st.st_mode)) cfg.sd = &SIM_SD;
     bool scripted = false;
     for (int i = 1; i < argc; i++)
-        if (!strncmp(argv[i], "--", 2)) scripted = true;
+        if (!strncmp(argv[i], "--", 2) && strcmp(argv[i], "--desktops") != 0) scripted = true;
     if (!scripted) {
         snprintf(g_bootcount_path, sizeof(g_bootcount_path), "%s/bootcount", data);
         cfg.bootcount = &HOST_BOOTCOUNT;
     }
     pal_radio_set_ops(sim_hw_radio_ops());
     pal_wifi_set_ops(sim_hw_wifi_ops());
-    pal_athena_register(); /* the LVGL desktop: `desktop use athena` */
     pal_boot(&cfg);
     /* --link-open trusts the TCP link without a token. Tests only: the default is an untrusted link (docs/PLP.md). */
     pal_link_set_tcp_trust(has_arg(argc, argv, "--link-open"));

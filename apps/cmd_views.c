@@ -122,7 +122,8 @@ static int cmd_desktop(int argc, char **argv) {
             const pal_desktop_env_t *e = pal_desktops_get(i);
             pal_printf("%c %-10s %s\n", !strcmp(e->id, pal_desktops_active()) ? '*' : ' ', e->id, e->about ? e->about : e->title);
         }
-        if (!pal_desktops_active()[0]) pal_printf("no session is running (`desktop use ID` starts one)\n");
+        if (pal_desktops_count() == 0) pal_printf("this firmware ships no desktop session: the console is the user interface\n");
+        else if (!pal_desktops_active()[0]) pal_printf("no session is running (`desktop use ID` starts one)\n");
         return 0;
     }
     if (argc == 3 && (!strcmp(argv[1], "use") || !strcmp(argv[1], "start"))) {

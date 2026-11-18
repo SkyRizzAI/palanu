@@ -590,7 +590,5 @@ static void athena_stop(void) {
     s_pool = NULL, s_frame = NULL;
 }
 
-static const pal_desktop_env_t ATHENA = {.id = "athena", .title = "Athena", .about = "full-colour LVGL desktop: own bar, keys and home",
-                                         .start = athena_start, .stop = athena_stop};
-
-void pal_athena_register(void) { (void)pal_desktops_register(&ATHENA); }
+const pal_desktop_env_t PAL_DESKTOP_ATHENA = {.id = "athena", .title = "Athena", .about = "full-colour LVGL desktop",
+                                            .start = athena_start, .stop = athena_stop};
