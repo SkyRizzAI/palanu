@@ -27,6 +27,8 @@ Plan task: T1.5.
   - Palanu Link over TCP (port 7000) is alive only while Wi-Fi has an IP address: the `link-tcp` service with an address gate.
     The address hook in `radio_esp.c` only wakes the supervisor (`psys_svc_poke`).
   - Palanu Link over BLE advertises only while BLE is on.
+  - The Keyboard app (ADR-0018) takes BLE while it is in front: Link over BLE stops, the device advertises as a keyboard, and Link
+    comes back when the app is left.
   - The UART cable and console do not depend on a radio.
 
 ## Settings

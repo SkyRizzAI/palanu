@@ -192,6 +192,8 @@ void pal_link_ble_stop(void) {
     s_started = false;
 }
 
+bool pal_link_ble_running(void) { return s_started; }
+
 size_t pal_link_ble_status(char *out, size_t cap) {
     int n;
     if (!s_started) n = snprintf(out, cap, "not connected (radio off)");

@@ -12,6 +12,7 @@ extern pal_view_t pal_files_view;   /* id "files": the file browser, launcher en
 extern pal_view_t pal_textview_view; /* id "textview": opened as an overlay by Files (Esc closes it) */
 extern pal_view_t pal_logs_view;    /* id "logs": the log viewer, launcher entry */
 extern pal_view_t pal_editor_view;  /* id "editor": the text editor, launcher entry (editor.c) */
+extern pal_view_t pal_hidkbd_view;  /* id "keyboard": the device types into another computer (hidkbd.c) */
 extern pal_view_t pal_store_view;   /* id "store": the app catalogue (store_app.c) */
 
 /* Opens the text editor on path ("" or NULL: a new text), from any task. A text with unsaved changes stays open instead. */

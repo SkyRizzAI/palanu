@@ -100,6 +100,14 @@ icon = "editor"
 category = "Tools"
 
 [[app]]
+id = "keyboard"
+name = "Keyboard"
+version = "1.0.0"
+kind = "gui"
+icon = "keyboard"
+category = "Tools"
+
+[[app]]
 id = "store"
 name = "Store"
 version = "1.0.0"

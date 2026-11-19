@@ -6,7 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "nema/log.h"
+#include "nema/port.h"
 #include "pal/device.h"
+#include "pal/hid.h"
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -215,7 +218,44 @@ static const pal_wifi_ops_t WIFI = {wifi_scan, wifi_connect, wifi_disconnect, wi
 const pal_wifi_ops_t *sim_hw_wifi_ops(void) { return &WIFI; }
 
 /* ---- the device table ---- */
+/* ---- the keyboard transport (pal/hid.h): "pairs" 0.8 s after it starts, and logs each report (`log | grep hid`) ---- */
+static bool s_hid_on;
+static uint64_t s_hid_t0;
+static uint32_t s_hid_reports;
+static uint8_t s_hid_last[7];
+
+static nema_err_t hid_start(const char *name) {
+    s_hid_on = true;
+    s_hid_t0 = nema_port_time_us();
+    NEMA_LOGI("hid", "advertising as \"%s\" (simulated: connects in 0.8 s)", name);
+    return NEMA_OK;
+}
+static void hid_stop(void) {
+    if (s_hid_on) NEMA_LOGI("hid", "stopped after %u reports", (unsigned)s_hid_reports);
+    s_hid_on = false;
+}
+static pal_hid_state_t hid_state(void) {
+    if (!s_hid_on) return PAL_HID_OFF;
+    return nema_port_time_us() - s_hid_t0 < 800000u ? PAL_HID_WAITING : PAL_HID_CONNECTED;
+}
+static nema_err_t hid_report(uint8_t mods, const uint8_t keys[6]) {
+    if (hid_state() != PAL_HID_CONNECTED) return NEMA_ERR_STATE;
+    s_hid_reports++;
+    s_hid_last[0] = mods;
+    memcpy(s_hid_last + 1, keys, 6);
+    if (keys[0]) NEMA_LOGI("hid", "report mods %02x key %02x", mods, keys[0]);
+    return NEMA_OK;
+}
+static void hid_peer(char *out, size_t cap) { snprintf(out, cap, "simulated host"); }
+static const pal_hid_ops_t SIM_HID = {hid_start, hid_stop, hid_state, hid_report, hid_peer};
+
+uint32_t sim_hw_hid_reports(uint8_t last[7]) {
+    if (last) memcpy(last, s_hid_last, 7);
+    return s_hid_reports;
+}
+
 void sim_hw_init(pal_board_desc_t *board, const sim_hw_cfg_t *cfg) {
+    pal_hid_set(&SIM_HID);
     s_log = cfg->log;
     int nled = cfg->leds > SIM_HW_MAX_LEDS ? SIM_HW_MAX_LEDS : cfg->leds;
     int nsen = cfg->sensors > SIM_HW_MAX_EXTRA ? SIM_HW_MAX_EXTRA : cfg->sensors;

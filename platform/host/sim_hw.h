@@ -51,4 +51,7 @@ int sim_hw_wifi_rssi(void);
 /* Bluetooth LE: the nearby devices a scan would show (kept for the page and apps that scan), and the advertised name. */
 void sim_hw_ble_set_name(const char *name);
 
+/* The simulated keyboard transport: reports sent so far, and the last one (modifiers, then six keys). */
+uint32_t sim_hw_hid_reports(uint8_t last[7]);
+
 #endif

@@ -62,6 +62,10 @@ once:
 2. On the computer: open **Web Forge** (`./pal web`, then http://localhost:5174 in Chrome or Edge), choose USB, Bluetooth, or
    Wi-Fi/LAN, and type the code.
 
+**Keyboard** (launcher): the device types into a phone, tablet or computer over Bluetooth. Open it, then pair "PalanuOS Keyboard"
+in the other side's Bluetooth settings; every key you press goes there (US layout). Hold the cycle key to leave. A paired host
+reconnects by itself the next time.
+
 After that the computer signs in by itself with the stored token. A USB cable does not need pairing. **Authorized Devices** lists
 the paired computers, and **Log Out All Devices** revokes all of them. Data after sign-in is not yet encrypted: use a network
 you trust.

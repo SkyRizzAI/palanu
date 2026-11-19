@@ -53,7 +53,7 @@ static int cmd_uishow(int argc, char **argv) {
         "               launcher [strip|grid|compact|list] [ref] | applist [ref] | lock [FRAME] | control |\n"
         "               notifications [empty] | gallery | settings [PAGE] | splash [MS] | animsheet NAME [PAGE] |\n"
         "               screen NAME (eject-sd | logs-clear | stop-server | reboot-bootloader | files-delete | toast | popup |\n"
-        "               permission | sign-consent) | inputmenu [caps] [sym] [num] [ctrl]\n";
+        "               permission | sign-consent) | inputmenu [caps] [sym] [num] [ctrl] | app ID\n";
     if (argc < 2) {
         pal_eprintf("%s", usage);
         return 1;
@@ -151,6 +151,8 @@ static int cmd_uishow(int argc, char **argv) {
             for (int m = 0; m < PAL_INPUT_MODES; m++) pal_input_set_mode((pal_input_mode_t)m, false);
         }
         pal_input_menu_open();
+    } else if (!strcmp(what, "app") && argc > 2) { /* app ID: any app of the running desktop by its id (keyboard, store) */
+        open_view(argv[2]);
     } else if (!strcmp(what, "screen") && argc > 2) {
         /* screen NAME: a dialog or page of the reference screens (eject-sd, logs-clear, stop-server, reboot-bootloader,
          * files-delete, toast, popup, permission, sign-consent); the clock reads 10:00 as in the reference shots */

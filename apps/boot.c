@@ -176,6 +176,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_desktop_register(&pal_logs_view);     /* Logs: launcher app */
         pal_desktop_register(&pal_editor_view);   /* Editor: launcher app, `edit FILE`, Files > Edit */
         pal_desktop_register(&pal_store_view);    /* Store: the app catalogue */
+        pal_desktop_register(&pal_hidkbd_view);   /* Keyboard: the device as a Bluetooth keyboard (ADR-0018) */
         pal_vk_register(); /* the on-screen keyboard overlay (vk.h) */
         pal_launcher_set_runner(pal_terminal_run); /* installed tty apps open in the Terminal */
         pal_desktops_boot(); /* the session named by desktop.env, unless boot.target is console or this is safe mode */

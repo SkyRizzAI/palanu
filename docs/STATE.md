@@ -32,8 +32,10 @@ The firmware is divided into layered components, and the layer boundaries are en
   hhv2. The release key is not made yet (the owner's step, `docs/RELEASE.md`).
 
 ## Not done / not verified
+- **Keyboard (ADR-0018):** the device as a Bluetooth LE keyboard (HID over GATT, bonded in NVS); proven by `test_hid` and in the
+  simulator, built for hhv2, not yet paired with a real host. USB HID is not done.
 - Not done from the 19 November 2026 analysis: a scripting language (Lua or
-  MicroPython need setjmp and a libc the WebAssembly SDK does not have yet), Bluetooth/USB HID keyboard mode, music, light sleep,
+  MicroPython need setjmp and a libc the WebAssembly SDK does not have yet), USB HID keyboard mode, music, light sleep,
   display rotation, LoRa and radio modules.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
 - SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.

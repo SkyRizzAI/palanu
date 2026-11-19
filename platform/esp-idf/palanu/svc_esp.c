@@ -41,6 +41,7 @@ void pal_esp_register_services(void) {
     pal_power_esp_register(); /* power profiles: the CPU frequency policy */
     pal_radio_esp_init();    /* radio ops and the Wi-Fi address hook */
     pal_ota_esp_start();     /* firmware update ops and the health check's ops */
+    pal_hid_ble_register();  /* the Keyboard app's transport: a Bluetooth LE keyboard (ADR-0018) */
 
     psys_svc_builtin_t b;
     memset(&b, 0, sizeof(b));
