@@ -103,7 +103,10 @@ static void doc_layout(pal_doc_t *d) {
     A.doc_empty = ath_text(card, &lv_font_montserrat_16, d->mono ? lv_color_hex(0x9AA3AE) : C_GREY);
     lv_obj_align(A.doc_empty, LV_ALIGN_CENTER, 0, 0);
     lv_label_set_text(A.doc_empty, "");
-    if (d->vis) *d->vis = A.dvis; /* the app pages by what this look shows */
+    if (d->vis && *d->vis != A.dvis) { /* the app pages by what this look shows */
+        *d->vis = A.dvis;
+        if (d->relayout) d->relayout(d->ctx);
+    }
 }
 
 static void doc_fill(pal_doc_t *d) {
@@ -162,7 +165,10 @@ void ath_doc_sync(pal_doc_t *d, uint32_t now) {
         doc_layout(d);
         A.dsig = ~0u;
     }
-    if (d->vis && *d->vis != A.dvis) *d->vis = A.dvis;
+    if (d->vis && *d->vis != A.dvis) { /* the classic look drew in between and wrote its own */
+        *d->vis = A.dvis;
+        if (d->relayout) d->relayout(d->ctx);
+    }
     int n = d->count ? d->count(d->ctx) : 0;
     uint32_t sig = d->gen * 2654435761u ^ (uint32_t)(d->top ? *d->top : 0) * 40503u ^ (uint32_t)(d->focus ? *d->focus : -1) * 97u ^
                    (uint32_t)n * 13u;

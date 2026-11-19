@@ -2207,8 +2207,16 @@
       "500"
     ]
   },
-  "_masks": "Rectangles [x, y, w, h] painted a fixed colour in the captured screen before it is compared or stored, for values that change by design (the free-memory figure on the Settings page moves with every build).",
+  "_masks": "Rectangles [x, y, w, h] painted a fixed colour in the captured screen before it is compared or stored, for values that change by design (the free-memory figure on the Settings page moves with every build; terminal-exit shows the classic home, whose wallpaper animation runs on real time).",
   "masks": {
+    "terminal-exit": [
+      [
+        0,
+        60,
+        110,
+        112
+      ]
+    ],
     "settings-about": [
       [
         124,

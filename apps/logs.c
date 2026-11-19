@@ -297,7 +297,12 @@ static void doc_line(void *ctx, int i, char *out, size_t cap, bool *mark) {
 static void doc_empty(void *ctx, char *out, size_t cap) {
     (void)ctx, snprintf(out, cap, "%s", L.n == 0 ? "No logs yet" : "No lines match the filter");
 }
-static pal_doc_t DOC = {.title = doc_title, .tools = DOC_TOOLS, .ntools = doc_ntools, .focus = &L.focus, .count = doc_count,
+static void doc_relayout(void *ctx) {
+    (void)ctx;
+    if (L.follow) L.top = logs_follow_top(L.nvis, L.page);
+    DOC.gen++;
+}
+static pal_doc_t DOC = {.relayout = doc_relayout, .title = doc_title, .tools = DOC_TOOLS, .ntools = doc_ntools, .focus = &L.focus, .count = doc_count,
                         .line = doc_line, .empty = doc_empty, .top = &L.top, .vis = &L.page, .mono = false};
 
 /* ---- search ---- */

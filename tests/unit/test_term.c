@@ -367,6 +367,24 @@ TEST(fallback_font_covers_scripts_symbols_and_icons) {
     CHECK(pal_fallback_glyph(0x2500, &cells) == NULL);   /* box drawing is drawn by the terminal, not carried */
 }
 
+/* The cursor leaves a row on a line feed without writing to it: the row must be drawn again, or the old cursor block stays on it. */
+TEST(cursor_leaves_no_block_behind) {
+    fresh(4, 3);
+    W("ab");
+    static uint8_t px[32 * 48];
+    pal_canvas_t cv;
+    pal_canvas_init(&cv, px, 32, 48);
+    pal_term_mark_all(T);
+    pal_term_draw(T, &cv, &PAL_FONT_SPLEEN_8X16, 0, 0, true);
+    CHECK_EQ(pal_get(&cv, 2 * 8 + 4, 8), PAL_C_TERM_FG); /* the cursor block at column 2 of row 0 */
+    W("\r\n");
+    pal_term_draw(T, &cv, &PAL_FONT_SPLEEN_8X16, 0, 0, true);
+    CHECK_EQ(pal_get(&cv, 2 * 8 + 4, 8), PAL_C_TERM_BG);  /* gone from row 0 */
+    CHECK_EQ(pal_get(&cv, 0 * 8 + 4, 24), PAL_C_TERM_FG); /* drawn at the start of row 1 */
+    pal_term_draw(T, &cv, &PAL_FONT_SPLEEN_8X16, 0, 0, false); /* the blink's off phase */
+    CHECK_EQ(pal_get(&cv, 0 * 8 + 4, 24), PAL_C_TERM_BG);
+}
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -387,6 +405,7 @@ int main(void) {
     RUN(strings_are_swallowed);
     RUN(resize_keeps_content);
     RUN(drawing_honours_colours_and_cursor);
+    RUN(cursor_leaves_no_block_behind);
     RUN(full_screen_program_session);
     RUN(wide_characters_take_two_columns);
     RUN(combining_marks_take_no_column);

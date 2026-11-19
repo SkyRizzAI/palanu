@@ -17,7 +17,8 @@ description instead.
   the app's, copied in. Athena draws a long page as a window of 40 rows around the selection.
 - **Reading screens are documents** (new `pal/doc.h`, `pal_doc_bind`): a title, up to three toolbar rows (a switch or a value), and
   lines from a callback, with pointers to the app's first line and toolbar focus. The presenter writes back how many lines fit, so
-  the app's paging follows the look on screen. Logs and the text viewer bind one; Athena draws the lines on a card, fixed-width
+  the app's paging follows the look on screen; its `relayout` callback lets the app place its first line again (Logs keeps
+  following the newest line). Logs and the text viewer bind one; Athena draws the lines on a card, fixed-width
   (unscii 8) for a file or a hex dump.
 - **Terminals stay tty**; the session picks their colours. `pal_desktop_chrome_t` gains `tty_colors`, `tty_bg`, `tty_fg`, applied
   over the theme's default terminal colours in the palette (`pal_theme_term_override`). Each Athena theme has its own pair.

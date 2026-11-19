@@ -42,6 +42,7 @@ struct pal_term {
     int utf_need;
 
     uint64_t dirty;
+    int cur_r, cur_c; /* where the last draw put the cursor block; cur_r -1: none shown */
     uint32_t bells;
     uint32_t last_ch; /* for REP */
     pal_term_reply_fn reply;
@@ -626,6 +627,7 @@ pal_term_t *pal_term_create(int cols, int rows, int scrollback_lines, nema_owner
     t->cols = cols;
     t->rows = rows;
     t->owner = owner;
+    t->cur_r = -1;
     t->sb_cap = scrollback_lines;
     t->main_cells = (pal_cell_t *)nema_alloc(NEMA_MEM_ANY, owner, sizeof(pal_cell_t) * (size_t)cols * (size_t)rows);
     if (scrollback_lines > 0)
@@ -815,6 +817,13 @@ int pal_term_draw(pal_term_t *t, pal_canvas_t *c, const pal_font_t *font, int x,
     int ccol, crow;
     bool cvis;
     pal_term_cursor(t, &ccol, &crow, &cvis);
+    /* The cursor block is drawn with its row. When it moves, hides or blinks off without its row changing (a line feed, a cursor
+     * move), the row it was on is drawn again so the block does not stay behind, and the row it is on now so it shows there. */
+    bool want = cvis && cursor_on && crow >= 0 && crow < t->rows;
+    if (t->cur_r >= 0 && t->cur_r < t->rows && (!want || t->cur_r != crow || t->cur_c != ccol)) dirty_row(t, t->cur_r);
+    if (want && (t->cur_r != crow || t->cur_c != ccol)) dirty_row(t, crow);
+    t->cur_r = want ? crow : -1;
+    t->cur_c = ccol;
     hist_lock();
     for (int r = 0; r < t->rows; r++) {
         if (!(t->dirty & (1ull << r))) continue;

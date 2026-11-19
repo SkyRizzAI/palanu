@@ -28,6 +28,7 @@ typedef struct pal_doc {
     void (*empty)(void *ctx, char *out, size_t cap); /* shown with no lines, or NULL */
     int *top;                    /* the first line shown: the app's */
     int *vis;                    /* lines that fit: written by whoever draws */
+    void (*relayout)(void *ctx); /* called after vis changed, so the app can place top again (follow the newest line), or NULL */
     bool mono;                   /* fixed-width text (a file, hex) */
     void *ctx;
     uint32_t gen;                /* the app bumps it when lines change without the count changing */

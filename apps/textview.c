@@ -338,7 +338,11 @@ static void doc_empty(void *ctx, char *out, size_t cap) {
     if (V.reading) snprintf(out, cap, "Reading... %luK", (unsigned long)(V.T.len / 1024));
     else snprintf(out, cap, "(empty)");
 }
-static pal_doc_t DOC = {.title = doc_title, .count = doc_count, .line = doc_line, .empty = doc_empty, .top = &V.top, .vis = &V.page,
+static void doc_relayout(void *ctx) {
+    (void)ctx;
+    set_top(V.top); /* inside the rows with the new page */
+}
+static pal_doc_t DOC = {.relayout = doc_relayout, .title = doc_title, .count = doc_count, .line = doc_line, .empty = doc_empty, .top = &V.top, .vis = &V.page,
                         .mono = true};
 
 /* ---- keys, pump, lifecycle ---- */
