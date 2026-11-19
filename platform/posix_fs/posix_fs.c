@@ -14,7 +14,27 @@
 typedef struct {
     char root[192];
     nema_owner_t owner;
+    /* A listing in progress: the API asks for entry 0, 1, 2... of a folder, and opening the folder again for each one made a
+     * listing of n entries cost n opens and n*n reads (a second for eight files on the board's LittleFS). The folder stays open
+     * while the next index is asked for; a jump, another folder, or any change to the file system starts over. */
+    nema_port_mutex_t *lock;
+    DIR *cur;
+    char cur_path[320];
+    size_t cur_next;
 } pfs_t;
+
+static void cursor_close(pfs_t *fs) {
+    if (fs->cur) closedir(fs->cur);
+    fs->cur = NULL;
+}
+
+/* a change to the file system ends a listing in progress (its entries may have moved) */
+static void cursor_drop(pfs_t *fs) {
+    if (!fs->lock) return;
+    nema_port_mutex_lock(fs->lock);
+    cursor_close(fs);
+    nema_port_mutex_unlock(fs->lock);
+}
 
 typedef struct {
     nema_obj_t obj;
@@ -83,6 +103,7 @@ static nema_err_t p_open(void *vfs, const char *path, uint32_t flags, nema_obj_t
     if (flags & NEMA_O_CREATE) of |= O_CREAT;
     if (flags & NEMA_O_TRUNC) of |= O_TRUNC;
     if (flags & NEMA_O_APPEND) of |= O_APPEND;
+    if (flags & (NEMA_O_CREATE | NEMA_O_TRUNC)) cursor_drop(fs); /* a new file is a new entry */
     int fd = open(full, of, 0666);
     if (fd < 0) return map_errno(errno);
     struct stat st;
@@ -114,41 +135,54 @@ static nema_err_t p_stat(void *vfs, const char *path, nema_stat_t *st) {
 }
 
 static nema_err_t p_readdir(void *vfs, const char *path, size_t index, nema_dirent_t *ent) {
+    pfs_t *fs = (pfs_t *)vfs;
     char full[320];
-    if (!full_path((pfs_t *)vfs, path, full, sizeof(full))) return NEMA_ERR_RANGE;
-    DIR *d = opendir(full);
-    if (!d) return map_errno(errno);
+    if (!full_path(fs, path, full, sizeof(full))) return NEMA_ERR_RANGE;
+    nema_port_mutex_lock(fs->lock);
+    if (!fs->cur || index != fs->cur_next || strcmp(full, fs->cur_path) != 0) { /* not the next entry of the open listing */
+        cursor_close(fs);
+        fs->cur = opendir(full);
+        if (!fs->cur) {
+            int e = errno;
+            nema_port_mutex_unlock(fs->lock);
+            return map_errno(e);
+        }
+        nema_strlcpy(fs->cur_path, full, sizeof(fs->cur_path));
+        fs->cur_next = 0;
+    }
     struct dirent *e;
-    size_t i = 0;
     nema_err_t r = NEMA_ERR_NOENT;
-    while ((e = readdir(d)) != NULL) {
+    while ((e = readdir(fs->cur)) != NULL) {
         if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
-        if (i++ != index) continue;
+        if (fs->cur_next++ != index) continue; /* catching up after a fresh open */
         nema_strlcpy(ent->name, e->d_name, sizeof(ent->name));
         char child[sizeof(full) + sizeof(e->d_name) + 2];
-        struct stat s;
+        struct stat st;
         snprintf(child, sizeof(child), "%s/%s", full, e->d_name);
         ent->type = NEMA_T_FILE;
         ent->size = 0;
-        if (stat(child, &s) == 0) {
-            ent->type = S_ISDIR(s.st_mode) ? NEMA_T_DIR : NEMA_T_FILE;
-            ent->size = (uint32_t)s.st_size;
+        if (stat(child, &st) == 0) {
+            ent->type = S_ISDIR(st.st_mode) ? NEMA_T_DIR : NEMA_T_FILE;
+            ent->size = (uint32_t)st.st_size;
         }
         r = NEMA_OK;
         break;
     }
-    closedir(d);
+    if (r != NEMA_OK) cursor_close(fs); /* the end: nothing stays open */
+    nema_port_mutex_unlock(fs->lock);
     return r;
 }
 
 static nema_err_t p_mkdir(void *vfs, const char *path) {
     char full[320];
+    cursor_drop((pfs_t *)vfs);
     if (!full_path((pfs_t *)vfs, path, full, sizeof(full))) return NEMA_ERR_RANGE;
     return mkdir(full, 0777) == 0 ? NEMA_OK : map_errno(errno);
 }
 
 static nema_err_t p_unlink(void *vfs, const char *path) {
     char full[320];
+    cursor_drop((pfs_t *)vfs);
     struct stat s;
     if (!full_path((pfs_t *)vfs, path, full, sizeof(full))) return NEMA_ERR_RANGE;
     if (stat(full, &s) != 0) return map_errno(errno);
@@ -158,6 +192,7 @@ static nema_err_t p_unlink(void *vfs, const char *path) {
 
 static nema_err_t p_rename(void *vfs, const char *from, const char *to) {
     char a[320], b[320];
+    cursor_drop((pfs_t *)vfs);
     if (!full_path((pfs_t *)vfs, from, a, sizeof(a)) || !full_path((pfs_t *)vfs, to, b, sizeof(b))) return NEMA_ERR_RANGE;
     return rename(a, b) == 0 ? NEMA_OK : map_errno(errno);
 }
@@ -189,5 +224,10 @@ void *nema_posixfs_create(const char *root) {
     size_t l = strlen(fs->root);
     if (l > 1 && fs->root[l - 1] == '/') fs->root[l - 1] = 0;
     fs->owner = owner;
+    fs->lock = nema_port_mutex_create();
+    if (!fs->lock) {
+        nema_free(fs);
+        return NULL;
+    }
     return fs;
 }

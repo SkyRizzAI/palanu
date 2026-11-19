@@ -161,6 +161,37 @@ static void remove_tree_on_host(const char *path) {
     rmdir(path);
 }
 
+/* The open listing (posix_fs.c keeps the folder open while the next index is asked for): it must give the same answers as a
+ * fresh open in every order, and see a change made in the middle. */
+TEST(a_listing_in_any_order_and_after_a_change) {
+    CHECK(nema_fs_mkdir("/many") == NEMA_OK);
+    char path[32];
+    for (int i = 0; i < 12; i++) {
+        snprintf(path, sizeof(path), "/many/f%02d", i);
+        CHECK(write_file(path, "x") == NEMA_OK);
+    }
+    nema_dirent_t e, again;
+    size_t n = 0;
+    while (nema_fs_readdir("/many", n, &e) == NEMA_OK) n++;
+    CHECK_EQ((int)n, 12);
+    /* a jump back, and two folders read in turn, answer as a fresh open does */
+    CHECK(nema_fs_readdir("/many", 5, &e) == NEMA_OK);
+    CHECK(nema_fs_readdir("/dir", 0, &again) == NEMA_OK);
+    CHECK(nema_fs_readdir("/many", 5, &again) == NEMA_OK && !strcmp(e.name, again.name));
+    CHECK(nema_fs_readdir("/many", 2, &again) == NEMA_OK && strcmp(e.name, again.name));
+    /* removing an entry in the middle of a listing: the rest of it sees the folder as it is now */
+    CHECK(nema_fs_readdir("/many", 0, &e) == NEMA_OK);
+    CHECK(nema_fs_unlink("/many/f00") == NEMA_OK && nema_fs_unlink("/many/f01") == NEMA_OK);
+    n = 0;
+    while (nema_fs_readdir("/many", n, &e) == NEMA_OK) n++;
+    CHECK_EQ((int)n, 10);
+    CHECK(write_file("/many/new", "y") == NEMA_OK);
+    n = 0;
+    bool saw = false;
+    while (nema_fs_readdir("/many", n, &e) == NEMA_OK) saw |= !strcmp(e.name, "new"), n++;
+    CHECK(n == 11 && saw);
+}
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -178,6 +209,7 @@ int main(void) {
     RUN(append_and_seek);
     RUN(mkdir_and_stat);
     RUN(readdir_lists_children);
+    RUN(a_listing_in_any_order_and_after_a_change);
     RUN(rename_moves_files_across_directories);
     RUN(open_directory_is_refused);
     RUN(unlink_removes_files_and_empty_dirs_only);

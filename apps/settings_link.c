@@ -72,14 +72,9 @@ static void build_clients(pal_menu_page_t *p) {
 pal_menu_page_t PG_LINK_CLIENTS = {.title = "Paired devices", .store = CLIENTS_STORE, .cap = CLIENTS_MAX + 2,
                                    .build = build_clients};
 
-static int paired_count(void) {
-    char t[512];
-    size_t n = pal_link_clients_text(t, sizeof(t));
-    int c = 0;
-    for (size_t i = 0; i < n; i++)
-        if (t[i] == '\n') c++;
-    return c;
-}
+/* The number of paired devices: rows show it on every redraw (each key, and twice a second on a live page). It used to decrypt
+ * every record to count lines, which made the Remote pages lag by seconds on the board; the record store keeps the count now. */
+static int paired_count(void) { return pal_link_clients_count(); }
 
 static void count_text(void *ctx, char *out, size_t cap) {
     (void)ctx;

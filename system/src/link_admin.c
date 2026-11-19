@@ -110,6 +110,7 @@ nema_err_t pal_link_pair_open(char code[PAL_LINK_CODE_LEN + 1]) { return la_pair
 void pal_link_pair_close(void) { la_pair_close(); }
 size_t pal_link_pair_status(char *out, size_t cap) { return la_pair_status(out, cap); }
 size_t pal_link_clients_text(char *out, size_t cap) { return lc_list_text(out, cap); }
+int pal_link_clients_count(void) { return lc_count(); }
 
 void pal_link_device_id(char out[17]) {
     if (lc_device_id(out) != NEMA_OK) nema_strlcpy(out, "0000000000000000", 17);

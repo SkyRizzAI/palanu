@@ -23,6 +23,10 @@
 #define REC_LEN (4 + NONCE_LEN + PLAIN_LEN + TAG_LEN)
 #define PATH_MAX_LC 96
 
+/* The number of records, kept: listing the folder costs a lookup per record on the board's flash (half a second for eight),
+ * and screens show it on every redraw. Storing or removing a record forgets it (-1). */
+static int s_count = -1;
+
 static const char HEX[] = "0123456789abcdef";
 
 void lc_hex_enc(const uint8_t *b, size_t n, char *out) {
@@ -167,6 +171,7 @@ int lc_store(const lc_rec_t *r) {
     crypto_wipe(dk, sizeof(dk));
     crypto_wipe(plain, sizeof(plain));
     rc = write_atomic(path, file, sizeof(file));
+    s_count = -1;
     return rc;
 }
 
@@ -176,6 +181,7 @@ int lc_remove(const uint8_t id[8]) {
     if (rc != NEMA_OK) return rc;
     nema_stat_t st;
     if (nema_fs_stat(path, &st) != NEMA_OK) return NEMA_ERR_NOENT;
+    s_count = -1;
     return nema_fs_unlink(path);
 }
 
@@ -198,9 +204,10 @@ static int count_one(const char *hex, void *arg) {
 }
 
 int lc_count(void) {
+    if (s_count >= 0) return s_count;
     nema_stat_t st;
-    if (nema_fs_stat(DIR_CLIENTS, &st) != NEMA_OK) return 0;
-    return each_record(count_one, NULL);
+    if (nema_fs_stat(DIR_CLIENTS, &st) != NEMA_OK) return s_count = 0;
+    return s_count = each_record(count_one, NULL);
 }
 
 typedef struct {

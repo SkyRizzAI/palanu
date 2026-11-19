@@ -60,6 +60,8 @@ void pal_link_pair_close(void);
 size_t pal_link_pair_status(char *out, size_t cap);
 /* One line per paired client: id, name, created, last used. Returns the length. */
 size_t pal_link_clients_text(char *out, size_t cap);
+/* How many devices are paired: the record names only, nothing opened or decrypted (cheap enough for a screen). */
+int pal_link_clients_count(void);
 /* Removes a paired client (16 hex digits of its id, or "all") and drops its connected session at once. */
 nema_err_t pal_link_revoke(const char *id);
 /* link.uart.trust: sets the value (kept in /data/link/config) and applies it to the live cable link. */

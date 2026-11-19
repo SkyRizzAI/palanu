@@ -353,6 +353,10 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
 
 static void enter(pal_view_t *v) {
     (void)v;
+    /* The page in front is built again: it may depend on what changed while Settings was away. The Desktop page lists the running
+     * session's settings, and after a switch from that page it had been built between the two sessions, so it came back with
+     * an empty "This desktop" until it was left and opened again. */
+    pal_menu_refresh(settings_menu());
     pal_menu_bind("settings", settings_menu()); /* a desktop may draw the pages in its own look (pal/menu.h) */
 }
 
