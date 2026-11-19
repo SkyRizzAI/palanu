@@ -74,7 +74,7 @@ static void page_style_row(int i) {
     const pal_menu_row_t *r = &A.ppage->rows[A.pidx[i]];
     if (r->kind == PAL_MENU_SECTION) return;
     bool on = A.pidx[i] == A.psel;
-    lv_obj_set_style_bg_color(A.prow[i], on ? C_BLUE : C_ROW, 0);
+    ath_focus_bg(A.prow[i], on, C_ROW);
     lv_color_t ink = r->danger ? C_RED : r->disabled ? C_GREY : C_INK;
     lv_obj_set_style_text_color(A.plabel[i], on ? C_WHITE : ink, 0);
     if (A.pval[i] && r->kind != PAL_MENU_TOGGLE) lv_obj_set_style_text_color(A.pval[i], on ? C_WHITE : C_GREY, 0);
@@ -109,6 +109,10 @@ static void page_build(void) {
         lv_obj_align(A.page_title, LV_ALIGN_TOP_MID, 0, 6);
         if (sub) lv_label_set_text_fmt(A.page_back, LV_SYMBOL_LEFT " %s", parent_title());
         else lv_label_set_text(A.page_back, "");
+    } else if (ath_T->title_pane) { /* the title on the pane; Back is the right softkey's */
+        lv_label_set_text(A.page_title, title);
+        lv_obj_align(A.page_title, LV_ALIGN_LEFT_MID, 8, 0);
+        lv_label_set_text(A.page_back, "");
     } else {
         lv_label_set_text_fmt(A.page_title, "%s%s", sub ? LV_SYMBOL_LEFT "  " : "", title);
         lv_obj_set_pos(A.page_title, 14, 4);
@@ -297,19 +301,33 @@ void ath_build_page(void) {
     A.page = lv_obj_create(lv_screen_active());
     lv_obj_remove_style_all(A.page);
     lv_obj_set_pos(A.page, 0, BAR_H);
-    lv_obj_set_size(A.page, A.w, A.h - BAR_H);
+    lv_obj_set_size(A.page, A.w, A.h - BAR_H - ath_bottom());
     lv_obj_set_style_bg_color(A.page, C_SHEET, 0);
     lv_obj_set_style_bg_opa(A.page, LV_OPA_COVER, 0);
     lv_obj_remove_flag(A.page, LV_OBJ_FLAG_SCROLLABLE);
-    A.page_title = ath_text(A.page, ath_T->flat ? &lv_font_montserrat_20 : &lv_font_montserrat_16, C_INK);
+    int list_y = 32;
+    A.page_pane = NULL;
+    if (ath_T->title_pane) { /* a band in the pane colours across the top, the title white on it */
+        list_y = 26;
+        A.page_pane = lv_obj_create(A.page);
+        lv_obj_remove_style_all(A.page_pane);
+        lv_obj_set_size(A.page_pane, A.w, 24);
+        ath_pane_bg(A.page_pane);
+        lv_obj_remove_flag(A.page_pane, LV_OBJ_FLAG_SCROLLABLE);
+        A.page_title = ath_text(A.page_pane, &lv_font_montserrat_16, C_WHITE);
+        lv_label_set_long_mode(A.page_title, LV_LABEL_LONG_DOT);
+        lv_obj_set_width(A.page_title, A.w - 16);
+    } else {
+        A.page_title = ath_text(A.page, ath_T->flat ? &lv_font_montserrat_20 : &lv_font_montserrat_16, C_INK);
+    }
     lv_obj_set_pos(A.page_title, 14, 4);
     A.page_back = ath_text(A.page, &lv_font_montserrat_16, C_BLUE); /* Cupertino: the page below, as a back button */
     lv_obj_set_pos(A.page_back, 8, 6);
     lv_label_set_text(A.page_back, "");
     A.page_list = lv_obj_create(A.page);
     lv_obj_remove_style_all(A.page_list);
-    lv_obj_set_pos(A.page_list, 0, 32);
-    lv_obj_set_size(A.page_list, A.w, A.h - BAR_H - 32);
+    lv_obj_set_pos(A.page_list, 0, list_y);
+    lv_obj_set_size(A.page_list, A.w, A.h - BAR_H - ath_bottom() - list_y);
     lv_obj_add_flag(A.page_list, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(A.page_list, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_bottom(A.page_list, 10, 0); /* the last row keeps a gap above the screen edge when scrolled into view */

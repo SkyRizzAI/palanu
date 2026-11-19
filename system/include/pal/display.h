@@ -45,6 +45,8 @@ bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r);
 void pal_display_present_indexed(const uint8_t *px, int stride, pal_rect_t r, const uint16_t *palette);
 /* Rows at the top that a flush of the 8-bit canvas never sends (a session draws its own bar there); 0 by default. */
 void pal_display_reserve_top(int rows);
+/* The same at the bottom (a session's softkey bar); 0 by default. */
+void pal_display_reserve_bottom(int rows);
 /* The screen frame: RGB565, native byte order, stride = width; NULL on the older path. Read it on the desktop task (a session copies
  * what is on screen under a modal from it); pal_display_frame_lock guards a reader on another task (mirroring). */
 const uint16_t *pal_display_frame(void);

@@ -98,6 +98,8 @@ typedef struct {          /* pal_desktop_set_chrome(&chrome) in start; cleared a
     bool (*owns_screen)(void);           /* true while the session presents the whole screen itself */
     void (*frame)(uint32_t now_ms);      /* once per loop on the desktop task, after the compositor's frame */
     int32_t (*next_ms)(uint32_t now_ms); /* when frame wants to run again */
+    bool services;                       /* the session draws the shell services and toasts */
+    int bottom_px;                       /* rows kept at the bottom (a softkey bar): views stop above, flushes never touch them */
 } pal_desktop_chrome_t;
 ```
 
@@ -150,17 +152,22 @@ built-in apps with list layouts of their own; turning them into forms is follow-
 **Home grid and widgets.** Athena's home is a grid of 64 x 72 cells (5 across). Widgets come first and take their span, then the apps one
 cell each, every item in the first free place reading left to right; the grid scrolls when it is taller than the screen, and the arrows
 move between the apps by their place in it. A widget (`system/src/athena/athena_widgets.c`) has an id, the theme it is drawn for (or
-every theme), a span, a build and a once-a-second tick. Two ship, each in a Cupertino and a Material version: **clock** (2 x 2: an
+every theme), a span, a build and a once-a-second tick. On the Softkey theme's idle home the widgets stack across the screen instead and
+the span's rows are each one's share of the height: the clock is the time large under the system's name, the calendar this week with
+today on the highlight bar. Two ship, each in a Cupertino and a Material version: **clock** (2 x 2: an
 analog face with an orange second hand, or big stacked digits with the day in a pill) and **calendar** (3 x 2: the day large in red
 beside the month, or the month with today on a teal square). Listing, adding, moving and removing widgets is later work; the home
 shows `ATH_HOME_WIDGETS` in order.
 
 **Themes.** Athena's look is a theme of tokens (`system/src/athena/athena_theme.c`): colours (wallpaper, surface, rows, accent, text,
 switches, danger, keyboard mode keys, the bar over apps) and shape (corner radii of cards, rows and icons, centred or left-aligned
-titles, upper-case buttons, shadows or flat). Two ship as a demo: **Cupertino** (the default: centred titles, round corners, soft
-shadows, inset grouped lists) and **Material** (flat, small radii, round icons, left-aligned titles, upper-case buttons, edge-to-edge
-lists, a teal accent). The choice is the `athena.theme` setting (`cupertino` or `material`); Athena follows a change within a second
-by building its objects again. A classic theme only swaps colour tokens; an Athena theme also changes shapes and layout rules, which
+titles, upper-case buttons, shadows or flat) and layout (ADR-0011: a softkey bar, an idle home, title panes, level bars, highlight
+gradients). Three ship: **Cupertino** (the default: centred titles, round corners, soft shadows, inset grouped lists), **Material**
+(flat, small radii, round icons, left-aligned titles, upper-case buttons, edge-to-edge lists, a teal accent) and **Softkey** (the
+feature-phone way: a softkey bar at the bottom of every screen with Options on Tab, the Enter action in the middle and Back on Esc; an
+idle home with the clock and this week's calendar that opens a menu grid of the apps; titles on a blue pane; a gradient highlight bar
+and the signal and battery as bars). The choice is the `athena.theme` setting (`cupertino`, `material` or `softkey`); Athena follows a
+change within a second by building its objects again. A classic theme only swaps colour tokens; an Athena theme also changes shapes and layout rules, which
 costs a rebuild of the objects, nothing more.
 
 
@@ -177,5 +184,6 @@ of the panel (in PSRAM) in direct mode.
 Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (the image is 91% of the OTA slot), no internal RAM
 beyond a few hundred bytes (the pool, the frame and its state are in PSRAM), and the desktop task's stack went from 6 to 8 KB.
 
-Golden scenes: `athena-home`, `athena-select`, `athena-settings`, `athena-settings-display`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-shell`
+Golden scenes: `athena-softkey-home`, `athena-softkey-menu`, `athena-softkey-options`, `athena-softkey-settings`, `athena-softkey-app`,
+`athena-home`, `athena-select`, `athena-settings`, `athena-settings-display`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-shell`
 (`forge/tools/golden-scenes.json`). Unit test: `tests/unit/test_desktops.c` (the registry and the console's hand-off).

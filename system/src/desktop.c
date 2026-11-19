@@ -148,6 +148,7 @@ static int bar_h(void) { return kui_top_px(KUI_STATUS_H); } /* The reference sta
 static bool bar_on(void) { return !(D.chrome && D.chrome->hide_bar) && psys_settings_int("ui.statusbar", 1) != 0; }
 /* Rows the desktop environment keeps for its own bar (pal_desktop_chrome_t.top_px). */
 static int chrome_top(void) { return D.chrome ? D.chrome->top_px : 0; }
+static int chrome_bottom(void) { return D.chrome ? D.chrome->bottom_px : 0; }
 
 /* Legends are shown on the home screen only for now (the owner's call: Settings and the other screens are cleaner without the bar).
  * Every view keeps declaring its legends and the API is unchanged; pal_legend_home_only(false) shows them again. */
@@ -184,7 +185,7 @@ static pal_rect_t area_of(uint32_t flags) {
     pal_canvas_t *c = pal_display_canvas();
     int top = ((flags & (PAL_VIEW_FULLSCREEN | PAL_VIEW_NOBAR)) || !bar_on() || !pal_theme_active()->comp.status_bar) ? 0 : bar_h();
     if (chrome_top() > top) top = chrome_top(); /* the desktop's own bar stays on screen over every layer */
-    pal_rect_t r = {0, top, c->w, c->h - top - legend_h()};
+    pal_rect_t r = {0, top, c->w, c->h - top - legend_h() - chrome_bottom()};
     return r;
 }
 
@@ -271,6 +272,7 @@ void desk_session_reset(const char *id) {
     nema_port_mutex_unlock(D.lock);
     if (pal_dpm_locked()) pal_dpm_set_locked(false, now_ms()); /* its lock screen is gone with it */
     pal_display_reserve_top(0);
+    pal_display_reserve_bottom(0);
     D.inval_all = true;
     if (pal_display_canvas()) pal_mark_all(pal_display_canvas()); /* no display (a host test): nothing to redraw */
     nema_notify(&D.wake);
@@ -800,6 +802,7 @@ static void post_chrome(void *arg) {
     D.chrome = s_chrome_pending;
     D.owned = false;
     pal_display_reserve_top(chrome_top());
+    pal_display_reserve_bottom(chrome_bottom());
     D.inval_all = true;
     if (pal_display_canvas()) pal_mark_all(pal_display_canvas());
 }

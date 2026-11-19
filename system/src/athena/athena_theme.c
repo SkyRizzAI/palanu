@@ -1,6 +1,9 @@
-/* Athena's themes: the tokens every part of Athena draws with (colours, corner radii, title alignment, button case, shadows). A theme
- * is more than a palette: Cupertino has centred titles, round corners and soft shadows; Material is flat, with small radii, round icons,
- * left-aligned titles and upper-case buttons. The choice is the athena.theme setting, which only Athena's session shows. */
+/* Athena's themes: the tokens every part of Athena draws with (colours, corner radii, title alignment, button case, shadows) and its
+ * layout (where things go). A theme is more than a palette: Cupertino has centred titles, round corners and soft shadows; Material is
+ * flat, with small radii, round icons, left-aligned titles and upper-case buttons; Softkey is the feature-phone way: a softkey bar at
+ * the bottom of every screen (Options, the Enter action, Back), an idle home that opens a menu grid of the apps, titles on a pane,
+ * a gradient highlight bar and the signal and battery as rising bars. The choice is the athena.theme setting, which only Athena's
+ * session shows. */
 #include <string.h>
 
 #include "athena_int.h"
@@ -15,11 +18,17 @@ static const ath_theme_t THEMES[] = {
      .wall_top = 0x263238, .wall_bot = 0x00695C, .surface = 0xFAFAFA, .row = 0xFFFFFF, .accent = 0x009688, .ink = 0x212121,
      .muted = 0x757575, .on = 0x009688, .danger = 0xD32F2F, .track = 0xBDBDBD, .key_mod = 0xCFD8DC, .bar_bg = 0x00796B,
      .r_card = 4, .r_row = 2, .r_icon = LV_RADIUS_CIRCLE, .title_left = true, .caps_buttons = true, .flat = true},
+    {.id = "softkey", .name = "Softkey",
+     .wall_top = 0x06307A, .wall_bot = 0x5FA6E8, .surface = 0xFFFFFF, .row = 0xFFFFFF, .accent = 0x1A5FC4, .ink = 0x12161C,
+     .muted = 0x5B6573, .on = 0x2E9E3E, .danger = 0xC62828, .track = 0xB8C4D0, .key_mod = 0xC5D2E2, .bar_bg = 0x0A2A66,
+     .r_card = 4, .r_row = 3, .r_icon = 6, .title_left = true, .caps_buttons = false, .flat = true,
+     .hl_top = 0x5AA4F2, .hl_bot = 0x1A56B8, .pane_top = 0x3474D4, .pane_bot = 0x0B3784,
+     .softkeys = true, .idle_home = true, .title_pane = true, .level_bars = true},
 };
 
 const ath_theme_t *ath_T = &THEMES[0];
 
-const char *const ATH_THEME_IDS[] = {"cupertino", "material", NULL};
+const char *const ATH_THEME_IDS[] = {"cupertino", "material", "softkey", NULL};
 
 /* The theme the setting names; the first one when it names none. */
 const ath_theme_t *ath_theme_wanted(void) {

@@ -14,7 +14,7 @@ static struct {
     bool ready;
     void (*tap)(void *ctx, pal_rect_t r);
     void *tap_ctx;
-    int reserved_top;
+    int reserved_top, reserved_bottom;
     uint16_t *frame; /* the screen frame (RGB565, native order); NULL when the driver has no present_rgb565 */
     nema_port_mutex_t *flock;
 } D;
@@ -93,6 +93,11 @@ int pal_display_flush(void) {
         r.y += cut, r.h -= cut;
         any = r.h > 0;
     }
+    int floor_y = D.canvas.h - D.reserved_bottom;
+    if (any && D.reserved_bottom > 0 && r.y + r.h > floor_y) { /* nor its bar at the bottom */
+        r.h = floor_y - r.y;
+        any = r.h > 0;
+    }
     int sent = 0;
     if (any) {
         uint32_t p0 = (uint32_t)nema_port_time_us();
@@ -162,3 +167,4 @@ void pal_display_frame_lock(bool on) {
 }
 
 void pal_display_reserve_top(int rows) { D.reserved_top = rows < 0 ? 0 : rows; }
+void pal_display_reserve_bottom(int rows) { D.reserved_bottom = rows < 0 ? 0 : rows; }

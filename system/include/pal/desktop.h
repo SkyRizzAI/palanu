@@ -131,6 +131,8 @@ typedef struct {
     int32_t (*next_ms)(uint32_t now_ms);
     /* The session draws the shell services and the toasts itself (pal/shell.h): the compositor draws neither. */
     bool services;
+    /* Rows at the bottom the desktop keeps for its own bar (a softkey bar): views stop above them and the compositor never sends them. */
+    int bottom_px;
 } pal_desktop_chrome_t;
 
 /* Set by a desktop environment's start (NULL for classic); applied on the desktop task before the next frame, with a full redraw. The

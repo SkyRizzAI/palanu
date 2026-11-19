@@ -31,6 +31,7 @@
 #define MAX_WIDGETS 4
 #define MAX_ROWS 8
 #define BAR_H 20
+#define SK_H 20 /* the softkey bar, when the theme has one */
 #define MAX_PAGE_ROWS 40
 #define VALUE_MAX 40
 
@@ -44,6 +45,13 @@ typedef struct {
     uint32_t key_mod, bar_bg;    /* a keyboard's mode keys; the status bar over an app */
     int r_card, r_row, r_icon;   /* corner radii (LV_RADIUS_CIRCLE for round) */
     bool title_left, caps_buttons, flat;
+    /* Layout: what the theme puts where, not only how it is coloured. Zero is the Cupertino and Material way. */
+    uint32_t hl_top, hl_bot;     /* the focus fill as a gradient when they differ; otherwise the accent */
+    uint32_t pane_top, pane_bot; /* the title pane and the softkey bar, top to bottom */
+    bool softkeys;   /* a softkey bar at the bottom of every screen: Options (Tab), the Enter action, Back (Esc) */
+    bool idle_home;  /* the home is an idle screen (the widgets); the apps are in a menu grid it opens */
+    bool title_pane; /* a page's title sits on a band in the pane colours */
+    bool level_bars; /* the status bar shows the signal and the battery as rising bars */
 } ath_theme_t;
 
 extern const ath_theme_t *ath_T;
@@ -63,17 +71,20 @@ const ath_theme_t *ath_theme_wanted(void);
 #define C_RED lv_color_hex(ath_T->danger)
 #define C_TRACK lv_color_hex(ath_T->track)
 
-typedef enum { SHEET_NONE, SHEET_KEYBOARD, SHEET_SHORTCUTS, SHEET_RECENTS } sheet_t;
+typedef enum { SHEET_NONE, SHEET_KEYBOARD, SHEET_SHORTCUTS, SHEET_RECENTS, SHEET_OPTIONS } sheet_t;
 
 typedef struct {
     lv_display_t *disp;
     int w, h;
     /* status bar (on LVGL's top layer, above everything) */
     lv_obj_t *bar, *bar_time, *bar_right;
+    lv_obj_t *lvl_sig[4], *lvl_bat[5]; /* level_bars: the signal and battery bars */
     bool bar_solid;
     pal_status_t st;
     /* home */
     lv_obj_t *home, *grid;
+    lv_obj_t *menu;  /* idle_home: the app menu (a title pane over the grid); hidden on the idle screen */
+    bool menu_open;
     lv_obj_t *wbox[MAX_WIDGETS];
     const struct ath_widget *wdef[MAX_WIDGETS];
     int nw;
@@ -85,11 +96,12 @@ typedef struct {
     lv_obj_t *sheet, *sheet_title, *sheet_hint;
     lv_obj_t *row[MAX_ROWS];
     char row_id[MAX_ROWS][24]; /* recents: the view each row opens */
+    uint8_t row_act[MAX_ROWS]; /* options: the action each row runs */
     int nrows, row_sel;
     bool row_info; /* shortcuts: the rows are not choices */
     sheet_t kind;
     /* toolkit pages: a bound menu (pal_menu_bind) drawn as a grouped list */
-    lv_obj_t *page, *page_title, *page_back, *page_list, *page_empty;
+    lv_obj_t *page, *page_pane, *page_title, *page_back, *page_list, *page_empty;
     lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS], *pbar[MAX_PAGE_ROWS], *plabel[MAX_PAGE_ROWS], *picon[MAX_PAGE_ROWS];
     int pidx[MAX_PAGE_ROWS]; /* the page row each drawn row shows */
     char ptext[MAX_PAGE_ROWS][VALUE_MAX];
@@ -115,6 +127,8 @@ typedef struct {
     uint32_t svc_sig; /* what the modal shows now */
     int svc_kind;
     bool toast_shown;
+    /* the softkey bar (athena_softkeys.c) */
+    lv_obj_t *sk, *sk_l, *sk_c, *sk_r;
 } athena_t;
 
 extern athena_t A;
@@ -122,6 +136,12 @@ extern uint16_t *s_frame;
 
 
 lv_obj_t *ath_text(lv_obj_t *parent, const lv_font_t *f, lv_color_t c);
+/* The focus fill on o (on), or its resting colour (off): the theme's highlight gradient, or the accent. */
+void ath_focus_bg(lv_obj_t *o, bool on, lv_color_t off);
+/* A band in the pane colours (the title pane, the softkey bar). */
+void ath_pane_bg(lv_obj_t *o);
+/* Rows the softkey bar takes at the bottom (0 without one). */
+static inline int ath_bottom(void) { return ath_T->softkeys ? SK_H : 0; }
 
 /* Home widgets (athena_widgets.c): a variant per theme; the home builds the ones ATH_HOME_WIDGETS names, in that order. */
 typedef struct ath_widget {
@@ -145,6 +165,33 @@ void ath_lock_sync(void);
 pal_menu_t *ath_page_menu(void);
 void ath_build_page(void);
 void ath_page_sync(pal_menu_t *m, uint32_t now);
+
+/* sheets and the Options popup (athena_sheet.c) */
+void ath_sheet_geometry(void);
+void ath_sheet_close(void);
+void ath_sheet_move(int d);
+void ath_sheet_choose(void);
+void ath_open_keyboard_sheet(void);
+void ath_open_shortcuts_sheet(void);
+void ath_open_recents_sheet(void);
+void ath_open_options(void);
+void ath_menu_show(bool open); /* the idle home's app menu (athena.c) */
+
+/* sheets and the Options popup (athena_sheet.c) */
+void ath_sheet_geometry(void);
+void ath_sheet_close(void);
+void ath_sheet_move(int d);
+void ath_sheet_choose(void);
+void ath_open_keyboard_sheet(void);
+void ath_open_shortcuts_sheet(void);
+void ath_open_recents_sheet(void);
+void ath_open_options(void);
+void ath_menu_show(bool open); /* the idle home's app menu (athena.c) */
+
+/* the softkey bar (athena_softkeys.c): three labels at the bottom, for the theme that has one */
+void ath_softkeys_build(void);
+void ath_softkeys_set(const char *left, const char *mid, const char *right);
+void ath_softkeys_show(bool on);
 
 /* shell services and toasts (athena_shell.c, pal/shell.h) */
 void ath_shell_build(void);

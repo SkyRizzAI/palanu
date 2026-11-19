@@ -1,6 +1,7 @@
 /* Athena's home widgets: a registry of widgets, each with a variant per theme (its `style` is a theme id, NULL for every theme), and
  * the two widgets the home shows for now, a clock and a calendar, in a Cupertino and a Material version. A widget takes a span of the
- * home's grid (cols x rows) and builds itself in the box it gets; tick runs once a second while the home is in front. Listing, adding,
+ * home's grid (cols x rows) and builds itself in the box it gets; tick runs once a second while the home is in front. On an idle home
+ * (the Softkey theme) the widgets stack across the screen and rows is the share of its height each one takes. Listing, adding,
  * moving and removing widgets come later: the home shows ATH_HOME_WIDGETS in that order. */
 #include <stdio.h>
 #include <string.h>
@@ -220,6 +221,93 @@ static void calendar_tick(lv_obj_t *box, const pal_tm_t *t) {
     if (t->day != CAL.day) calendar_fill(t);
 }
 
+/* ---- clock, Softkey: the idle screen's own, the system's name, the time large and the date under it, on the wallpaper ---- */
+
+static struct {
+    lv_obj_t *time, *date;
+    int last;
+} SC;
+
+static void idle_clock_build(lv_obj_t *box, int w, int h) {
+    (void)w;
+    lv_obj_t *op = label(box, &lv_font_montserrat_16, 0xFFFFFF, "PalanuOS");
+    lv_obj_set_pos(op, 4, 0);
+    SC.time = label(box, &lv_font_montserrat_48, 0xFFFFFF, "");
+    lv_obj_set_pos(SC.time, 2, h / 2 - 34 < 18 ? 18 : h / 2 - 34);
+    SC.date = label(box, &lv_font_montserrat_16, 0xDCEBFF, "");
+    lv_obj_align(SC.date, LV_ALIGN_BOTTOM_LEFT, 4, 0);
+    SC.last = -1;
+}
+
+static void idle_clock_tick(lv_obj_t *box, const pal_tm_t *t) {
+    (void)box;
+    int m = t->hour * 60 + t->minute;
+    if (m == SC.last) return;
+    SC.last = m;
+    lv_label_set_text_fmt(SC.time, "%02d:%02d", t->hour, t->minute);
+    lv_label_set_text_fmt(SC.date, "%s  %02d/%02d/%04d", DAYS[t->wday % 7], t->day, t->month, t->year);
+}
+
+/* ---- calendar, Softkey: a card with a title pane and this week, today on the highlight bar ---- */
+
+static struct {
+    lv_obj_t *box;
+    int day, w, h;
+} WC;
+
+static void week_fill(const pal_tm_t *t) {
+    static const char *const HDR[] = {"S", "M", "T", "W", "T", "F", "S"};
+    lv_obj_clean(WC.box);
+    WC.day = t->day;
+    lv_obj_t *pane = lv_obj_create(WC.box);
+    lv_obj_remove_style_all(pane);
+    lv_obj_set_size(pane, WC.w, 18);
+    ath_pane_bg(pane);
+    lv_obj_t *ti = label(pane, &lv_font_montserrat_12, 0xFFFFFF, "");
+    lv_label_set_text_fmt(ti, LV_SYMBOL_LIST "  Calendar   %s %d", MONTHS[(t->month + 11) % 12], t->year);
+    lv_obj_align(ti, LV_ALIGN_LEFT_MID, 6, 0);
+    int cw = (WC.w - 8) / 7, y = 22, rh = (WC.h - y - 4) / 2;
+    int n = days_in(t->month, t->year);
+    int pm = t->month == 1 ? 12 : t->month - 1, py = t->month == 1 ? t->year - 1 : t->year, np = days_in(pm, py);
+    for (int c = 0; c < 7; c++) {
+        int d = t->day - t->wday + c; /* this week, Sunday first; days outside the month as the month around it shows them */
+        bool out = d < 1 || d > n;
+        int shown = d < 1 ? d + np : d > n ? d - n : d;
+        bool today = c == t->wday;
+        int x = 4 + c * cw;
+        if (today) {
+            lv_obj_t *m = lv_obj_create(WC.box);
+            lv_obj_remove_style_all(m);
+            lv_obj_set_size(m, cw - 2, rh * 2);
+            lv_obj_set_pos(m, x + 1, y);
+            lv_obj_set_style_radius(m, 3, 0);
+            lv_obj_set_style_bg_opa(m, LV_OPA_COVER, 0);
+            ath_focus_bg(m, true, lv_color_hex(0xFFFFFF));
+        }
+        lv_obj_t *h = label(WC.box, &lv_font_montserrat_12, today ? 0xFFFFFF : 0x5B6573, HDR[c]);
+        lv_obj_set_width(h, cw);
+        lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(h, x, y + 2);
+        char num[4];
+        snprintf(num, sizeof(num), "%d", shown);
+        lv_obj_t *l = label(WC.box, &lv_font_montserrat_16, today ? 0xFFFFFF : out ? 0x9AA5B4 : 0x12161C, num);
+        lv_obj_set_width(l, cw);
+        lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(l, x, y + rh);
+    }
+}
+
+static void week_build(lv_obj_t *box, int w, int h) {
+    WC.box = box, WC.w = w, WC.h = h, WC.day = -1;
+    box_style(box, 0xFFFFFF, 4);
+    lv_obj_set_style_bg_opa(box, LV_OPA_90, 0);
+}
+
+static void week_tick(lv_obj_t *box, const pal_tm_t *t) {
+    (void)box;
+    if (t->day != WC.day) week_fill(t);
+}
+
 /* ---- the registry ---- */
 
 static const ath_widget_t WIDGETS[] = {
@@ -227,6 +315,8 @@ static const ath_widget_t WIDGETS[] = {
     {.id = "clock", .style = "material", .cols = 2, .rows = 2, .build = digital_build, .tick = digital_tick},
     {.id = "calendar", .style = "cupertino", .cols = 3, .rows = 2, .build = cal_cupertino_build, .tick = calendar_tick},
     {.id = "calendar", .style = "material", .cols = 3, .rows = 2, .build = cal_material_build, .tick = calendar_tick},
+    {.id = "clock", .style = "softkey", .cols = 5, .rows = 3, .build = idle_clock_build, .tick = idle_clock_tick},
+    {.id = "calendar", .style = "softkey", .cols = 5, .rows = 2, .build = week_build, .tick = week_tick},
 };
 
 /* The widget id's variant for the running theme: one for that theme, else one for every theme. */
