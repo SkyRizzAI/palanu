@@ -43,15 +43,15 @@ The firmware is divided into layered components, and the layer boundaries are en
   simulator, built for hhv2, not yet paired with a real host. USB HID is not done.
 - **Lua (ADR-0019):** `lua` (scripts, a prompt, the `pal` module; `docs/LUA.md`), proven by `test_lua` and in the simulator, built
   for hhv2. The image is at 87.2% of the update slot (above the 85% warning).
-- Not done from the 19 November 2026 analysis: USB HID keyboard mode, music, light sleep,
-  display rotation, LoRa and radio modules.
+- Not done from the 19 November 2026 analysis: USB HID keyboard mode, music, light sleep, rotation by 90 or 270 degrees,
+  LoRa and radio modules.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
 - SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.
 - `.papp` signing and compression.
 - Browser simulator on a host without the isolation headers (`coi-sw.js`, for GitHub Pages): written, not run in a real browser yet.
 - Browser simulator: no Bluetooth air interface, no inbound connections, no LAN discovery; the Palanu Link servers do not listen in the browser.
 - BLE: ping was tested from an iPhone; shell, files, and screen over BLE and the Forge BLE client have not been tried.
-- Stored only, nothing applies it yet: display rotation. The 12-hour clock (`ui.clock24` off) shows on every clock. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. RELEASE.md section 6 lists the confirmed gaps.
+- The screen turns upside down (Settings > Display > Rotation; the panel's mirror, proven in the simulator, built for hhv2). The 12-hour clock (`ui.clock24` off) shows on every clock. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. RELEASE.md section 6 lists the confirmed gaps.
 
 ## Phases
 | Phase | State |

@@ -32,9 +32,10 @@ static const int32_t TERM_FONT_VALS[] = {0, 1, 2};
 static const char *const TERM_FONT_LABELS[] = {"Small", "Medium", "Large", NULL};
 static const settings_map_t MAP_TERM_FONT = {"term.font", NULL, TERM_FONT_VALS, 3};
 
-static const char *const ROT_LABELS[] = {"0", "90", "180", "270", NULL};
-static const char *const ROT_TEXTS[] = {"0", "90", "180", "270", NULL};
-static const settings_map_t MAP_ROT = {"display.rotation", ROT_TEXTS, NULL, 4};
+/* Rotation: the panel upright or upside down (pal_display_set_rotation). 90 and 270 need portrait layouts and are not offered. */
+static const char *const ROT_LABELS[] = {"Normal", "Upside down", NULL};
+static const char *const ROT_TEXTS[] = {"0", "180", NULL};
+static const settings_map_t MAP_ROT = {"display.rotation", ROT_TEXTS, NULL, 2};
 
 static void info_logical(void *ctx, char *out, size_t cap) {
     (void)ctx;
@@ -80,9 +81,9 @@ static const pal_menu_row_t DISPLAY_ROWS[] = {
     {.kind = PAL_MENU_SLIDER, .label = "Brightness", .icon = "brightness", .ctx = (void *)"display.brightness", .get = settings_int_get,
      .set = settings_int_set, .min = 5, .max = 100, .step = 5, .hint = "The backlight"},
     /* hidden until the panel turns: the setting is stored but the driver and the canvas do not rotate (docs/RELEASE.md) */
-    {.kind = PAL_MENU_CHOICE, .label = "Rotation", .icon = "default", .ctx = (void *)&MAP_ROT, .hidden = true,
+    {.kind = PAL_MENU_CHOICE, .label = "Rotation", .icon = "default", .ctx = (void *)&MAP_ROT,
      .choices = ROT_LABELS, .get = settings_map_get, .set = settings_map_set,
-     .hint = "Degrees the screen is turned"},
+     .hint = "Upside down: for a device held the other way round"},
     {.kind = PAL_MENU_SECTION, .label = "Screen"},
     /* the logical canvas and its zoom are the classic session's (ui.scale); a full-colour session draws at the panel's size */
     {.kind = PAL_MENU_INFO, .label = "Logical", .ctx = NULL, .text = info_logical, .key = "ui.scale"},

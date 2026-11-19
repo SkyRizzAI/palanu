@@ -73,6 +73,24 @@ nema_err_t pal_display_init(const pal_display_ops_t *ops) {
 
 pal_canvas_t *pal_display_canvas(void) { return &D.canvas; }
 
+static int s_rotation;
+
+int pal_display_rotation(void) { return s_rotation; }
+
+bool pal_display_set_rotation(int degrees) {
+    int deg = degrees == 180 ? 180 : 0;
+    if (!D.ready || !D.ops.rotate) return deg == 0;
+    if (deg == s_rotation) return true;
+    nema_port_mutex_lock(D.flock);
+    D.ops.rotate(D.ops.ctx, deg);
+    s_rotation = deg;
+    nema_port_mutex_unlock(D.flock);
+    /* the panel holds the old picture the wrong way round: send all of it again */
+    if (D.frame) send_frame((pal_rect_t){0, 0, D.ops.width, D.ops.height});
+    pal_mark_all(&D.canvas);
+    return true;
+}
+
 /* The perf overlay is painted on top of the composed frame and presented on its own small rectangle. Its paint must
  * not disturb the dirty state of the frame, so the dirty fields are saved and restored around it. */
 static void overlay_present(bool any, pal_rect_t dirty) {

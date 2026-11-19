@@ -20,9 +20,15 @@ typedef struct {
     /* Appended later; may be NULL. Send the rectangle r of a full-colour RGB565 image (native byte order, stride in pixels) as it
      * is: a desktop that renders in full colour (Athena) bypasses the 8-bit framebuffer. Blocks until the rectangle has been sent. */
     void (*present_rgb565)(void *ctx, const uint16_t *px, int stride, pal_rect_t r);
+    /* Appended later; may be NULL. Turn the panel: 0 or 180 degrees. The image the system draws stays upright (the screen
+     * mirror and screenshots too); the panel scans it the other way round. */
+    void (*rotate)(void *ctx, int degrees);
 } pal_display_ops_t;
 
 nema_err_t pal_display_init(const pal_display_ops_t *ops);
+/* 0 or 180 degrees (display.rotation); other values are 0. Everything is sent again. False when the panel cannot turn. */
+bool pal_display_set_rotation(int degrees);
+int pal_display_rotation(void);
 pal_canvas_t *pal_display_canvas(void);
 /* Send whatever changed since the last flush. Returns the number of pixels sent. */
 int pal_display_flush(void);

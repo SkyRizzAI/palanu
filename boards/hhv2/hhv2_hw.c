@@ -89,9 +89,16 @@ static void backlight(void *ctx, int pct) {
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
 
+/* Upright needs swap + mirror on both axes (tests/hw/01_lcd); upside down is the same swap without the mirror. */
+static void lcd_rotate(void *ctx, int degrees) {
+    (void)ctx;
+    bool upright = degrees != 180;
+    esp_lcd_panel_mirror(s_panel, upright, upright);
+}
+
 pal_display_ops_t hhv2_display_ops(void) {
     pal_display_ops_t o = {.width = LCD_W, .height = LCD_H, .present = lcd_present, .backlight = backlight,
-                           .present_rgb565 = lcd_present565};
+                           .present_rgb565 = lcd_present565, .rotate = lcd_rotate};
     return o;
 }
 

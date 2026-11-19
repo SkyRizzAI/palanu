@@ -101,12 +101,13 @@ Features that were checked directly in the code and are confirmed **absent**:
 - apps: BadUSB, Wallets, Stopwatch, Clock;
 - networking: Bluetooth Discoverable and Pair Request (pairing only goes through Palanu Link); (manual IP, several saved networks with
   Auto-Join, HTTPS and ping were added on 19 November 2026, ADR-0013);
-- system: screen `Rotation` (only stored), Wi-Fi monitor/inject for security tools (needs a radio capability that does not
-  exist yet). The 12-hour clock was added on 19 November 2026 (Settings > Date & time > 24-hour clock off).
+- system: screen rotation by 90 or 270 degrees (portrait layouts), Wi-Fi monitor/inject for security tools (needs a radio
+  capability that does not exist yet). The 12-hour clock and the upside-down screen were added on 19 November 2026.
 
 The power profile is applied since 19 November 2026 (`pal/power.h`: the CPU frequency range through esp_pm, no light sleep yet;
-Developer > System > Battery & power, or `power PROFILE`). **Rotation** is only stored and stays **hidden** from Settings
-(`.hidden = true`), so that no row does nothing; it needs the panel MADCTL and a rotating canvas.
+Developer > System > Battery & power, or `power PROFILE`). **Rotation** (Settings > Display) turns the panel upside down
+(`pal_display_set_rotation`: the panel's mirror, so the image, the screen mirror and screenshots stay upright); 90 and 270
+degrees would need portrait layouts for both desktops and are not offered.
 
 ## 7. What needs a decision or hardware from you
 

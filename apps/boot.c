@@ -159,6 +159,8 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_theme_select(0, false, 1);
         pal_display_set_brightness(80);
         pal_settings_load();
+        /* the setting was applied before the display existed: turn the panel now (display.rotation 2 = 180 degrees) */
+        (void)pal_display_set_rotation(psys_settings_int("display.rotation", 0) == 2 ? 180 : 0);
         pal_display_refresh_theme();
         /* The system console is in front from here: the boot log (under a splash when boot.quiet is on), then a desktop session
          * or, with boot.target console, in safe mode or when the session fails, a login shell (ADR-0010, pal/console.h). */

@@ -58,6 +58,15 @@ static uint8_t g_rgb[W * H * 3];
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int g_frame;
 
+static int g_rot180; /* the panel turned upside down (display.rotation): the window shows what a turned panel would */
+static uint8_t *rgb_at(int x, int y) { return g_rot180 ? &g_rgb[((H - 1 - y) * W + (W - 1 - x)) * 3] : &g_rgb[(y * W + x) * 3]; }
+static void rotate(void *ctx, int degrees) {
+    (void)ctx;
+    pthread_mutex_lock(&g_lock);
+    g_rot180 = degrees == 180;
+    pthread_mutex_unlock(&g_lock);
+}
+
 static void present(void *ctx, const uint8_t *px, int stride, pal_rect_t r, const uint16_t *pal) {
     (void)ctx;
     pthread_mutex_lock(&g_lock);
@@ -65,7 +74,7 @@ static void present(void *ctx, const uint8_t *px, int stride, pal_rect_t r, cons
         for (int x = r.x; x < r.x + r.w; x++) {
             uint16_t v = pal[px[y * stride + x]];
             v = (uint16_t)((v >> 8) | (v << 8)); /* the palette is byte-swapped for SPI */
-            uint8_t *o = &g_rgb[(y * W + x) * 3];
+            uint8_t *o = rgb_at(x, y);
             /* rounded, as the reference screenshots are (0x2928 -> #292442, 0xFB20 -> #FF6500) */
             o[0] = (uint8_t)((((v >> 11) & 31) * 255 + 15) / 31);
             o[1] = (uint8_t)((((v >> 5) & 63) * 255 + 31) / 63);
@@ -82,7 +91,7 @@ static void present565(void *ctx, const uint16_t *px, int stride, pal_rect_t r) 
     for (int y = r.y; y < r.y + r.h; y++)
         for (int x = r.x; x < r.x + r.w; x++) {
             uint16_t v = px[y * stride + x];
-            uint8_t *o = &g_rgb[(y * W + x) * 3];
+            uint8_t *o = rgb_at(x, y);
             o[0] = (uint8_t)((((v >> 11) & 31) * 255 + 15) / 31);
             o[1] = (uint8_t)((((v >> 5) & 63) * 255 + 31) / 63);
             o[2] = (uint8_t)(((v & 31) * 255 + 15) / 31);
@@ -323,7 +332,7 @@ int main(int argc, char **argv) {
     pal_boot_cfg_t cfg = {
         .board = &SIM_BOARD,
         .storage_root = data,
-        .display = {.present = present, .present_rgb565 = present565},
+        .display = {.present = present, .present_rgb565 = present565, .rotate = rotate},
         .console_log = has_arg(argc, argv, "--log"), /* --log: the device log on stdout (tests read the pairing code) */
         .status = status,
         .bootcount = NULL,

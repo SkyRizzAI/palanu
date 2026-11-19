@@ -17,6 +17,7 @@
 #include "pal/power.h"
 #include "pal/settings.h"
 #include "pal/ui.h"
+#include "pal/display.h"
 
 #define TEXT_MAX 24 /* profile.user: characters, NUL included */
 
@@ -56,6 +57,11 @@ static void apply_log(const char *name, int32_t v) {
 
 /* ui.font: the reference font packs (Appearances > Font); the names are the packs of kui_fonts.c, in menu order. */
 static const char *const FONT_NAMES[] = {"Helvetica", "Haxrcorp4089", "ProFont", NULL};
+static void apply_rotation(const char *name, int32_t v) {
+    (void)name;
+    (void)pal_display_set_rotation(v == 2 ? 180 : 0);
+}
+
 static void apply_clock24(const char *name, int32_t v) {
     (void)name;
     pal_ui_set_clock24(v != 0);
@@ -67,7 +73,8 @@ static void apply_font(const char *name, int32_t v) {
     kui_font_pack_set(FONT_NAMES[v]);
 }
 
-/* display.rotation: the reference Rotation row (0, 90, 180, 270 degrees). Stored only; the panel driver does not turn yet. */
+/* display.rotation: 0 or 180 degrees turn the panel (pal_display_set_rotation); 90 and 270 are kept for the reference row but
+ * need portrait layouts, so they show as 0. */
 static const char *const ROTATION_NAMES[] = {"0", "90", "180", "270", NULL};
 
 /* ui.assets: the reference asset packs (Appearances > Asset Pack); PalanuOS ships one, so the row stores the name. */
@@ -76,7 +83,7 @@ static const char *const ASSET_NAMES[] = {"palanu", NULL};
 static const kv_def_t DEFS[] = {
     {"ui.font", KV_CHOICE, 0, 5, FONT_NAMES, 0, NULL, apply_font},
     {"ui.assets", KV_CHOICE, 0, 0, ASSET_NAMES, 0, NULL, NULL},
-    {"display.rotation", KV_CHOICE, 0, 3, ROTATION_NAMES, 0, NULL, NULL},
+    {"display.rotation", KV_CHOICE, 0, 3, ROTATION_NAMES, 0, NULL, apply_rotation},
     {"ui.statusbar", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"ui.legend", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the legend bar at the bottom (pal/legend.h); off hides it everywhere */
     {"ui.clock24", KV_BOOL, 0, 1, NULL, 1, NULL, apply_clock24}, /* off: 12 hours with AM/PM (pal_ui_fmt_clock) */
