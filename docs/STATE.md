@@ -30,8 +30,6 @@ The firmware is divided into layered components, and the layer boundaries are en
 - Not done from the 19 November 2026 analysis: SFTP/SCP (the board's libssh is built without SFTP), a scripting language (Lua or
   MicroPython need setjmp and a libc the WebAssembly SDK does not have yet), Bluetooth/USB HID keyboard mode, music, light sleep,
   display rotation, LoRa and radio modules.
-- The bun tests of Palanu Link (`bun test forge/packages/link`) have four failures that predate 19 November 2026: screen mirror
-  colours, many connections in a row, remote key, packages written to /apps.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
 - SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.
 - `.papp` signing and compression.

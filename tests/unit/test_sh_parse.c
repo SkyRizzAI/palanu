@@ -347,6 +347,14 @@ TEST(mixed_chain_follows_left_to_right) {
     CHECK(strcmp(var("M2"), "2") == 0);
 }
 
+TEST(a_list_ending_in_ampersand_runs_whole_in_the_background) {
+    reset_sh();
+    run("export B1=1 && export B2=1 & export B3=1");
+    CHECK(strcmp(var("B1"), "(unset)") == 0); /* the first command went with the list, not into this shell */
+    CHECK(strcmp(var("B2"), "(unset)") == 0);
+    CHECK(strcmp(var("B3"), "1") == 0);       /* what follows the & runs here */
+}
+
 TEST(comment_is_not_run) {
     reset_sh();
     run("export C1=1 # export C1=2");
@@ -407,6 +415,7 @@ int main(void) {
     RUN(and_runs_right_only_on_success);
     RUN(or_runs_right_only_on_failure);
     RUN(mixed_chain_follows_left_to_right);
+    RUN(a_list_ending_in_ampersand_runs_whole_in_the_background);
     RUN(comment_is_not_run);
     RUN(assignment_sets_a_shell_variable);
     RUN(variable_from_an_earlier_command_in_the_same_line);

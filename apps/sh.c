@@ -475,6 +475,19 @@ int sh_run_line(sh_t *sh, const char *line) {
     return r;
 }
 
+/* The index of the & that ends an and-or list of two or more pipelines at the start of k, or -1 (no &&/||, or it
+ * ends with ; or the line). */
+static int bg_list_end(const toks_t *k) {
+    bool andor = false;
+    for (int j = 0; j < k->n; j++) {
+        int kind = k->t[j].kind;
+        if (kind == T_AND || kind == T_OR) andor = true;
+        else if (kind == T_SEMI) return -1;
+        else if (kind == T_BG) return andor && j > 0 ? j : -1;
+    }
+    return -1;
+}
+
 static int run_line_impl(sh_t *sh, toks_t *k, const char *line) {
     char gstore[512];
     size_t gused = 0;
@@ -487,9 +500,21 @@ static int run_line_impl(sh_t *sh, toks_t *k, const char *line) {
 
     int i = 0, status = sh->status;
     bool run = true;
+    const char *src = line; /* the text k was tokenized from */
     while (i < k->n && !sh->exiting) {
-        /* a lone NAME=value assignment sets a shell variable */
-        if (k->t[i].kind == T_WORD && strchr(k->t[i].s, '=') && k->t[i].s[0] != '=' &&
+        int bg_at = i == 0 ? bg_list_end(k) : -1;
+        if (bg_at > 0) {
+            /* "a && b &": the whole list runs in the background, in a shell of its own, as POSIX says */
+            size_t len = (size_t)(k->t[bg_at - 1].end - src);
+            char text[SH_LINE_MAX];
+            snprintf(text, sizeof(text), "%.*s", (int)len, src);
+            cmd_t c;
+            memset(&c, 0, sizeof(c));
+            c.argv[0] = (char *)"sh", c.argv[1] = (char *)"-c", c.argv[2] = text;
+            c.argc = 3;
+            status = sh->status = run_pipeline(sh, &c, 1, true);
+            i = bg_at;
+        } else if (k->t[i].kind == T_WORD && strchr(k->t[i].s, '=') && k->t[i].s[0] != '=' &&
             (i + 1 >= k->n || k->t[i + 1].kind != T_WORD)) {
             char *eq = strchr(k->t[i].s, '=');
             *eq = 0;
@@ -513,6 +538,7 @@ static int run_line_impl(sh_t *sh, toks_t *k, const char *line) {
         else run = true;
         /* variables and $? in the rest of the line must see what the commands before it just did: tokenize again from here */
         sh_tokenize(sh, rest, k);
+        src = rest;
         gused = 0;
         i = 0;
         if (k->error) {
