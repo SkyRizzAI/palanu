@@ -14,7 +14,8 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 - **Persistent storage (proven on the chip):** `/home`, `/etc`, `/data` on LittleFS (`storage` partition, 8 MB); settings (theme, size, brightness, time zone) survive a reset.
 - **Networking:** sockets as kernel objects, TLS on any socket (`nema_net_tls`: mbedtls on the board, OpenSSL in the native simulator), an HTTP/1.1 client (`pal/http.h`) under `curl` and the app API (`pal_tls_start`, `pal_http_fetch`, API level 7), Wi-Fi station on the board (scan, connect, up to 8 saved networks with Auto-Join and a manual address each; kept in NVS), `nc`, `ping`, `tcping`, SNTP.
-- **SSH:** client on top of libssh 0.12.2 with Nema sockets; `known_hosts` in `/data/ssh`; public key (`-i`, default `/home/.ssh/id_ed25519`) and password; `ssh-keygen` (proven to create a key on the board). **Proven against a real OpenSSH on a computer** (public key, shell with PTY, size and resize, close; `forge/tests/ssh_e2e.ts`). This test found and fixed an error that kept the session from ever starting. **Not yet tested from the board over Wi-Fi** (needs Wi-Fi connected by the user).
+- **SSH:** `scp` and `sftp` (ADR-0017: libssh's SFTP part built beside the component; proven against OpenSSH by
+  `forge/tests/sftp_e2e.ts`, not yet from the board). Client on top of libssh 0.12.2 with Nema sockets; `known_hosts` in `/data/ssh`; public key (`-i`, default `/home/.ssh/id_ed25519`) and password; `ssh-keygen` (proven to create a key on the board). **Proven against a real OpenSSH on a computer** (public key, shell with PTY, size and resize, close; `forge/tests/ssh_e2e.ts`). This test found and fixed an error that kept the session from ever starting. **Not yet tested from the board over Wi-Fi** (needs Wi-Fi connected by the user).
 - **Firmware update (proven on the chip):** `palanu ota`, A/B slots, bootloader rollback, self-confirmation 10 seconds after boot.
 - **Battery:** ADC reading exists, but the S31 voltage scale is not calibrated (there is no calibration scheme in this IDF) and this board does not carry a battery, so the result is "not detected".
 - **Palanu Link (proven on the chip and in the simulator):** specification `docs/PLP.md`, device side `system/src/link.c`, TypeScript client `forge/packages/link`, CLI `bun forge/tools/palanu.ts` (`info`, `ping`, `ls`, `get`, `put`, `screen`, `key`, `shell`). Over a 115200 baud UART cable: ping 10 ms, writing 20 KB takes 2.8 s; remote shell, screen mirror (a real board screenshot), key injection. 7 bun tests against the simulator (`bun test forge/packages/link`).
@@ -31,7 +32,7 @@ The firmware is divided into layered components, and the layer boundaries are en
   hhv2. The release key is not made yet (the owner's step, `docs/RELEASE.md`).
 
 ## Not done / not verified
-- Not done from the 19 November 2026 analysis: SFTP/SCP (the board's libssh is built without SFTP), a scripting language (Lua or
+- Not done from the 19 November 2026 analysis: a scripting language (Lua or
   MicroPython need setjmp and a libc the WebAssembly SDK does not have yet), Bluetooth/USB HID keyboard mode, music, light sleep,
   display rotation, LoRa and radio modules.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.

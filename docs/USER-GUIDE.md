@@ -103,6 +103,10 @@ fallback font; CJK ideographs and Hangul need the file `/data/unifont-cjk.pfnt` 
 **SSH profiles**: `/home/.ssh/config` works as on a computer: a `Host` block gives a short name its `HostName`, `User`, `Port` and
 `IdentityFile`, so `ssh pve` reaches `root@192.168.1.5:2222`. The command line still wins over the file.
 
+**Files over SSH**: `scp /home/notes.txt pve:/tmp/` sends a file, `scp pve:/etc/hostname /home/` fetches one (`-P` for the port).
+`sftp pve` opens a session: `ls`, `cd`, `get FILE`, `put FILE`, `mkdir`, `rm`, `rename`, `lcd` (the device's folder), `exit`. They use
+the same keys, known hosts and profiles as `ssh`.
+
 **Small tools**: `calc 2*(3+4)` (or `calc` alone for one line at a time, with `ans`), `printf FORMAT ARGS`, and `man`: the offline
 manual (`man guide`, `man keys`, `man store`, `man -k WORD`), also there without a network.
 

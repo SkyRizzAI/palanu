@@ -96,6 +96,16 @@ const ALLOW: { file: string; rules: string[]; reason: string; used?: boolean }[]
     reason: "libssh client and ops->ioctl(NEMA_NETIOC_GETFD) for the socket fd, until the F4 socket API (removed in F4)",
   },
   {
+    file: "apps/ssh_session.h",
+    rules: ["non-portable header"],
+    reason: "the libssh session the ssh, scp and sftp commands share (cmd_ssh.c), built only where libssh is",
+  },
+  {
+    file: "apps/cmd_sftp.c",
+    rules: ["non-portable header"],
+    reason: "libssh's sftp client (ADR-0017); <fcntl.h> for the open flags sftp_open takes, which libssh reads as the C library's",
+  },
+  {
     file: "system/src/wasm_rt.c",
     rules: ["unresolved header"],
     reason: "WAMR runtime header from third_party/wamr (ADR-0003)",

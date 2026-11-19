@@ -16,7 +16,7 @@ Code from other projects is adopted only when it passes all five:
 ## Third-party libraries (brought in whole, not adapted)
 | Library | Used for | License | Reason chosen |
 |---|---|---|---|
-| libssh 0.12.2 (component `david-cermak/libssh`) | SSH client (`apps/cmd_ssh.c`) | LGPL-2.1 | the only one that builds on IDF 6.2 with mbedTLS 4 and meets the needs of a full terminal (PTY, host keys, user keys). libssh2 was rejected: it does not build on the S31. Linked as a separate library, so the LGPL is satisfied. |
+| libssh 0.12.2 (component `david-cermak/libssh`) | SSH client (`apps/cmd_ssh.c`); its SFTP part (`sftp.c`, `sftp_common.c`, `sftp_aio.c`, unchanged) for scp and sftp (`apps/cmd_sftp.c`, ADR-0017), compiled as the separate library `libssh_sftp` | LGPL-2.1 | the only one that builds on IDF 6.2 with mbedTLS 4 and meets the needs of a full terminal (PTY, host keys, user keys). libssh2 was rejected: it does not build on the S31. Linked as a separate library, so the LGPL is satisfied. |
 | esp_littlefs (`joltwallet/littlefs`) | persistent storage | MIT | power-loss resilience and wear leveling without our own code; small RAM |
 | Spleen 5x8, 6x12, 8x16 | display fonts (`system/src/font_spleen_*.c`, generated with `forge/tools/bdf2c.ts`) | BSD-2-Clause | tidy bitmap fonts in three sizes, covering terminal glyphs |
 | GNU Unifont 17.0.05 (BMP and emoji U+1F000-1FAFF) | terminal fallback glyphs (`assets/fonts/unifont/`, `system/src/font_fallback_data.c`, file `unifont-cjk.pfnt`; generated with `forge/tools/fontpack.ts`) | SIL OFL 1.1 and GPL with the font embedding exception (`assets/fonts/unifont/LICENSE.txt`, read) | Scripts, symbols and emoji that Spleen lacks: without it the terminal draws `?` |

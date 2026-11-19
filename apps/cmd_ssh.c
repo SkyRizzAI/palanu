@@ -13,15 +13,9 @@
 #include "libapp.h"
 #include "pal/term.h"
 #include "ssh_config.h"
+#include "ssh_session.h"
 
 #define KNOWN_HOSTS "/data/ssh/known_hosts"
-
-typedef struct {
-    ssh_session s;
-    ssh_channel ch;
-    nema_obj_t *sock;
-    int sockfd; /* handle in this process, for nema_poll */
-} conn_t;
 
 /* Wait until the socket is ready (or a short timeout), then let the caller retry. */
 static int wait_io(conn_t *c, int32_t ms) {
@@ -39,7 +33,7 @@ static void say(const char *fmt, const char *a, const char *b) { pal_eprintf(fmt
 static int read_password(char *out, size_t cap);
 
 #define KEY_DIR "/home/.ssh"
-#define MAX_KEYS 4
+#define MAX_KEYS SSH_MAX_KEYS
 
 /* Read a whole file into a NUL-terminated string (nema_free it), or NULL. */
 static char *read_text(const char *path) {
@@ -311,25 +305,10 @@ static int relay(conn_t *c) {
     }
 }
 
-static int cmd_ssh(int argc, char **argv) {
-    const char *user = "palanu";
-    int port = 22;
-    bool user_set = false, port_set = false;
-    const char *target = NULL;
-    const char *keyfiles[MAX_KEYS];
-    int nkeys = 0;
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
-            if (nkeys < MAX_KEYS) keyfiles[nkeys++] = argv[++i];
-            else i++;
-        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) port = atoi(argv[++i]), port_set = true;
-        else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) user = argv[++i], user_set = true;
-        else if (argv[i][0] != '-') target = argv[i];
-    }
-    if (!target) {
-        pal_eprintf("usage: ssh [-p port] [-l user] [-i keyfile] [user@]host   (host may be a Host in /home/.ssh/config)\n");
-        return 255;
-    }
+/* Connect, check the host key, authenticate (keys, then the password up to three times). The target is [user@]host, a Host of
+ * /home/.ssh/config filling in what the arguments leave out. 0 on success with the session non-blocking; else the exit status. */
+int ssh_open(conn_t *c, const char *who, const char *target, int port, bool port_set, const char *user, bool user_set,
+             const char **keyfiles, int nkeys) {
     char hostbuf[96];
     nema_strlcpy(hostbuf, target, sizeof(hostbuf));
     char *at = strchr(hostbuf, '@');
@@ -351,18 +330,19 @@ static int cmd_ssh(int argc, char **argv) {
         if (prof.hostname[0]) host = prof.hostname;
     }
 
-    conn_t c = {0};
+    memset(c, 0, sizeof(*c));
+    c->sockfd = -1;
     pal_eprintf("connecting to %s:%d...\n", host, port);
-    nema_err_t e = nema_net_connect(host, (uint16_t)port, 15000, &c.sock);
+    nema_err_t e = nema_net_connect(host, (uint16_t)port, 15000, &c->sock);
     if (e != NEMA_OK) {
-        pal_eprintf("ssh: %s: %s\n", host, pal_strerror(e));
+        pal_eprintf("%s: %s: %s\n", who, host, pal_strerror(e));
         return 255;
     }
-    c.sockfd = nema_handle_install(c.sock);
+    c->sockfd = nema_handle_install(c->sock);
     int osfd = -1;
-    nema_obj_t *so = c.sock;
+    nema_obj_t *so = c->sock;
     so->ops->ioctl(so, NEMA_NETIOC_GETFD, &osfd);
-    nema_obj_unref(c.sock);
+    nema_obj_unref(c->sock);
 
     /* libssh expands "%d" (the default keys "%d/.ssh/id_ed25519") to the user's home: getpwuid_r, then $HOME. The board's
      * libssh port makes getpwuid_r fail and the board has no $HOME, so every connect failed with "Couldn't apply options"
@@ -370,33 +350,35 @@ static int cmd_ssh(int argc, char **argv) {
      * HOME (the host) is kept. */
     setenv("HOME", "/home", 0);
     ssh_init();
-    c.s = ssh_new();
-    int rc = 255;
-    if (!c.s) goto out_sock;
+    c->s = ssh_new();
+    if (!c->s) {
+        ssh_close(c);
+        return 255;
+    }
     long timeout = 30;
     int off = 0;
-    ssh_options_set(c.s, SSH_OPTIONS_HOST, host);
-    ssh_options_set(c.s, SSH_OPTIONS_PORT, &port);
-    ssh_options_set(c.s, SSH_OPTIONS_USER, user);
-    ssh_options_set(c.s, SSH_OPTIONS_FD, &osfd);
-    ssh_options_set(c.s, SSH_OPTIONS_TIMEOUT, &timeout);
-    ssh_options_set(c.s, SSH_OPTIONS_PROCESS_CONFIG, &off);
+    ssh_options_set(c->s, SSH_OPTIONS_HOST, host);
+    ssh_options_set(c->s, SSH_OPTIONS_PORT, &port);
+    ssh_options_set(c->s, SSH_OPTIONS_USER, user);
+    ssh_options_set(c->s, SSH_OPTIONS_FD, &osfd);
+    ssh_options_set(c->s, SSH_OPTIONS_TIMEOUT, &timeout);
+    ssh_options_set(c->s, SSH_OPTIONS_PROCESS_CONFIG, &off);
     /* Paths given outright, so they never depend on the home lookup above. */
-    ssh_options_set(c.s, SSH_OPTIONS_SSH_DIR, KEY_DIR);
-    ssh_options_set(c.s, SSH_OPTIONS_KNOWNHOSTS, KNOWN_HOSTS);
-    ssh_options_set(c.s, SSH_OPTIONS_STRICTHOSTKEYCHECK, &off);
-    ssh_set_blocking(c.s, 0);
+    ssh_options_set(c->s, SSH_OPTIONS_SSH_DIR, KEY_DIR);
+    ssh_options_set(c->s, SSH_OPTIONS_KNOWNHOSTS, KNOWN_HOSTS);
+    ssh_options_set(c->s, SSH_OPTIONS_STRICTHOSTKEYCHECK, &off);
+    ssh_set_blocking(c->s, 0);
 
     int r;
-    while ((r = ssh_connect(c.s)) == SSH_AGAIN)
-        if (wait_io(&c, 100) < 0) goto out_ssh;
+    while ((r = ssh_connect(c->s)) == SSH_AGAIN)
+        if (wait_io(c, 100) < 0) goto fail;
     if (r != SSH_OK) {
-        pal_eprintf("ssh: connection failed: %s\n", ssh_get_error(c.s));
-        goto out_ssh;
+        pal_eprintf("%s: connection failed: %s\n", who, ssh_get_error(c->s));
+        goto fail;
     }
-    if (hostkey_check(c.s, host, port) != 0) {
-        pal_eprintf("ssh: host key verification failed.\n");
-        goto out_ssh;
+    if (hostkey_check(c->s, host, port) != 0) {
+        pal_eprintf("%s: host key verification failed.\n", who);
+        goto fail;
     }
 
     int auth = SSH_AUTH_DENIED;
@@ -406,32 +388,77 @@ static int cmd_ssh(int argc, char **argv) {
     for (int k = 0; k < nkeys && auth != SSH_AUTH_SUCCESS; k++) {
         ssh_key key = load_key(keyfiles[k]);
         if (!key) {
-            pal_eprintf("ssh: cannot use key %s\n", keyfiles[k]);
+            pal_eprintf("%s: cannot use key %s\n", who, keyfiles[k]);
             continue;
         }
-        while ((auth = ssh_userauth_publickey(c.s, NULL, key)) == SSH_AUTH_AGAIN)
-            if (wait_io(&c, 100) < 0) {
+        while ((auth = ssh_userauth_publickey(c->s, NULL, key)) == SSH_AUTH_AGAIN)
+            if (wait_io(c, 100) < 0) {
                 ssh_key_free(key);
-                goto out_ssh;
+                goto fail;
             }
         ssh_key_free(key);
     }
     char pw[64];
     for (int attempt = 0; attempt < 3 && auth != SSH_AUTH_SUCCESS; attempt++) {
         pal_eprintf("%s@%s's password: ", user, host);
-        if (read_password(pw, sizeof(pw)) < 0) goto out_ssh;
-        while ((auth = ssh_userauth_password(c.s, NULL, pw)) == SSH_AUTH_AGAIN)
-            if (wait_io(&c, 100) < 0) goto out_ssh;
+        if (read_password(pw, sizeof(pw)) < 0) goto fail;
+        while ((auth = ssh_userauth_password(c->s, NULL, pw)) == SSH_AUTH_AGAIN)
+            if (wait_io(c, 100) < 0) goto fail;
         memset(pw, 0, sizeof(pw));
         if (auth != SSH_AUTH_SUCCESS) pal_eprintf("Permission denied, please try again.\n");
     }
     if (auth != SSH_AUTH_SUCCESS) {
-        pal_eprintf("ssh: too many authentication failures\n");
-        goto out_ssh;
+        pal_eprintf("%s: too many authentication failures\n", who);
+        goto fail;
     }
+    return 0;
+fail:
+    ssh_close(c);
+    return 255;
+}
+
+void ssh_close(conn_t *c) {
+    if (c->ch) {
+        ssh_channel_close(c->ch);
+        ssh_channel_free(c->ch);
+        c->ch = NULL;
+    }
+    if (c->s) {
+        ssh_disconnect(c->s);
+        ssh_free(c->s);
+        c->s = NULL;
+    }
+    if (c->sockfd >= 0) nema_close(c->sockfd);
+    c->sockfd = -1;
+}
+
+static int cmd_ssh(int argc, char **argv) {
+    const char *user = "palanu";
+    int port = 22;
+    bool user_set = false, port_set = false;
+    const char *target = NULL;
+    const char *keyfiles[MAX_KEYS];
+    int nkeys = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
+            if (nkeys < MAX_KEYS) keyfiles[nkeys++] = argv[++i];
+            else i++;
+        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) port = atoi(argv[++i]), port_set = true;
+        else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) user = argv[++i], user_set = true;
+        else if (argv[i][0] != '-') target = argv[i];
+    }
+    if (!target) {
+        pal_eprintf("usage: ssh [-p port] [-l user] [-i keyfile] [user@]host   (host may be a Host in /home/.ssh/config)\n");
+        return 255;
+    }
+    conn_t c;
+    int rc = ssh_open(&c, "ssh", target, port, port_set, user, user_set, keyfiles, nkeys);
+    if (rc != 0) return rc;
+    rc = 255;
+    int r;
 
     c.ch = ssh_channel_new(c.s);
-    if (!c.ch) goto out_ssh;
+    if (!c.ch) goto out_chan;
     while ((r = ssh_channel_open_session(c.ch)) == SSH_AGAIN)
         if (wait_io(&c, 100) < 0) goto out_chan;
     if (r != SSH_OK) {
@@ -469,13 +496,7 @@ static int cmd_ssh(int argc, char **argv) {
     pal_puts("\x1b[0m\x1b[?25h\x1b[?1049l\r\nConnection closed.\r\n");
 
 out_chan:
-    ssh_channel_close(c.ch);
-    ssh_channel_free(c.ch);
-out_ssh:
-    ssh_disconnect(c.s);
-    ssh_free(c.s);
-out_sock:
-    nema_close(c.sockfd);
+    ssh_close(&c);
     (void)say;
     return rc;
 }
@@ -484,9 +505,11 @@ static const nema_app_t SSH_APP = {"ssh", "SSH client: ssh [-p port] [-i key] [u
 static const nema_app_t KEYGEN_APP = {"ssh-keygen", "make an SSH key pair", cmd_keygen, 20 * 1024, 0};
 
 void pal_apps_register_ssh(void);
+void pal_apps_register_sftp(void); /* cmd_sftp.c: scp and sftp, where libssh has SFTP */
 void pal_apps_register_ssh(void) {
     nema_app_register(&SSH_APP);
     nema_app_register(&KEYGEN_APP);
+    pal_apps_register_sftp();
 }
 
 #else /* no libssh on this build (the simulator) */

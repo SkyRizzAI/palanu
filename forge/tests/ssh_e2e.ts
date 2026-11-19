@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Link, connectTcp } from "../packages/link/src/index.ts";
 
-const SIM = join(import.meta.dir, "../../build/host/palanu-sim");
+const SIM = process.argv[2] ?? join(import.meta.dir, "../../build/host/palanu-sim"); // a build with libssh (docs/TESTING-SSH.md)
 const dir = mkdtempSync(join(tmpdir(), "palanu-sshd-"));
 const run = (cmd: string[]) => { const r = Bun.spawnSync(cmd); if (r.exitCode !== 0) throw new Error(cmd.join(" ") + ": " + r.stderr); };
 run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", join(dir, "host")]);

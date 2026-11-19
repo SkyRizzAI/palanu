@@ -11,6 +11,14 @@ ninja -C /tmp/libssh-host
 cmake build/host -DPAL_LIBSSH_BUILD=/tmp/libssh-host -DPAL_LIBSSH_SRC=$PWD/$L && ninja -C build/host
 bun forge/tests/ssh_e2e.ts
 ```
+scp and sftp (ADR-0017) are tested the same way by `forge/tests/sftp_e2e.ts`, against a simulator built with libssh in its own
+folder (the default host build stays without it):
+```bash
+cmake -S platform/host -B build/host-ssh -G Ninja -DPAL_LIBSSH_BUILD=/tmp/libssh-host -DPAL_LIBSSH_SRC=$PWD/$L
+ninja -C build/host-ssh palanu-sim && bun forge/tests/sftp_e2e.ts
+```
+It runs `sshd` with `internal-sftp` on `127.0.0.1:2223` and checks an upload, a download into a folder, 200 KB byte for byte, a
+missing remote file, and sftp's mkdir, put, ls, rename, get, rm and rmdir.
 The test runs a temporary user-owned `sshd` on `127.0.0.1:2222`, creates a key in the simulator with `ssh-keygen`,
 and then runs `ssh` to it: the host key is prompted for, public key authentication succeeds, the remote shell sees the terminal size,
 a resize reaches it, and `exit` returns to the local shell.

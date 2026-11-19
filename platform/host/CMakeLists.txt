@@ -16,6 +16,7 @@ if(PAL_LIBSSH_BUILD AND PAL_LIBSSH_SRC)
   find_package(OpenSSL REQUIRED)
   target_include_directories(palapps PRIVATE ${PAL_LIBSSH_SRC}/include ${PAL_LIBSSH_BUILD}/include)
   target_link_libraries(palapps PUBLIC ${PAL_LIBSSH_BUILD}/src/libssh.a OpenSSL::Crypto z)
+  target_compile_definitions(palapps PRIVATE PAL_HAVE_SFTP=1) # scp and sftp (cmd_sftp.c): libssh's default build has WITH_SFTP
 endif()
 
 # ---- Unit tests ----
