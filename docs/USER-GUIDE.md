@@ -111,6 +111,9 @@ fallback font; CJK ideographs and Hangul need the file `/data/unifont-cjk.pfnt` 
 `sftp pve` opens a session: `ls`, `cd`, `get FILE`, `put FILE`, `mkdir`, `rm`, `rename`, `lcd` (the device's folder), `exit`. They use
 the same keys, known hosts and profiles as `ssh`.
 
+**Lua**: `lua` opens a Lua 5.4 prompt, `lua script.lua` runs a script; the `pal` module reads and writes files, runs commands and
+posts notifications (`man lua`).
+
 **Small tools**: `calc 2*(3+4)` (or `calc` alone for one line at a time, with `ans`), `printf FORMAT ARGS`, and `man`: the offline
 manual (`man guide`, `man keys`, `man store`, `man -k WORD`), also there without a network.
 

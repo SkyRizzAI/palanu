@@ -29,3 +29,17 @@ if(NOT CMAKE_BUILD_EARLY_EXPANSION)
     target_compile_definitions(${COMPONENT_LIB} PRIVATE PAL_HAVE_SFTP=1)
   endif()
 endif()
+
+# Lua 5.4 (third_party/lua, ADR-0019) for the lua command: the core and the libraries it opens, in a library of its own, built for size.
+set(PAL_LUA_DIR ${CMAKE_CURRENT_LIST_DIR}/../third_party/lua)
+set(PAL_LUA_FILES lapi lcode lctype ldebug ldo ldump lfunc lgc llex lmem lobject lopcodes lparser lstate lstring ltable ltm
+    lundump lvm lzio lauxlib lbaselib lcorolib lmathlib lstrlib ltablib lutf8lib)
+list(TRANSFORM PAL_LUA_FILES PREPEND ${PAL_LUA_DIR}/)
+list(TRANSFORM PAL_LUA_FILES APPEND .c)
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+  add_library(palua STATIC ${PAL_LUA_FILES})
+  target_include_directories(palua PUBLIC ${PAL_LUA_DIR})
+  target_compile_definitions(palua PUBLIC LUAI_MAXCCALLS=64) # nested C calls and parser levels: within the lua command's stack
+  target_compile_options(palua PRIVATE -Os -w)
+  target_link_libraries(${COMPONENT_LIB} PRIVATE palua)
+endif()

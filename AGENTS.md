@@ -37,4 +37,5 @@ board-agnostic: each board declares its own hardware, pins and capabilities. For
 - Internal RAM is tight with Wi-Fi: static internal 74.3/80 KB, PalanuOS 39.6/40 KB. A large addition will probably fail `ramcheck`.
 - `./pal build` builds only the firmware; build the simulator with `./pal sim`, or you run a stale binary.
 - An unquoted `#` in the device shell starts a comment.
-- The firmware image is about 85% of the OTA slot (84.8% on 19 November 2026); the release warns at 85% and fails at 95%.
+- The firmware image is 87.2% of the OTA slot (19 November 2026, after Lua); the release warns at 85% and fails at 95%. Make room
+  (a size-optimised build or larger slots, docs/RELEASE.md section 7) before the next large addition.

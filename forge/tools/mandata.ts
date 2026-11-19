@@ -13,6 +13,7 @@ const TOPICS: { name: string; file: string; title: string }[] = [
   { name: "radio", file: "docs/RADIO.md", title: "Wi-Fi and Bluetooth" },
   { name: "store", file: "docs/STORE.md", title: "The app catalogue" },
   { name: "ssh", file: "docs/TESTING-SSH.md", title: "SSH from the device" },
+  { name: "lua", file: "docs/LUA.md", title: "Lua on the device" },
 ];
 
 /* Markdown to terminal text: headings underlined, no emphasis marks or code ticks, links as their text. */

@@ -80,10 +80,20 @@ target_compile_definitions(palsys PRIVATE WASM_ENABLE_INSTRUCTION_METERING=1 ${T
 
 # ---- Apps: built-in commands and views. Sees nema/include and system/include only, never the private dirs ----
 file(GLOB APPS_SRC CONFIGURE_DEPENDS ${ROOT}/apps/*.c)
+# ---- Lua 5.4 (third_party/lua, ADR-0019): the core and the libraries the lua command opens; io, os, package and debug are left out ----
+set(PAL_LUA_FILES lapi lcode lctype ldebug ldo ldump lfunc lgc llex lmem lobject lopcodes lparser lstate lstring ltable ltm
+    lundump lvm lzio lauxlib lbaselib lcorolib lmathlib lstrlib ltablib lutf8lib)
+list(TRANSFORM PAL_LUA_FILES PREPEND ${ROOT}/third_party/lua/)
+list(TRANSFORM PAL_LUA_FILES APPEND .c)
+add_library(palua STATIC ${PAL_LUA_FILES})
+target_include_directories(palua PUBLIC ${ROOT}/third_party/lua)
+target_compile_definitions(palua PUBLIC LUAI_MAXCCALLS=64) # nested C calls and parser levels: within the lua command's stack
+target_compile_options(palua PRIVATE -Os -w)
+
 add_library(palapps STATIC ${APPS_SRC})
 target_include_directories(palapps PUBLIC ${ROOT}/apps)
 target_compile_options(palapps PRIVATE -Wall -Wextra -Wshadow -Werror -Wno-unused-parameter)
-target_link_libraries(palapps PUBLIC palsys)
+target_link_libraries(palapps PUBLIC palsys palua)
 
 # ---- Athena: the LVGL desktop (system/src/athena). The firmware builds it in system/CMakeLists.txt ----
 file(GLOB_RECURSE LVGL_SRC CONFIGURE_DEPENDS ${ROOT}/third_party/lvgl/src/*.c)

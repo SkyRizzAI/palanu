@@ -1,5 +1,12 @@
 # Third-party libraries
 
+## lua (5.4.7)
+MIT (the notice is at the end of `lua.h`). Origin: the official archive `https://www.lua.org/ftp/lua-5.4.7.tar.gz`, archive SHA-256
+`9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30` (as lua.org lists it). Files: everything in `src/` except the
+stand-alone programs `lua.c` and `luac.c`, copied **unchanged**. The builds compile the core and the base, string, table, math, utf8
+and coroutine libraries (`apps/CMakeLists.txt`, `platform/host/libs.cmake`) with `LUAI_MAXCCALLS=64`. Used by `apps/lua_rt.c`
+(ADR-0019). Tests: `tests/unit/test_lua.c`.
+
 ## monocypher (4.0.2)
 BSD-2-Clause or CC0-1.0 (BSD-2-Clause chosen; `LICENCE.md` copied whole). Origin: the official archive
 `https://monocypher.org/download/monocypher-4.0.2.tar.gz`, archive SHA-256 `38d07179738c0c90677dba3ceb7a7b8496bcfea758ba1a53e803fed30ae0879c`.

@@ -43,6 +43,7 @@ void pal_apps_register_vk(void); /* vkeyboard command (cmd_vk.c) */
 void pal_apps_register_uidemo(void);
 void pal_svc_register_radio_link(void);
 void pal_apps_register_store(void); /* store_app.c */
+void pal_apps_register_lua(void);   /* cmd_lua.c */
 void pal_apps_register_man(void);   /* cmd_man.c: man, printf */
 void pal_apps_register_calc(void);  /* cmd_calc.c */
 void pal_svc_register_desktop(void);
@@ -187,6 +188,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
      * desktop, so admission sees the memory the system really holds. */
     pal_svc_register_radio_link();
     pal_apps_register_store();
+    pal_apps_register_lua(); /* cmd_lua.c: Lua 5.4 (ADR-0019) */
     pal_apps_register_man();
     pal_apps_register_calc();
     if (desktop_up) pal_svc_register_desktop();

@@ -121,3 +121,6 @@ AM/PM suffix in the home and lock layouts; the power profile needs a service tha
 6. Publishing: `./pal release ...` makes a local tag; pushing and putting `dist/release/` at a download location is your step.
 7. The release key (ADR-0016): make it with `palanu keygen`, keep the file offline, and add its public line to
    `system/src/release_keys.h`. Until then the catalogue is unsigned and a device updates its system from it only in developer mode.
+8. Room in the update slot: the image is at 87.2% (warning at 85%). Either build for size (`CONFIG_COMPILER_OPTIMIZATION_SIZE`,
+   slower drawing to be measured) or enlarge `ota_0`/`ota_1` from 4 MB to 6 MB in `partitions.csv` (16 MB flash; the new table
+   needs a cable flash once, not an OTA).

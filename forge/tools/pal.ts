@@ -106,6 +106,11 @@ const ALLOW: { file: string; rules: string[]; reason: string; used?: boolean }[]
     reason: "libssh's sftp client (ADR-0017); <fcntl.h> for the open flags sftp_open takes, which libssh reads as the C library's",
   },
   {
+    file: "apps/lua_rt.c",
+    rules: ["unresolved header"],
+    reason: "Lua 5.4's own headers from third_party/lua (ADR-0019)",
+  },
+  {
     file: "system/src/wasm_rt.c",
     rules: ["unresolved header"],
     reason: "WAMR runtime header from third_party/wamr (ADR-0003)",
