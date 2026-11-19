@@ -22,7 +22,7 @@ typedef struct {
     volatile bool last_full, handle;
 } fake_t;
 
-#define NVIEWS 22
+#define NVIEWS 32
 static fake_t F[NVIEWS];
 static pal_view_t V[NVIEWS];
 static char IDS[NVIEWS][16];
@@ -119,18 +119,18 @@ TEST(register_rejects_duplicates_and_nulls) {
     CHECK(pal_desktop_view_at(4) == NULL);
 }
 
-TEST(register_has_a_limit_of_twenty) {
-    for (int i = EXTRA0; i < 20; i++) {
+TEST(register_has_a_limit_of_twenty_eight) {
+    for (int i = EXTRA0; i < 28; i++) {
         make_view(i, "x", 0);
         IDS[i][1] = (char)('0' + (i - EXTRA0) / 10);
         IDS[i][2] = (char)('0' + (i - EXTRA0) % 10);
         IDS[i][3] = 0;
         CHECK(pal_desktop_register(&V[i]) == NEMA_OK);
     }
-    CHECK_EQ(pal_desktop_view_count(), 20);
-    make_view(20, "over", 0);
-    CHECK(pal_desktop_register(&V[20]) == NEMA_ERR_FULL);
-    CHECK_EQ(pal_desktop_view_count(), 20);
+    CHECK_EQ(pal_desktop_view_count(), 28);
+    make_view(28, "over", 0);
+    CHECK(pal_desktop_register(&V[28]) == NEMA_ERR_FULL);
+    CHECK_EQ(pal_desktop_view_count(), 28);
 }
 
 TEST(open_makes_the_view_front_and_calls_enter_leave) {
@@ -312,7 +312,7 @@ int main(void) {
     CHECK(pal_desktop_register(&V[B]) == NEMA_OK);
     CHECK(pal_desktop_register(&V[C]) == NEMA_OK);
     RUN(register_rejects_duplicates_and_nulls);
-    RUN(register_has_a_limit_of_twenty);
+    RUN(register_has_a_limit_of_twenty_eight);
     RUN(open_makes_the_view_front_and_calls_enter_leave);
     RUN(area_excludes_status_bar_unless_fullscreen);
     /* MRU before the start: open a, b, c, a (the open_ test already opened a and b, so this is a, b, c, a) */

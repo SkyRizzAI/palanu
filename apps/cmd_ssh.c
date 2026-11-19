@@ -12,6 +12,7 @@
 
 #include "libapp.h"
 #include "pal/term.h"
+#include "ssh_config.h"
 
 #define KNOWN_HOSTS "/data/ssh/known_hosts"
 
@@ -313,6 +314,7 @@ static int relay(conn_t *c) {
 static int cmd_ssh(int argc, char **argv) {
     const char *user = "palanu";
     int port = 22;
+    bool user_set = false, port_set = false;
     const char *target = NULL;
     const char *keyfiles[MAX_KEYS];
     int nkeys = 0;
@@ -320,12 +322,12 @@ static int cmd_ssh(int argc, char **argv) {
         if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
             if (nkeys < MAX_KEYS) keyfiles[nkeys++] = argv[++i];
             else i++;
-        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) port = atoi(argv[++i]);
-        else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) user = argv[++i];
+        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) port = atoi(argv[++i]), port_set = true;
+        else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) user = argv[++i], user_set = true;
         else if (argv[i][0] != '-') target = argv[i];
     }
     if (!target) {
-        pal_eprintf("usage: ssh [-p port] [-l user] [-i keyfile] [user@]host\n");
+        pal_eprintf("usage: ssh [-p port] [-l user] [-i keyfile] [user@]host   (host may be a Host in /home/.ssh/config)\n");
         return 255;
     }
     char hostbuf[96];
@@ -337,7 +339,16 @@ static int cmd_ssh(int argc, char **argv) {
         *at = 0;
         nema_strlcpy(userbuf, hostbuf, sizeof(userbuf));
         user = userbuf;
+        user_set = true;
         host = at + 1;
+    }
+    /* a profile in /home/.ssh/config: what the command line did not give (ssh_config.h) */
+    static ssh_profile_t prof;
+    if (ssh_config_load(host, &prof)) {
+        if (!user_set && prof.user[0]) user = prof.user;
+        if (!port_set && prof.port > 0) port = prof.port;
+        if (nkeys == 0 && prof.identity[0]) keyfiles[nkeys++] = prof.identity;
+        if (prof.hostname[0]) host = prof.hostname;
     }
 
     conn_t c = {0};

@@ -98,6 +98,12 @@ login: `ssh-keygen`, then add the line it prints to `~/.ssh/authorized_keys` on 
 Characters outside Latin (Hebrew, Arabic, Thai, Devanagari, symbols, emoji, Nerd Font icons for Powerline prompts) are drawn from the
 fallback font; CJK ideographs and Hangul need the file `/data/unifont-cjk.pfnt` (`docs/FONTS.md`), without which they appear as empty boxes.
 
+**SSH profiles**: `/home/.ssh/config` works as on a computer: a `Host` block gives a short name its `HostName`, `User`, `Port` and
+`IdentityFile`, so `ssh pve` reaches `root@192.168.1.5:2222`. The command line still wins over the file.
+
+**Small tools**: `calc 2*(3+4)` (or `calc` alone for one line at a time, with `ans`), `printf FORMAT ARGS`, and `man`: the offline
+manual (`man guide`, `man keys`, `man store`, `man -k WORD`), also there without a network.
+
 ## 7. Updating the firmware
 
 From a computer: Web Forge > Device > **Firmware update**, or `palanu ota palanuos.bin`. The device writes the image to the other slot,
