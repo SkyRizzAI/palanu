@@ -184,6 +184,9 @@ static int getb(int32_t timeout_ms) {
     int r = nema_read_timeout(0, &b, 1, timeout_ms);
     /* a killed shell (CANCELED) or a closed terminal (0) ends the input; only a signal interrupt means "drop the line" */
     if (r == NEMA_ERR_CANCELED) return -1;
+    /* a zero wait (the history was due already: a command ran longer than its delay) answers AGAIN, not TIMEOUT; taken as an
+     * interrupt it left the history unwritten and the shell asking again at once, forever (found on the board after `update`) */
+    if (r == NEMA_ERR_AGAIN && timeout_ms == 0) return -2;
     return r == 1 ? b : (r == 0 ? -1 : (r == NEMA_ERR_TIMEOUT ? -2 : -3));
 }
 

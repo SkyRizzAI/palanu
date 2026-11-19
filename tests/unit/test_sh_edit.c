@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "nema/nema.h"
+#include "pal/history.h"
 #include "sh.h"
 #include "test.h"
 
@@ -31,7 +32,26 @@ static int app_edit(int argc, char **argv) {
     }
 }
 
+/* An interactive shell whose command takes longer than the history delay: at the next prompt the write is overdue. */
+static volatile int g_slow_reads;
+static int app_slow(int argc, char **argv) {
+    static sh_t SH;
+    uint32_t mode = NEMA_TTY_RAW;
+    nema_ioctl(0, NEMA_TIOC_SETMODE, &mode);
+    memset(&SH, 0, sizeof(SH));
+    SH.owner = nema_self()->owner;
+    SH.cols = 80;
+    SH.interactive = true;
+    char line[SH_LINE_MAX];
+    if (sh_readline(&SH, "> ", line, sizeof(line)) < 0) return 1;
+    sh_hist_add(&SH, line);
+    nema_sleep_ms(PAL_HISTORY_IDLE_MS + 300); /* "the command runs" */
+    int n = sh_readline(&SH, "> ", line, sizeof(line));
+    return n < 0 ? 0 : 2;
+}
+
 static const nema_app_t APPS[] = {
+    {"slowcmd", "", app_slow, 0, NEMA_APP_HIDDEN},
     {"editline", "", app_edit, 0, NEMA_APP_HIDDEN},
     {"echox", "", app_edit, 0, 0}, /* visible, so the first word can complete to it */
 };
@@ -176,6 +196,31 @@ static void mkfile(const char *path) {
     if (nema_fs_open(path, NEMA_O_WRITE | NEMA_O_CREATE, &f) == NEMA_OK) nema_obj_unref(f);
 }
 
+TEST(a_long_command_still_lets_the_history_be_written) {
+    pal_history_reset_for_test("/hist", NULL);
+    nema_tty_t *t;
+    nema_tty_create(&t, 80, 24, OW);
+    nema_spawn_t sp = {.name = "slowcmd", .stdio = {nema_tty_proc_obj(t), nema_tty_proc_obj(t), NULL}};
+    nema_pid_t pid;
+    nema_proc_spawn(&sp, &pid);
+    nema_tty_set_foreground(t, pid);
+    char out[512] = "";
+    until_prompt(t, out, sizeof(out));
+    nema_tty_input(t, "long-one\r", 9);
+    /* the command's 2.3 s, then the second prompt: the overdue write happens at once (it used to spin there forever) */
+    nema_stat_t st;
+    bool written = false;
+    for (int i = 0; i < 60 && !written; i++) {
+        nema_sleep_ms(100);
+        written = nema_fs_stat("/hist", &st) == NEMA_OK && st.size > 0;
+    }
+    CHECK(written);
+    nema_tty_input(t, "\x04", 1);
+    int code = -1;
+    CHECK(nema_proc_wait(pid, &code, 3000) == NEMA_OK && code == 0);
+    nema_tty_destroy(t);
+}
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
@@ -188,6 +233,7 @@ int main(void) {
     mkfile("/cmpl/alpine.txt");
     mkfile("/cmpl/beta.txt");
     RUN(plain_line_and_enter);
+    RUN(a_long_command_still_lets_the_history_be_written);
     RUN(backspace_and_cursor_keys);
     RUN(delete_key_and_kill_keys);
     RUN(ctrl_d_deletes_or_ends);
