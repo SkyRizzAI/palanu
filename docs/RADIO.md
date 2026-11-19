@@ -49,7 +49,9 @@ written, so the next boot tries again.
 | `wifi on` / `wifi off` | start / stop the `radio-wifi` service (writes `radio.wifi`); `off` turns it off after the grace period |
 | `wifi status` | connected or not; when the radio is off it prints `not connected (radio off)` |
 | `wifi scan`, `wifi connect SSID [PASS]` | only if the Wi-Fi radio is `on`; otherwise refuses and tells you to run `wifi on` |
-| `wifi disconnect`, `wifi forget` | do not need the radio on |
+| `wifi disconnect`, `wifi forget [SSID]` | do not need the radio on; `forget` with no name erases every saved network |
+| `wifi saved` | the saved networks, the most recent first: open or locked, Auto-Join, DHCP or the manual address |
+| `wifi auto SSID on\|off`, `wifi ip SSID dhcp`, `wifi ip SSID ADDRESS MASK ROUTER [DNS]` | Auto-Join, and DHCP or a manual address, from the next connect |
 | `ble on` / `ble off` | start / stop the `radio-ble` service (writes `radio.ble`); `off` also stops `link-ble` |
 | `ble status` | state and whether a client is connected |
 
@@ -62,7 +64,11 @@ written, so the next boot tries again.
 - `platform/esp-idf/palanu/link_ble.c`: `pal_link_ble_start()` calls `nimble_port_init` (controller and host),
   `ble_gatts_reset`, then builds the GATT and the host task. `pal_link_ble_stop()` disconnects the client, `ble_gap_adv_stop`,
   `nimble_port_stop`, and `nimble_port_deinit`.
-- Wi-Fi credentials are read from NVS without the driver (`has_credentials`), so boot knows whether it needs to start Wi-Fi.
+- The saved networks (up to 8, `pal/wifi.h`) are one blob the system writes and the board keeps in NVS (`wifi/nets`), out of reach of
+  the shell and Palanu Link since it holds the passwords; the older single `ssid`/`pass` pair is moved into it once. The boot asks
+  `has_credentials` without the driver to know whether it needs to start Wi-Fi. At start the station joins the most recent network
+  with Auto-Join on; after five quick retries it goes on to the next saved one, with the growing delay between rounds. A network
+  with a manual address gets it on `WIFI_EVENT_STA_CONNECTED` (DHCP stopped, `esp_netif_set_ip_info`, the DNS set).
 - Radio ops and the address hook are registered through `pal_boot_cfg_t.platform_services` (`pal_esp_register_services`, `svc_esp.c`).
   The radio is started by the supervisor according to settings, not directly from `main`.
 

@@ -103,8 +103,17 @@ static void page_build(void) {
     if (grouped) { /* a navigation bar: the title in the middle, the page below as a blue back button */
         lv_label_set_text(A.page_title, title);
         lv_obj_align(A.page_title, LV_ALIGN_TOP_MID, 0, 6);
-        if (sub) lv_label_set_text_fmt(A.page_back, LV_SYMBOL_LEFT " %s", parent_title());
-        else lv_label_set_text(A.page_back, "");
+        if (sub) {
+            /* the back label stops short of the centred title: a long parent ends in dots */
+            lv_point_t tsz;
+            lv_text_get_size(&tsz, title, lv_obj_get_style_text_font(A.page_title, 0), 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+            int room = (A.w - tsz.x) / 2 - 8 - 6;
+            lv_label_set_long_mode(A.page_back, LV_LABEL_LONG_DOT);
+            lv_obj_set_size(A.page_back, room > 24 ? room : 24, 20);
+            lv_label_set_text_fmt(A.page_back, LV_SYMBOL_LEFT " %s", parent_title());
+        } else {
+            lv_label_set_text(A.page_back, "");
+        }
     } else if (ath_T->title_pane) { /* the title on the pane; Back is the right softkey's */
         lv_label_set_text(A.page_title, title);
         lv_obj_align(A.page_title, LV_ALIGN_LEFT_MID, 8, 0);

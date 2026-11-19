@@ -481,6 +481,22 @@ static int32_t g_pal_shutdown(wasm_exec_env_t env, int32_t a0, int32_t a1) {
     return r;
 }
 
+static int32_t g_pal_tls_start(wasm_exec_env_t env, int32_t a0, const char *a1, int32_t a2) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    if (!api_cap_ok(env, "net")) return NEMA_ERR_PERM;
+    int32_t r = psys_api_tls_start(ctx, a0, a1, a2);
+    api_after(env, ctx);
+    return r;
+}
+
+static int32_t g_pal_http_fetch(wasm_exec_env_t env, const char *a0, const char *a1, const char *a2, const void *a3, uint32_t a4, void *a5, uint32_t a6, int32_t a7) {
+    api_ctx_t *ctx = api_ctx_of(env);
+    if (!api_cap_ok(env, "net")) return NEMA_ERR_PERM;
+    int32_t r = psys_api_http_fetch(ctx, a0, a1, a2, a3, a4, a5, a6, a7);
+    api_after(env, ctx);
+    return r;
+}
+
 static int32_t g_pal_toast(wasm_exec_env_t env, const char *a0, int32_t a1) {
     api_ctx_t *ctx = api_ctx_of(env);
     if (!api_cap_ok(env, "notify")) return NEMA_ERR_PERM;
@@ -781,6 +797,8 @@ NativeSymbol api_palanu_natives[] = {
     {"net_info", g_pal_net_info, "(*~)i", NULL},
     {"set_nonblock", g_pal_set_nonblock, "(ii)i", NULL},
     {"shutdown", g_pal_shutdown, "(ii)i", NULL},
+    {"tls_start", g_pal_tls_start, "(i$i)i", NULL},
+    {"http_fetch", g_pal_http_fetch, "($$$*~*~i)i", NULL},
     {"toast", g_pal_toast, "($i)i", NULL},
     {"notify_post", g_pal_notify_post, "($$i)i", NULL},
     {"notify_update", g_pal_notify_update, "(i$$)i", NULL},

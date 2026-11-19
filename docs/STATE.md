@@ -13,7 +13,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 - **Host simulator:** `./pal sim` (SDL2 window) and a script mode with screenshots.
 
 - **Persistent storage (proven on the chip):** `/home`, `/etc`, `/data` on LittleFS (`storage` partition, 8 MB); settings (theme, size, brightness, time zone) survive a reset.
-- **Networking:** sockets as kernel objects, Wi-Fi station on the board (scan, connect, status; credentials in NVS), `nc`, `curl` (no TLS), SNTP.
+- **Networking:** sockets as kernel objects, TLS on any socket (`nema_net_tls`: mbedtls on the board, OpenSSL in the native simulator), an HTTP/1.1 client (`pal/http.h`) under `curl` and the app API (`pal_tls_start`, `pal_http_fetch`, API level 7), Wi-Fi station on the board (scan, connect, up to 8 saved networks with Auto-Join and a manual address each; kept in NVS), `nc`, `ping`, `tcping`, SNTP.
 - **SSH:** client on top of libssh 0.12.2 with Nema sockets; `known_hosts` in `/data/ssh`; public key (`-i`, default `/home/.ssh/id_ed25519`) and password; `ssh-keygen` (proven to create a key on the board). **Proven against a real OpenSSH on a computer** (public key, shell with PTY, size and resize, close; `forge/tests/ssh_e2e.ts`). This test found and fixed an error that kept the session from ever starting. **Not yet tested from the board over Wi-Fi** (needs Wi-Fi connected by the user).
 - **Firmware update (proven on the chip):** `palanu ota`, A/B slots, bootloader rollback, self-confirmation 10 seconds after boot.
 - **Battery:** ADC reading exists, but the S31 voltage scale is not calibrated (there is no calibration scheme in this IDF) and this board does not carry a battery, so the result is "not detected".
@@ -24,12 +24,12 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 ## Not done / not verified
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
-- SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS/TLS does not exist (curl is HTTP GET only).
+- SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.
 - `.papp` signing and compression.
 - Browser simulator on a host without the isolation headers (`coi-sw.js`, for GitHub Pages): written, not run in a real browser yet.
 - Browser simulator: no Bluetooth air interface, no inbound connections, no LAN discovery; the Palanu Link servers do not listen in the browser.
 - BLE: ping was tested from an iPhone; shell, files, and screen over BLE and the Forge BLE client have not been tried.
-- Stored only, nothing applies them yet: `power.profile`, display rotation, `ui.clock24`. One saved Wi-Fi network, no manual IP. App events KEY, FOCUS, NOTIFY and SETTING are reserved and not produced. RELEASE.md section 6 lists the confirmed gaps.
+- Stored only, nothing applies them yet: `power.profile`, display rotation, `ui.clock24`. App events KEY, FOCUS, NOTIFY and SETTING are reserved and not produced. RELEASE.md section 6 lists the confirmed gaps.
 
 ## Phases
 | Phase | State |

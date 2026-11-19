@@ -111,6 +111,7 @@ static const route_t ROUTES[] = {
     {"wifi", &PG_WIFI, NULL},
     {"wifi-detail", &PG_WIFI_DETAIL, &PG_WIFI},
     {"wifi-scan", &PG_WIFI_SCAN, &PG_WIFI},
+    {"wifi-saved", &PG_WIFI_SAVED, &PG_WIFI},
     {"bluetooth", &PG_BLUETOOTH, &PG_DEVICE},
     {"remote", &PG_REMOTE, NULL},
     {"remote-link", &PG_REMOTE_LINK, &PG_DEVELOPER},

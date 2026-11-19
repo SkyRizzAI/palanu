@@ -4,8 +4,10 @@
 
 #include "builtin.h"
 #include "libapp.h"
+#include "pal/http.h"
 #include "pal/radio.h"
 #include "pal/svc.h"
+#include "pal/sysinfo.h"
 #include "pal/vk.h"
 #include "pal/wifi.h"
 
@@ -19,6 +21,41 @@ static int wifi_status_cmd(void) {
     if (st.connected) pal_printf("connected to \"%s\"  ip %s  rssi %d dBm  clock %s\n", st.ssid, st.ip, st.rssi, st.time_synced ? "synced" : "not synced");
     else pal_printf("not connected%s\n", st.saved ? " (saved network, reconnecting)" : "");
     return 0;
+}
+
+/* wifi saved: the saved networks, the most recent first. */
+static int wifi_saved_cmd(void) {
+    pal_wifi_net_t n[PAL_WIFI_NETS];
+    size_t k = pal_wifi_saved(n, PAL_WIFI_NETS);
+    if (k == 0) pal_printf("no saved networks\n");
+    for (size_t i = 0; i < k; i++) {
+        char ip[16] = "dhcp";
+        if (n[i].manual_ip) pal_ipv4_text(n[i].ip.ip, ip, sizeof(ip));
+        pal_printf("%u  %-6s  %-4s  %-15s  %s\n", (unsigned)(i + 1), n[i].secure ? "locked" : "open", n[i].auto_join ? "auto" : "-", ip,
+                   n[i].ssid);
+    }
+    return 0;
+}
+
+/* wifi ip SSID dhcp | wifi ip SSID ADDRESS MASK ROUTER [DNS]: from the next time it joins. */
+static int wifi_ip_cmd(int argc, char **argv) {
+    if (!strcmp(argv[3], "dhcp")) {
+        nema_err_t r = pal_wifi_set_ip(argv[2], false, NULL);
+        if (r == NEMA_ERR_NOENT) pal_eprintf("wifi: \"%s\" is not saved\n", argv[2]);
+        return r == NEMA_OK ? 0 : 1;
+    }
+    pal_ipv4_conf_t c;
+    memset(&c, 0, sizeof(c));
+    if (argc < 6 || !pal_ipv4_parse(argv[3], c.ip) || !pal_ipv4_parse(argv[4], c.mask) || !pal_ipv4_parse(argv[5], c.gw) ||
+        (argc > 6 && !pal_ipv4_parse(argv[6], c.dns))) {
+        pal_eprintf("usage: wifi ip SSID ADDRESS MASK ROUTER [DNS]   (each four numbers, like 192.168.1.20)\n");
+        return 1;
+    }
+    if (!c.dns[0]) memcpy(c.dns, c.gw, 4); /* no DNS given: the router answers names, as most do */
+    nema_err_t r = pal_wifi_set_ip(argv[2], true, &c);
+    if (r == NEMA_ERR_NOENT) pal_eprintf("wifi: \"%s\" is not saved (join it first)\n", argv[2]);
+    else if (r == NEMA_OK) pal_printf("wifi: \"%s\" uses %s from the next connect\n", argv[2], argv[3]);
+    return r == NEMA_OK ? 0 : 1;
 }
 
 /* Scan and connect need the driver up. The radio is started with "wifi on", never by these. */
@@ -144,8 +181,20 @@ static int cmd_wifi(int argc, char **argv) {
         return wifi_status_cmd();
     }
     if (strcmp(argv[1], "disconnect") == 0) return pal_wifi_disconnect() == NEMA_OK ? 0 : 1;
-    if (strcmp(argv[1], "forget") == 0) return pal_wifi_forget() == NEMA_OK ? 0 : 1;
-    pal_eprintf("usage: wifi [on | off | scan | connect [SSID [PASS]] | disconnect | forget]\n");
+    if (strcmp(argv[1], "forget") == 0) { /* one network by name, or every saved one */
+        nema_err_t r = argc > 2 ? pal_wifi_forget_net(argv[2]) : pal_wifi_forget();
+        if (r == NEMA_ERR_NOENT) pal_eprintf("wifi: \"%s\" is not saved (`wifi saved`)\n", argv[2]);
+        return r == NEMA_OK ? 0 : 1;
+    }
+    if (strcmp(argv[1], "saved") == 0) return wifi_saved_cmd();
+    if (strcmp(argv[1], "auto") == 0 && argc == 4 && (!strcmp(argv[3], "on") || !strcmp(argv[3], "off"))) {
+        nema_err_t r = pal_wifi_set_auto(argv[2], !strcmp(argv[3], "on"));
+        if (r == NEMA_ERR_NOENT) pal_eprintf("wifi: \"%s\" is not saved\n", argv[2]);
+        return r == NEMA_OK ? 0 : 1;
+    }
+    if (strcmp(argv[1], "ip") == 0 && argc >= 4) return wifi_ip_cmd(argc, argv);
+    pal_eprintf("usage: wifi [on | off | scan | connect [SSID [PASS]] | disconnect | saved | forget [SSID] |\n"
+                "             auto SSID on|off | ip SSID dhcp | ip SSID ADDRESS MASK ROUTER [DNS]]\n");
     return 1;
 }
 
@@ -185,67 +234,179 @@ static int cmd_nc(int argc, char **argv) {
     return 0;
 }
 
-/* curl [-i] http://host[:port]/path : a plain HTTP GET (no TLS yet) */
+/* curl: an HTTP and HTTPS client on the system's (pal/http.h).
+ *   curl [-i] [-I] [-s] [-k] [-L] [-X METHOD] [-H 'Name: value']... [-d DATA] [-o FILE] URL
+ * -i prints the status line and headers before the body, -I sends HEAD and prints only them, -s keeps errors quiet, -k accepts any
+ * certificate, -L follows redirects (up to 8), -d sends DATA (POST unless -X says otherwise), -o writes the body to FILE. */
+#define CURL_HEADERS 8
+typedef struct {
+    bool show_headers, quiet;
+    nema_obj_t *file; /* -o */
+} curl_out_t;
+
+static void curl_header(void *ctx, const char *line) {
+    curl_out_t *o = (curl_out_t *)ctx;
+    if (o->show_headers) pal_printf("%s\n", line);
+}
+
+static int curl_data(void *ctx, const void *buf, size_t n) {
+    curl_out_t *o = (curl_out_t *)ctx;
+    if (o->file) return nema_obj_write(o->file, buf, n, -1) == (int)n ? 0 : -1;
+    return nema_write(1, buf, n) < 0 ? -1 : 0;
+}
+
+static bool starts_ci(const char *s, const char *prefix) { /* ASCII, case-insensitive */
+    for (; *prefix; s++, prefix++)
+        if ((*s | 32) != (*prefix | 32)) return false;
+    return true;
+}
+
 static int cmd_curl(int argc, char **argv) {
-    bool headers = false;
-    int i = 1;
-    if (argc > 1 && strcmp(argv[1], "-i") == 0) {
-        headers = true;
-        i = 2;
-    }
-    if (i >= argc || strncmp(argv[i], "http://", 7) != 0) {
-        pal_eprintf("usage: curl [-i] http://host[:port]/path   (https is not supported yet)\n");
-        return 1;
-    }
-    char host[64], path[96] = "/";
-    uint16_t port = 80;
-    const char *u = argv[i] + 7;
-    const char *slash = strchr(u, '/');
-    size_t hl = slash ? (size_t)(slash - u) : strlen(u);
-    if (hl >= sizeof(host)) return 1;
-    memcpy(host, u, hl);
-    host[hl] = 0;
-    if (slash) nema_strlcpy(path, slash, sizeof(path));
-    char *colon = strchr(host, ':');
-    if (colon) {
-        *colon = 0;
-        port = (uint16_t)atoi(colon + 1);
-    }
-    nema_obj_t *s;
-    nema_err_t r = nema_net_connect(host, port, 8000, &s);
-    if (r != NEMA_OK) {
-        pal_eprintf("curl: %s: %s\n", host, pal_strerror(r));
-        return 1;
-    }
-    char req[256];
-    int n = snprintf(req, sizeof(req), "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: palanu\r\nConnection: close\r\n\r\n", path, host);
-    nema_obj_write(s, req, (size_t)n, 5000);
-    char buf[256];
-    bool in_body = headers;
-    char tail[4] = {0};
-    int got;
-    while ((got = nema_obj_read(s, buf, sizeof(buf), 10000)) > 0) {
-        for (int k = 0; k < got; k++) {
-            if (!in_body) { /* skip headers up to the blank line */
-                memmove(tail, tail + 1, 3);
-                tail[3] = buf[k];
-                if (memcmp(tail, "\r\n\r\n", 4) == 0) in_body = true;
-                continue;
-            }
-            char c = buf[k];
-            if (c == '\n') nema_write(1, "\r\n", 2);
-            else if (c != '\r') nema_write(1, &c, 1);
+    const char *headers[CURL_HEADERS + 2];
+    int nh = 0;
+    pal_http_req_t q = {.timeout_ms = 15000};
+    curl_out_t out = {0};
+    const char *url = NULL, *file = NULL;
+    bool head_only = false;
+    for (int i = 1; i < argc; i++) {
+        const char *a = argv[i];
+        bool more = i + 1 < argc;
+        if (!strcmp(a, "-i")) out.show_headers = true;
+        else if (!strcmp(a, "-I")) head_only = out.show_headers = true;
+        else if (!strcmp(a, "-s")) out.quiet = true;
+        else if (!strcmp(a, "-k")) q.insecure = true;
+        else if (!strcmp(a, "-L")) q.redirects = 8;
+        else if (!strcmp(a, "-X") && more) q.method = argv[++i];
+        else if (!strcmp(a, "-H") && more && nh < CURL_HEADERS) headers[nh++] = argv[++i];
+        else if (!strcmp(a, "-d") && more) {
+            q.body = argv[++i];
+            q.body_len = strlen(argv[i]);
+        } else if (!strcmp(a, "-o") && more) file = argv[++i];
+        else if (a[0] != '-' && !url) url = a;
+        else {
+            url = NULL;
+            break;
         }
     }
-    nema_obj_unref(s);
-    return got < 0 && got != NEMA_ERR_PIPE ? 1 : 0;
+    if (!url) {
+        pal_eprintf("usage: curl [-i] [-I] [-s] [-k] [-L] [-X METHOD] [-H 'Name: value'] [-d DATA] [-o FILE] URL\n");
+        return 2;
+    }
+    bool typed = false; /* -d sends a form unless a -H gives the body's type */
+    for (int i = 0; i < nh; i++) typed |= starts_ci(headers[i], "content-type:");
+    if (q.body && !typed) headers[nh++] = "Content-Type: application/x-www-form-urlencoded";
+    headers[nh] = NULL;
+    q.headers = nh ? headers : NULL;
+    if (head_only) q.method = "HEAD";
+    q.url = url;
+    q.on_header = curl_header;
+    q.on_data = curl_data;
+    q.ctx = &out;
+    if (file && nema_fs_open(file, NEMA_O_WRITE | NEMA_O_CREATE | NEMA_O_TRUNC, &out.file) != NEMA_OK) {
+        pal_eprintf("curl: cannot write %s\n", file);
+        return 1;
+    }
+    pal_http_resp_t r;
+    nema_err_t e = pal_http_request(&q, &r);
+    if (out.file) nema_obj_unref(out.file);
+    if (out.show_headers && e == NEMA_OK) pal_printf("\n");
+    if (e != NEMA_OK) {
+        if (!out.quiet) {
+            if (e == NEMA_ERR_AUTH) pal_eprintf("curl: %s: the server's certificate is not trusted (-k skips the check)\n", url);
+            else if (e == NEMA_ERR_UNSUPPORTED) pal_eprintf("curl: https is not available in this build\n");
+            else if (e == NEMA_ERR_INVAL) pal_eprintf("curl: %s: not an http:// or https:// URL\n", url);
+            else if (e == NEMA_ERR_RANGE) pal_eprintf("curl: too many redirects\n");
+            else pal_eprintf("curl: %s: %s\n", url, pal_strerror(e));
+        }
+        return 1;
+    }
+    if (file && !out.quiet) pal_printf("%s: %llu bytes, HTTP %d\n", file, (unsigned long long)r.received, r.status);
+    return r.status >= 400 ? 22 : 0; /* curl --fail's exit code: scripts can test it */
+}
+
+/* ping [-c COUNT] HOST: ICMP echo, one a second, then the summary. Ctrl-C stops early (the summary still prints). */
+static int cmd_ping(int argc, char **argv) {
+    int count = 4;
+    const char *host = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-c") && i + 1 < argc) count = atoi(argv[++i]);
+        else if (argv[i][0] != '-') host = argv[i];
+    }
+    if (!host || count < 1) {
+        pal_eprintf("usage: ping [-c COUNT] HOST\n");
+        return 2;
+    }
+    int sent = 0, got = 0;
+    uint32_t min = 0xFFFFFFFFu, max = 0;
+    uint64_t total = 0;
+    for (int i = 0; i < count; i++) {
+        uint32_t rtt = 0;
+        uint8_t ip[4] = {0};
+        nema_err_t r = nema_net_ping(host, (uint16_t)(i + 1), 2000, &rtt, ip);
+        if (r == NEMA_ERR_INTR || r == NEMA_ERR_CANCELED) break;
+        if (r == NEMA_ERR_NOENT || r == NEMA_ERR_UNSUPPORTED) {
+            pal_eprintf("ping: %s: %s\n", host, r == NEMA_ERR_NOENT ? "unknown host" : "ICMP is not available here");
+            return 2;
+        }
+        sent++;
+        if (r == NEMA_OK) {
+            got++;
+            total += rtt, min = rtt < min ? rtt : min, max = rtt > max ? rtt : max;
+            pal_printf("reply from %u.%u.%u.%u: seq=%d time=%u.%u ms\n", ip[0], ip[1], ip[2], ip[3], i + 1, (unsigned)(rtt / 1000),
+                       (unsigned)(rtt % 1000 / 100));
+        } else {
+            pal_printf("seq=%d: no reply (%s)\n", i + 1, pal_strerror(r));
+        }
+        if (i + 1 < count && nema_sleep_ms(rtt >= 1000000u ? 0 : (int32_t)(1000 - rtt / 1000)) != NEMA_OK) break;
+    }
+    pal_printf("--- %s: %d sent, %d received, %d%% lost", host, sent, got, sent ? (sent - got) * 100 / sent : 0);
+    if (got) pal_printf(", time min/avg/max %u.%u/%u.%u/%u.%u ms", (unsigned)(min / 1000), (unsigned)(min % 1000 / 100),
+                        (unsigned)(total / (uint64_t)got / 1000), (unsigned)(total / (uint64_t)got % 1000 / 100), (unsigned)(max / 1000),
+                        (unsigned)(max % 1000 / 100));
+    pal_printf("\n");
+    return got ? 0 : 1;
+}
+
+/* tcping [-c COUNT] HOST PORT: how long a TCP connect takes (works where ICMP is filtered). */
+static int cmd_tcping(int argc, char **argv) {
+    int count = 4;
+    const char *host = NULL, *port = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-c") && i + 1 < argc) count = atoi(argv[++i]);
+        else if (!host) host = argv[i];
+        else port = argv[i];
+    }
+    int p = port ? atoi(port) : 0;
+    if (!host || p < 1 || p > 65535 || count < 1) {
+        pal_eprintf("usage: tcping [-c COUNT] HOST PORT\n");
+        return 2;
+    }
+    int ok = 0;
+    for (int i = 0; i < count; i++) {
+        uint64_t t0 = pal_sys_uptime_us();
+        nema_obj_t *s = NULL;
+        nema_err_t r = nema_net_connect(host, (uint16_t)p, 3000, &s);
+        uint32_t us = (uint32_t)(pal_sys_uptime_us() - t0);
+        if (r == NEMA_ERR_INTR || r == NEMA_ERR_CANCELED) break;
+        if (r == NEMA_OK) {
+            ok++;
+            nema_obj_unref(s);
+            pal_printf("%s:%d open, %u.%u ms\n", host, p, (unsigned)(us / 1000), (unsigned)(us % 1000 / 100));
+        } else {
+            pal_printf("%s:%d %s\n", host, p, pal_strerror(r));
+        }
+        if (i + 1 < count && nema_sleep_ms(500) != NEMA_OK) break;
+    }
+    return ok ? 0 : 1;
 }
 
 #define APP(n, h, f, s) {n, h, f, s, 0}
 static const nema_app_t NET_APPS[] = {
     APP("wifi", "Wi-Fi: scan, connect, status", cmd_wifi, 8192),
     APP("nc", "TCP client: relay stdin and a socket", cmd_nc, 8192),
-    APP("curl", "HTTP GET (no TLS yet)", cmd_curl, 8192),
+    APP("curl", "HTTP and HTTPS client", cmd_curl, 8192),
+    APP("ping", "ICMP echo: is a host there, and how far", cmd_ping, 6144),
+    APP("tcping", "time a TCP connect to a host and port", cmd_tcping, 6144),
 };
 
 void pal_apps_register_net(void);

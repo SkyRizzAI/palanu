@@ -1,8 +1,7 @@
-/* Settings pages: Wi-Fi and the network detail page. The Wi-Fi page is the reference's: the switch, Add Other Network, the connected network under Connected, and the scan results
- * under Other Networks, each with its signal bars as the value (secured networks carry " *"). The radio starts and stops, the
- * scan and the connect run as jobs (settings_job.c); the password is asked on the virtual keyboard, masked. The IP configuration
- * page is not here: pal/wifi.h does not expose DHCP or a static address. The gateway, subnet and DNS are not exposed either,
- * so the detail page shows what pal_wifi_status reports. */
+/* Settings pages: Wi-Fi, the connected network, the saved networks and one saved network. The Wi-Fi page is the reference's: the
+ * switch, the connected network, My networks, the scan results under Other networks, Rescan and Add other network. The radio
+ * starts and stops, the scan and the connect run as jobs (settings_job.c); the password is asked on the virtual keyboard, masked.
+ * A saved network has its own page: Auto-Join, Automatic or Manual IPv4 (address, subnet mask, router, DNS) and Forget. */
 #include <stdio.h>
 #include <string.h>
 
@@ -20,6 +19,10 @@ static size_t s_naps;
 static pal_menu_row_t WIFI_STORE[WIFI_STORE_N] NEMA_EXT_BSS;
 static pal_menu_row_t SCAN_STORE[NET_STORE] NEMA_EXT_BSS;
 static pal_menu_row_t DETAIL_STORE[10] NEMA_EXT_BSS;
+static pal_menu_row_t SAVED_STORE[PAL_WIFI_NETS + 2] NEMA_EXT_BSS;
+static pal_menu_row_t NET_STORE_ROWS[12] NEMA_EXT_BSS;
+static pal_wifi_net_t s_saved[PAL_WIFI_NETS] NEMA_EXT_BSS;
+static char s_net[33]; /* the saved network the one-network page shows */
 static char s_ssid[33];            /* the network being added or joined, across the two questions */
 static char s_title[48];           /* the password keyboard's title: "Password: <ssid>" */
 
@@ -142,13 +145,10 @@ static void connected_text(void *ctx, char *out, size_t cap) {
 
 static void saved_text(void *ctx, char *out, size_t cap) {
     (void)ctx;
-    if (!pal_wifi_has_credentials()) {
-        snprintf(out, cap, "none");
-        return;
-    }
-    pal_wifi_status_t st;
-    pal_wifi_status(&st);
-    snprintf(out, cap, "%s", st.ssid[0] ? st.ssid : "saved");
+    pal_wifi_net_t n[PAL_WIFI_NETS];
+    size_t k = pal_wifi_saved(n, PAL_WIFI_NETS);
+    if (k == 0) snprintf(out, cap, "none");
+    else snprintf(out, cap, "%u saved", (unsigned)k);
 }
 
 static void scan_count_text(void *ctx, char *out, size_t cap) {
@@ -182,8 +182,8 @@ static void build_wifi(pal_menu_page_t *p) {
     r = (pal_menu_row_t){.kind = PAL_MENU_SUBMENU, .label = "Connected", .icon = "wifi", .text = connected_text,
                          .open = open_detail, .disabled = !connected(), .hint = "Enter shows the address and the forget action"};
     pal_menu_add(p, &r);
-    r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "Saved network", .icon = "lock", .text = saved_text,
-                         .hint = "Reconnects by itself when in range"};
+    r = (pal_menu_row_t){.kind = PAL_MENU_SUBMENU, .label = "My networks", .icon = "lock", .text = saved_text,
+                         .open = settings_open_ctx, .ctx = &PG_WIFI_SAVED, .hint = "Saved networks: Auto-Join, IP address, forget"};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_SUBMENU, .label = "Other networks", .icon = "wifi", .text = scan_count_text,
                          .open = settings_open_ctx, .ctx = &PG_WIFI_SCAN, .hint = "Scan results; Enter on one joins it"};
@@ -247,9 +247,11 @@ static void disconnect_run(void *ctx) {
 }
 
 /* The row asks first (its confirm text); this runs when the user says Forget. */
-static void forget_run(void *ctx) {
+static void forget_run(void *ctx) { /* the connected network only: the others stay saved */
     (void)ctx;
-    settings_run_job(JOB_FORGET, NULL, NULL, "Forgetting network...");
+    pal_wifi_status_t st;
+    pal_wifi_status(&st);
+    settings_run_job(JOB_FORGET, st.ssid, NULL, "Forgetting network...");
 }
 
 static void status_text(void *ctx, char *out, size_t cap) {
@@ -304,9 +306,118 @@ static void build_detail(pal_menu_page_t *p) {
                          .hint = "Stays saved; it reconnects when the radio is on"};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "Forget network", .icon = "lock", .danger = true,
-                         .run = forget_run, .confirm = "The saved password is erased.", .ok_label = "Forget"};
+                         .run = forget_run, .confirm = "This network's saved password is erased.", .ok_label = "Forget"};
     pal_menu_add(p, &r);
 }
 
 pal_menu_page_t PG_WIFI_DETAIL = {.title = "Wi-Fi network", .store = DETAIL_STORE, .cap = 10, .build = build_detail,
                                   .live = true};
+
+/* ---- My networks: the saved ones, most recent first ---- */
+
+static pal_menu_page_t *open_net(void *ctx) {
+    const pal_wifi_net_t *n = (const pal_wifi_net_t *)ctx;
+    snprintf(s_net, sizeof(s_net), "%s", n->ssid);
+    return &PG_WIFI_NET;
+}
+
+static void saved_flags_text(void *ctx, char *out, size_t cap) {
+    const pal_wifi_net_t *n = (const pal_wifi_net_t *)ctx;
+    snprintf(out, cap, "%s%s", n->auto_join ? "auto" : "manual join", n->manual_ip ? ", fixed IP" : "");
+}
+
+static void build_saved(pal_menu_page_t *p) {
+    pal_menu_clear(p);
+    size_t k = pal_wifi_saved(s_saved, PAL_WIFI_NETS);
+    for (size_t i = 0; i < k; i++) {
+        pal_menu_row_t r = {.kind = PAL_MENU_SUBMENU, .label = s_saved[i].ssid, .icon = s_saved[i].secure ? "lock" : "wifi",
+                            .ctx = &s_saved[i], .text = saved_flags_text, .open = open_net,
+                            .hint = "Auto-Join, the IP address, forget"};
+        pal_menu_add(p, &r);
+    }
+}
+
+pal_menu_page_t PG_WIFI_SAVED = {.title = "My networks", .store = SAVED_STORE, .cap = PAL_WIFI_NETS + 2, .build = build_saved,
+                                 .empty = "No saved networks: join one and it is kept here"};
+
+/* ---- one saved network ---- */
+
+static bool net_get(pal_wifi_net_t *n) { return pal_wifi_saved_get(s_net, n); }
+
+static int auto_get(void *ctx) {
+    (void)ctx;
+    pal_wifi_net_t n;
+    return net_get(&n) && n.auto_join;
+}
+static void auto_set(void *ctx, int v) {
+    (void)ctx;
+    (void)pal_wifi_set_auto(s_net, v != 0);
+}
+
+static const char *const IP_MODES[] = {"Automatic", "Manual", NULL};
+static int mode_get(void *ctx) {
+    (void)ctx;
+    pal_wifi_net_t n;
+    return net_get(&n) && n.manual_ip;
+}
+static void mode_set(void *ctx, int v) {
+    (void)ctx;
+    pal_wifi_net_t n;
+    if (!net_get(&n)) return;
+    if (pal_wifi_set_ip(s_net, v != 0, &n.ip) == NEMA_ERR_INVAL) settings_toast("Enter the IP address first");
+    else settings_toast(v ? "Manual address from the next connect" : "DHCP from the next connect");
+}
+
+/* The four addresses: ctx is the field's offset in pal_ipv4_conf_t (0 ip, 4 mask, 8 router, 12 DNS). */
+static void field_text(void *ctx, char *out, size_t cap) {
+    pal_wifi_net_t n;
+    const uint8_t *a = net_get(&n) ? (const uint8_t *)&n.ip + (uintptr_t)ctx : NULL;
+    if (!a || !(a[0] | a[1] | a[2] | a[3])) snprintf(out, cap, "-");
+    else pal_ipv4_text(a, out, cap);
+}
+static bool field_apply(void *ctx, const char *text) {
+    pal_wifi_net_t n;
+    uint8_t v[4];
+    if (!net_get(&n) || !pal_ipv4_parse(text, v)) {
+        settings_toast("Four numbers 0 to 255, like 192.168.1.20");
+        return false;
+    }
+    memcpy((uint8_t *)&n.ip + (uintptr_t)ctx, v, 4);
+    return pal_wifi_set_ip(s_net, n.manual_ip, &n.ip) == NEMA_OK;
+}
+
+static void net_name_text(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    snprintf(out, cap, "%s", s_net);
+}
+
+static void forget_net_run(void *ctx) {
+    (void)ctx;
+    settings_run_job(JOB_FORGET, s_net, NULL, "Forgetting network...");
+    (void)pal_menu_pop(settings_menu()); /* the page is about a network that is gone */
+}
+
+static void build_net(pal_menu_page_t *p) {
+    pal_menu_clear(p);
+    pal_menu_row_t r = {.kind = PAL_MENU_INFO, .label = "Network", .text = net_name_text};
+    pal_menu_add(p, &r);
+    r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "Auto-Join", .icon = "wifi", .get = auto_get, .set = auto_set,
+                         .hint = "Joins by itself when in range"};
+    pal_menu_add(p, &r);
+    r = (pal_menu_row_t){.kind = PAL_MENU_SECTION, .label = "IPv4"};
+    pal_menu_add(p, &r);
+    r = (pal_menu_row_t){.kind = PAL_MENU_CHOICE, .label = "Configure IP", .choices = IP_MODES, .get = mode_get, .set = mode_set,
+                         .hint = "Automatic is DHCP; Manual uses the addresses below"};
+    pal_menu_add(p, &r);
+    static const char *const LABELS[] = {"IP address", "Subnet mask", "Router", "DNS"};
+    for (int i = 0; i < 4; i++) {
+        r = (pal_menu_row_t){.kind = PAL_MENU_TEXT, .label = LABELS[i], .ctx = (void *)(uintptr_t)(i * 4), .text = field_text,
+                             .apply_text = field_apply, .max_len = 15, .hint = "Used when Configure IP is Manual"};
+        pal_menu_add(p, &r);
+    }
+    r = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "Forget this network", .icon = "lock", .danger = true,
+                         .run = forget_net_run, .confirm = "Its saved password is erased.", .ok_label = "Forget"};
+    pal_menu_add(p, &r);
+}
+
+pal_menu_page_t PG_WIFI_NET = {.title = "Network", .store = NET_STORE_ROWS, .cap = 12, .build = build_net};

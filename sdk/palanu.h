@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#define PAL_API 6
+#define PAL_API 7
 #define PAL_IMPORT(n) __attribute__((import_module("palanu"), import_name(#n)))
 
 typedef int32_t pal_handle_t;
@@ -265,11 +265,12 @@ PAL_IMPORT(log) int32_t pal_log(int32_t level, const char *msg);
 
 /* ---- mem: Memory. A WebAssembly app allocates from its own linear memory, with the allocator its SDK or libc brings; there is no pal_alloc in this API. The system charges the linear memory to the app and caps it at the manifest's "mem" (KB, 256 when not given): memory.grow past the cap fails, so an app never holds more than its manifest says. Native code (the system and the built-in apps) uses the kernel allocator, which has classes and owners. ---- */
 
-/* ---- net: TCP and DNS, as a client or a server (IPv4). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it. Connect, resolve, and accept take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). UDP is not in this level. ---- */
+/* ---- net: TCP and DNS, as a client or a server (IPv4), TLS on a TCP connection, and HTTP and HTTPS requests (API level 7). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it, also after pal_tls_start. Connect, resolve, accept, the TLS handshake and a request take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). An app's TLS always checks the server's certificate against the system's trusted roots. UDP is not in this level. ---- */
 #define PAL_ERR_TIMEOUT (-5)
 #define PAL_ERR_REFUSED (-26)
 #define PAL_ERR_RESET (-24)
 #define PAL_ERR_UNREACH (-25)
+#define PAL_HTTP_HEAD_SIZE 8
 #define PAL_NET_INFO_SIZE 12
 
 /* pal_tcp_connect (since 2, needs the "net" permission): Connects to host (a name or a dotted IPv4 address, NUL-terminated) on port, waiting up to timeout_ms (negative: no limit) for the lookup and the connect. Returns a handle, or a negative error: PAL_ERR_REFUSED, PAL_ERR_UNREACH, PAL_ERR_TIMEOUT, PAL_ERR_NOENT. */
@@ -292,6 +293,12 @@ PAL_IMPORT(set_nonblock) int32_t pal_set_nonblock(int32_t h, int32_t on);
 
 /* pal_shutdown (since 2): Shuts down a socket the app owns: how is 0 (receiving), 1 (sending) or 2 (both). Returns 0, or a negative error. */
 PAL_IMPORT(shutdown) int32_t pal_shutdown(int32_t h, int32_t how);
+
+/* pal_tls_start (since 7, needs the "net" permission): Turns the connected TCP socket h into a TLS client for host (the server name, checked against its certificate): the handshake runs now, up to timeout_ms. Afterwards pal_read and pal_write on h carry plain text. Returns 0, or a negative error: PAL_ERR_AUTH (certificate not trusted), PAL_ERR_UNSUPPORTED, PAL_ERR_TIMEOUT. */
+PAL_IMPORT(tls_start) int32_t pal_tls_start(int32_t h, const char *host, int32_t timeout_ms);
+
+/* pal_http_fetch (since 7, needs the "net" permission): Sends an HTTP or HTTPS request and waits up to timeout_ms for each step. method is GET, POST, PUT, DELETE, HEAD or PATCH; headers are extra lines of the form Name: value, separated by newlines (empty for none); body has body_len bytes (0 for none). Redirects are followed (up to 5). Writes the status, the body's full length and as much of the body as fits into out (see PAL_HTTP_HEAD_SIZE; cap >= 8). Returns the bytes written into out, or a negative error. */
+PAL_IMPORT(http_fetch) int32_t pal_http_fetch(const char *method, const char *url, const char *headers, const void *body, uint32_t body_len, void *out, uint32_t cap, int32_t timeout_ms);
 
 /* ---- notify: Notifications and toasts (API level 2). A notification has a title (up to 31 characters) and a text (up to 95); the system keeps the last 32 and the notification center shows them. A toast is a short message the system shows on top of the screen. Posting needs the notify permission. An app posts at most 4 notifications or toasts per second; the excess is refused with PAL_ERR_BUSY. Until the notification center exists, notifications are kept and logged, and shown by the notify shell command. ---- */
 #define PAL_NOTIFY_ALERT 0x01

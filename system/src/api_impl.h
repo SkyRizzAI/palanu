@@ -72,6 +72,8 @@ int32_t psys_api_dns_resolve(api_ctx_t *c, const char *host, void *addr_out, uin
 int32_t psys_api_net_info(api_ctx_t *c, void *out, uint32_t len);
 int32_t psys_api_set_nonblock(api_ctx_t *c, int32_t h, int32_t on);
 int32_t psys_api_shutdown(api_ctx_t *c, int32_t h, int32_t how);
+int32_t psys_api_tls_start(api_ctx_t *c, int32_t h, const char *host, int32_t timeout_ms);
+int32_t psys_api_http_fetch(api_ctx_t *c, const char *method, const char *url, const char *headers, const void *body, uint32_t body_len, void *out, uint32_t cap, int32_t timeout_ms);
 int32_t psys_api_toast(api_ctx_t *c, const char *text, int32_t ms);
 int32_t psys_api_notify_post(api_ctx_t *c, const char *title, const char *text, int32_t flags);
 int32_t psys_api_notify_update(api_ctx_t *c, int32_t id, const char *title, const char *text);

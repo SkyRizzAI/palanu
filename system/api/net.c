@@ -7,6 +7,7 @@
 #include "../src/api_ctx.h"
 #include "../src/api_impl.h"
 #include "nema/nema.h"
+#include "pal/http.h"
 #include "pal/wifi.h"
 
 /* The size of the pal_net_info record (api/palanu/net.h, NET_INFO_LEN). */
@@ -112,4 +113,69 @@ int32_t psys_api_shutdown(api_ctx_t *c, int32_t h, int32_t how) {
     if (!api_fd_owned(c, h)) return NEMA_ERR_BADF;
     int v = (int)how;
     return nema_ioctl(h, NEMA_NETIOC_SHUTDOWN, &v);
+}
+
+/* ---- TLS and HTTP (API level 7) ---- */
+
+int32_t psys_api_tls_start(api_ctx_t *c, int32_t h, const char *host, int32_t timeout_ms) {
+    if (!api_fd_owned(c, h)) return NEMA_ERR_BADF;
+    if (!host || !*host) return NEMA_ERR_INVAL;
+    return cut(c, nema_net_tls(nema_handle_obj(h), host, true, timeout_ms));
+}
+
+typedef struct {
+    uint8_t *out;
+    uint32_t cap, used;
+} fetch_sink_t;
+
+static int fetch_data(void *ctx, const void *buf, size_t n) {
+    fetch_sink_t *f = (fetch_sink_t *)ctx;
+    size_t room = f->cap - f->used;
+    if (n > room) n = room; /* the rest is counted (resp.received) and dropped */
+    memcpy(f->out + f->used, buf, n);
+    f->used += (uint32_t)n;
+    return 0;
+}
+
+#define HTTP_HEADERS_MAX 8
+
+int32_t psys_api_http_fetch(api_ctx_t *c, const char *method, const char *url, const char *headers, const void *body, uint32_t body_len,
+                            void *out, uint32_t cap, int32_t timeout_ms) {
+    if (!url || !out || cap < 8) return NEMA_ERR_INVAL;
+    static const char *const METHODS[] = {"GET", "POST", "PUT", "DELETE", "HEAD", "PATCH"};
+    const char *m = NULL;
+    for (size_t i = 0; method && i < sizeof(METHODS) / sizeof(METHODS[0]); i++)
+        if (!strcmp(method, METHODS[i])) m = METHODS[i];
+    if (!m) return NEMA_ERR_INVAL;
+    /* the header lines: copied, split on newlines (no CR or LF reaches the request inside a value) */
+    char *hb = NULL;
+    const char *hv[HTTP_HEADERS_MAX + 1];
+    int nh = 0;
+    if (headers && *headers) {
+        size_t hl = strlen(headers);
+        if (hl > 1024) return NEMA_ERR_RANGE;
+        hb = nema_alloc(NEMA_MEM_ANY, NEMA_OWNER_KERNEL, hl + 1);
+        if (!hb) return NEMA_ERR_NOMEM;
+        memcpy(hb, headers, hl + 1);
+        for (char *p = hb; *p && nh < HTTP_HEADERS_MAX;) {
+            char *e = p + strcspn(p, "\r\n");
+            bool more = *e != 0;
+            *e = 0;
+            if (*p) hv[nh++] = p;
+            p = more ? e + 1 : e;
+            while (*p == '\r' || *p == '\n') p++;
+        }
+    }
+    hv[nh] = NULL;
+    fetch_sink_t sink = {(uint8_t *)out + 8, cap - 8, 0};
+    pal_http_req_t q = {.method = m, .url = url, .headers = nh ? hv : NULL, .body = body_len ? body : NULL, .body_len = body_len,
+                        .redirects = 5, .timeout_ms = timeout_ms, .on_data = fetch_data, .ctx = &sink};
+    pal_http_resp_t r;
+    nema_err_t e = pal_http_request(&q, &r);
+    nema_free(hb);
+    if (e != NEMA_OK) return cut(c, e);
+    int32_t st = r.status, total = r.received > 0x7FFFFFFF ? 0x7FFFFFFF : (int32_t)r.received;
+    uint8_t *o = (uint8_t *)out;
+    for (int i = 0; i < 4; i++) o[i] = (uint8_t)(st >> (8 * i)), o[4 + i] = (uint8_t)(total >> (8 * i));
+    return (int32_t)(8 + sink.used);
 }

@@ -11,7 +11,7 @@ idf_component_register(
     SRCS ${NEMA_SRC} ${NEMA_POSIX_SRC}
     INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/include
     PRIV_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/src
-    PRIV_REQUIRES lwip vfs # vfs: the socket pump's wake fd is an eventfd on the board (platform/net_bsd)
+    PRIV_REQUIRES lwip vfs mbedtls # vfs: the socket pump's wake fd is an eventfd; mbedtls: TLS on sockets (platform/net_bsd)
 )
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Wno-unused-parameter -fstack-usage) # stack frames checked by forge/tools/ramcheck.ts
 # NEMA_EXT_BSS (nema/types.h): big zero-initialised UI data goes to PSRAM. PUBLIC, so system and apps see it too.

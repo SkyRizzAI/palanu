@@ -40,6 +40,7 @@ bun forge/tools/fontpack.ts file unifont-cjk.pfnt assets/fonts/unifont/unifont-1
 python3 forge/tools/nerd2hex.py SymbolsNerdFontMono-Regular.ttf assets/fonts/nerd/nerdsymbols.hex     # needs Pillow and fontTools
 ```
 
-The file format (`PFN1`, code-numbered runs, 16 rows per glyph) is in the header of `forge/tools/fontpack.ts`. Cost in the image: before
-the fallback glyphs 66% of the OTA slot, afterwards 84% (the release gate warns at 85% and fails at 95%), so any further
-additions must go to the file, not the image.
+The file format (`PFN1`, code-numbered runs, 16 rows per glyph) is in the header of `forge/tools/fontpack.ts`. The embedded tier is
+stored as raw deflate (714 KB of glyphs in 253 KB of the image) and inflated once into PSRAM at the first fallback glyph
+(`system/src/font_fallback.c`); that took the image from 92.7% to 81.7% of the OTA slot (the release gate warns at 85% and fails
+at 95%). Further glyphs still belong in the file, not the image.

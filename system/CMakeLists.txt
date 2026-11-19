@@ -28,7 +28,10 @@ idf_component_register(
     REQUIRES nema
     PRIV_REQUIRES wamr mbedtls
 )
-set_source_files_properties(${MONOCYPHER_SRC} ${MINIZ_SRC} ${LVGL_SRC} PROPERTIES COMPILE_OPTIONS "-w")
+set_source_files_properties(${MONOCYPHER_SRC} ${MINIZ_SRC} PROPERTIES COMPILE_OPTIONS "-w")
+# LVGL is the biggest library in the image: built for size (-Os) it keeps the firmware under the OTA slot's 95% limit, and Athena
+# draws changed areas only, so its speed does not need -O2.
+set_source_files_properties(${LVGL_SRC} PROPERTIES COMPILE_OPTIONS "-w;-Os")
 target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../third_party/lvgl ${CMAKE_CURRENT_LIST_DIR}/src/athena)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE LV_CONF_INCLUDE_SIMPLE LV_LVGL_H_INCLUDE_SIMPLE)
 # Display strings are cut to fit on purpose (snprintf into a screen-sized buffer); GCC -O2 flags each one.

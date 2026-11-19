@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 
-#define PAL_API_LEVEL 6
+#define PAL_API_LEVEL 7
 
 #define PAL_SINCE(n)
 #define PAL_DOC(text)

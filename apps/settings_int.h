@@ -75,7 +75,7 @@ bool settings_scan_done(void); /* a scan has finished at least once */
 
 /* ---- pages (one per settings_*.c file) ---- */
 extern pal_menu_page_t PG_DISPLAY, PG_APPEARANCE, PG_DESKTOP_SETTING, PG_CONTROLS, PG_KEYS, PG_KEYMAP;
-extern pal_menu_page_t PG_WIFI, PG_WIFI_DETAIL, PG_WIFI_SCAN;
+extern pal_menu_page_t PG_WIFI, PG_WIFI_DETAIL, PG_WIFI_SCAN, PG_WIFI_SAVED, PG_WIFI_NET;
 extern pal_menu_page_t PG_BLUETOOTH, PG_REMOTE, PG_REMOTE_LINK, PG_LINK_CLIENTS;
 extern pal_menu_page_t PG_NOTIFY, PG_NOTIFY_APPS, PG_SOUND, PG_BATTERY, PG_POWER, PG_STORAGE, PG_STORAGE_DETAIL;
 extern pal_menu_page_t PG_LED, PG_CAMERA, PG_TOUCH, PG_SENSORS, PG_SECURE;

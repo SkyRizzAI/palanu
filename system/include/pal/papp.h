@@ -10,7 +10,7 @@
 #define PAL_PAPP_MAGIC "PLNU"
 #define PAL_PAPP_FORMAT 2     /* the format this firmware writes */
 #define PAL_PAPP_FORMAT_V1 1  /* still read: the single-payload layout */
-#define PAL_PAPP_API 6        /* the `palanu` import module this firmware provides (api level 6: form and canvas screens) */
+#define PAL_PAPP_API 7        /* the `palanu` import module this firmware provides (api level 7: TLS and HTTP) */
 #define PAL_PAPP_MAX_BYTES (1024u * 1024u)       /* the raw code section: larger modules are refused */
 #define PAL_PAPP_MAX_FILE (PAL_PAPP_MAX_BYTES + 512u * 1024u) /* the whole file as stored */
 

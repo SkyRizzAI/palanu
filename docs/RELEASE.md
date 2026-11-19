@@ -93,7 +93,8 @@ restarts is what will measure it properly.
 Features that were checked directly in the code and are confirmed **absent**:
 
 - apps: BadUSB, Wallets, Stopwatch, Clock;
-- networking: manual IP settings, per-network Auto-Join, Bluetooth Discoverable and Pair Request (pairing only goes through Palanu Link);
+- networking: Bluetooth Discoverable and Pair Request (pairing only goes through Palanu Link); (manual IP, several saved networks with
+  Auto-Join, HTTPS and ping were added on 19 November 2026, ADR-0013);
 - system: power profile (`power.profile` is only stored), runtime permissions (Allow/Deny), screen `Rotation` (only stored), choice of
   12-hour format (`ui.clock24` is only stored), Wi-Fi monitor/inject for security tools (needs a radio capability
   that does not exist yet).

@@ -173,6 +173,7 @@ static nema_err_t wifi_connect(const char *ssid, const char *pass, int32_t timeo
         s_rssi = hit ? hit->ap.rssi : -60;
     }
     pthread_mutex_unlock(&s_lock);
+    if (rc == NEMA_OK) pal_wifi_joined(ssid, pass); /* as the board does: saved, first in the list */
     return rc;
 }
 static nema_err_t wifi_disconnect(void) {
@@ -189,11 +190,28 @@ static void wifi_status(pal_wifi_status_t *st) {
     st->saved = false;
     snprintf(st->ssid, sizeof(st->ssid), "%s", s_ssid);
     snprintf(st->ip, sizeof(st->ip), "%s", s_connected ? s_ip : "");
+    pal_wifi_net_t n;
+    if (s_connected && pal_wifi_saved_get(s_ssid, &n) && n.manual_ip) pal_ipv4_text(n.ip.ip, st->ip, sizeof(st->ip));
+    st->saved = pal_wifi_saved_get(s_ssid, NULL);
     st->rssi = s_connected ? s_rssi : 0;
     st->time_synced = s_connected;
 }
 static bool wifi_has_credentials(void) { return false; }
-static const pal_wifi_ops_t WIFI = {wifi_scan, wifi_connect, wifi_disconnect, wifi_forget, wifi_status, wifi_has_credentials};
+/* The saved networks (pal/wifi.h): kept in memory for the simulator's life, like the board's NVS between restarts. */
+static uint8_t s_nets[1024];
+static size_t s_nets_len;
+static nema_err_t wifi_store(const void *blob, size_t len) {
+    if (len > sizeof(s_nets)) return NEMA_ERR_RANGE;
+    memcpy(s_nets, blob, len);
+    s_nets_len = len;
+    return NEMA_OK;
+}
+static size_t wifi_load(void *blob, size_t cap) {
+    size_t n = s_nets_len < cap ? s_nets_len : cap;
+    memcpy(blob, s_nets, n);
+    return n;
+}
+static const pal_wifi_ops_t WIFI = {wifi_scan, wifi_connect, wifi_disconnect, wifi_forget, wifi_status, wifi_has_credentials, wifi_store, wifi_load};
 const pal_wifi_ops_t *sim_hw_wifi_ops(void) { return &WIFI; }
 
 /* ---- the device table ---- */

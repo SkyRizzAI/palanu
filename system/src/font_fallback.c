@@ -1,7 +1,8 @@
 /* The fallback font: glyphs for the code points the Spleen fonts do not carry (Armenian, Hebrew, Arabic, Thai, Devanagari, the
  * rest of Latin and symbols, emoji outlines, Nerd Font icons ...), 8x16 (one cell) or 16x16 (two cells), from GNU Unifont and a
  * rasterised subset of Symbols Nerd Font (assets/fonts/unifont/README). Two tiers share one format (forge/tools/fontpack.ts):
- *   - the embedded tier, read-only data in the firmware image (flash-mapped: no RAM);
+ *   - the embedded tier, compressed in the firmware image (raw deflate, about 250 KB) and inflated once into PSRAM (about 700 KB)
+ *     at the first glyph it is asked for, so the image keeps room under the OTA slot's limit;
  *   - the file tier /data/unifont-cjk.pfnt (CJK ideographs, Hangul), read glyph by glyph: only the run table is kept in RAM,
  *     and a few recent glyphs. A missing file only means those characters show as an empty box.
  * The desktop task draws the terminal, so the single result buffers are not shared across tasks. */
@@ -12,9 +13,10 @@
 #include "nema/port.h"
 #include "nema/vfs.h"
 #include "pal/font.h"
+#include "../../third_party/miniz/miniz.h" /* tinfl (third_party/miniz) */
 
-extern const uint8_t PAL_FALLBACK_BLOB[];
-extern const size_t PAL_FALLBACK_BLOB_SIZE;
+extern const uint8_t PAL_FALLBACK_Z[];
+extern const size_t PAL_FALLBACK_Z_SIZE, PAL_FALLBACK_BLOB_SIZE;
 
 #define FILE_TIER_PATH "/data/unifont-cjk.pfnt"
 #define RUN_SZ 12
@@ -40,12 +42,41 @@ static const uint8_t *find_run(const uint8_t *runs, uint32_t n, uint32_t cp) {
 
 /* ---- the embedded tier ---- */
 
+/* The inflated blob, made at the first call; NULL when that failed (no memory: tried again later, a corrupt stream: never). */
+static const uint8_t *blob(void) {
+    static uint8_t *b;
+    static bool broken;
+    static uint32_t next_try;
+    if (b || broken) return b;
+    uint32_t now = (uint32_t)(nema_port_time_us() / 1000);
+    if (next_try && (int32_t)(now - next_try) < 0) return NULL;
+    uint8_t *d = nema_alloc(NEMA_MEM_EXTERNAL, NEMA_OWNER_KERNEL, PAL_FALLBACK_BLOB_SIZE);
+    tinfl_decompressor *t = nema_alloc(NEMA_MEM_ANY, NEMA_OWNER_KERNEL, sizeof(*t)); /* about 11 KB: not on a task's stack */
+    if (!d || !t) {
+        nema_free(d), nema_free(t);
+        next_try = now + RETRY_MS;
+        return NULL;
+    }
+    tinfl_init(t);
+    size_t in = PAL_FALLBACK_Z_SIZE, out = PAL_FALLBACK_BLOB_SIZE;
+    tinfl_status st = tinfl_decompress(t, PAL_FALLBACK_Z, &in, d, d, &out, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+    nema_free(t);
+    if (st != TINFL_STATUS_DONE || out != PAL_FALLBACK_BLOB_SIZE || memcmp(d, "PFN1", 4) != 0) {
+        nema_free(d);
+        broken = true;
+        return NULL;
+    }
+    b = d;
+    return b;
+}
+
 static const uint8_t *embedded(uint32_t cp, int *cells) {
-    if (PAL_FALLBACK_BLOB_SIZE < 12 || memcmp(PAL_FALLBACK_BLOB, "PFN1", 4) != 0) return NULL;
-    const uint8_t *r = find_run(PAL_FALLBACK_BLOB + 12, rd32(PAL_FALLBACK_BLOB + 4), cp);
+    const uint8_t *B = blob();
+    if (!B) return NULL;
+    const uint8_t *r = find_run(B + 12, rd32(B + 4), cp);
     if (!r) return NULL;
     *cells = r[6];
-    return PAL_FALLBACK_BLOB + rd32(PAL_FALLBACK_BLOB + 8) + rd32(r + 8) + (size_t)(cp - rd32(r)) * (size_t)r[6] * 16;
+    return B + rd32(B + 8) + rd32(r + 8) + (size_t)(cp - rd32(r)) * (size_t)r[6] * 16;
 }
 
 /* ---- the file tier ---- */

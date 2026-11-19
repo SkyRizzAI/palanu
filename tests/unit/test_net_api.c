@@ -115,7 +115,25 @@ static void sc_block_resolve(api_ctx_t *c) {
 static const struct {
     const char *name;
 } SCENARIOS[] = {{"connect_echo"}, {"refused"},     {"dns"},          {"nonblock"},      {"accept_timeout"},
-                 {"accept_one"},   {"net_info"},    {"block_connect"}, {"block_resolve"}};
+                 {"accept_one"},   {"net_info"},    {"block_connect"}, {"block_resolve"}, {"http_fetch"}};
+
+/* pal_http_fetch against the local answer below: status, full length, the body that fits, the headers sent, bad arguments. */
+static char g_http_req[512];
+static void sc_http_fetch(api_ctx_t *c, int32_t port) {
+    char url[64];
+    snprintf(url, sizeof(url), "http://127.0.0.1:%d/x", (int)port);
+    uint8_t out[16];
+    int32_t n = psys_api_http_fetch(c, "GET", url, "X-A: 1\nX-B: 2", NULL, 0, out, sizeof(out), 3000);
+    AC(n == 8 + 8); /* the body is 12 bytes; 8 fit after the head */
+    int32_t st = out[0] | out[1] << 8 | out[2] << 16 | out[3] << 24, total = out[4] | out[5] << 8 | out[6] << 16 | out[7] << 24;
+    AC(st == 200);
+    AC(total == 12);
+    AC(!memcmp(out + 8, "hello wo", 8));
+    AC(strstr(g_http_req, "X-A: 1\r\nX-B: 2\r\n") != NULL);
+    AC(psys_api_http_fetch(c, "BREW", url, "", NULL, 0, out, sizeof(out), 1000) == NEMA_ERR_INVAL);
+    AC(psys_api_http_fetch(c, "GET", url, "", NULL, 0, out, 7, 1000) == NEMA_ERR_INVAL);
+    AC(psys_api_http_fetch(c, "GET", "ftp://x/", "", NULL, 0, out, sizeof(out), 1000) == NEMA_ERR_INVAL);
+}
 
 static int netapp_main(int argc, char **argv) {
     if (argc < 2) return 99;
@@ -141,6 +159,7 @@ static int netapp_main(int argc, char **argv) {
         else if (strcmp(argv[1], "net_info") == 0) sc_net_info(c);
         else if (strcmp(argv[1], "block_connect") == 0) sc_block_connect(c, port);
         else if (strcmp(argv[1], "block_resolve") == 0) sc_block_resolve(c);
+        else if (strcmp(argv[1], "http_fetch") == 0) sc_http_fetch(c, port);
         break;
     }
     api_ctx_free(c);
@@ -186,6 +205,35 @@ TEST(connect_send_receive_and_shutdown_through_handles) {
     char p[8];
     snprintf(p, sizeof(p), "%d", BASE_PORT);
     CHECK_EQ(run("connect_echo", p), 0);
+}
+
+/* A server for http_fetch: one request, one answer of 12 bytes. */
+static void http_once(void *arg) {
+    nema_obj_t *l = (nema_obj_t *)arg;
+    nema_obj_t *s = NULL;
+    if (nema_net_accept(l, 5000, &s) == NEMA_OK) {
+        size_t n = 0;
+        int r;
+        while (n + 1 < sizeof(g_http_req) && (r = nema_obj_read(s, g_http_req + n, sizeof(g_http_req) - 1 - n, 3000)) > 0) {
+            n += (size_t)r;
+            g_http_req[n] = 0;
+            if (strstr(g_http_req, "\r\n\r\n")) break;
+        }
+        const char *a = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nhello world!";
+        nema_obj_write(s, a, strlen(a), 3000);
+        nema_obj_unref(s);
+    }
+    nema_obj_unref(l);
+}
+
+TEST(http_fetch_returns_the_status_length_and_body) {
+    nema_obj_t *lst;
+    CHECK(nema_net_listen(BASE_PORT + 20, &lst) == NEMA_OK);
+    nema_task_desc_t d = {.name = "httpd", .fn = http_once, .arg = lst, .stack = 6144, .role = NEMA_TASK_SYSTEM};
+    CHECK(nema_task_create(&d) == NEMA_OK);
+    char p[8];
+    snprintf(p, sizeof(p), "%d", BASE_PORT + 20);
+    CHECK_EQ(run("http_fetch", p), 0);
 }
 
 TEST(connect_to_a_closed_port_is_refused) {
@@ -273,6 +321,7 @@ int main(void) {
     nema_app_register(&NETAPP);
     RUN(connect_send_receive_and_shutdown_through_handles);
     RUN(connect_to_a_closed_port_is_refused);
+    RUN(http_fetch_returns_the_status_length_and_body);
     RUN(dns_resolves_localhost_and_times_out_on_an_unknown_name);
     RUN(a_non_blocking_read_with_no_data_returns_eagain);
     RUN(accept_times_out_and_a_client_is_accepted);

@@ -30,6 +30,7 @@
 
 #include "nema/nema.h"
 #include "nema/net.h"
+#include "net_tls.h"
 
 /* Only used if no wake fd can be made (eventfd registration failed on the board). Then a socket added while the
  * pump sleeps is seen after at most this long. Data on sockets already in the set still wakes the pump at once. */
@@ -42,6 +43,7 @@ typedef struct sock {
     bool want_in;  /* a waiter is blocked on read readiness (one-shot, see the header) */
     bool want_out; /* a waiter is blocked on write readiness */
     bool listener;
+    net_tls_t *tls; /* after nema_net_tls: reads and writes go through it */
     struct sock *next;
 } sock_t;
 
@@ -169,6 +171,10 @@ static int map_errno(int e) {
 
 static int s_read(nema_obj_t *o, void *buf, size_t n) {
     sock_t *s = (sock_t *)o;
+    if (s->tls) {
+        bool wr = false, ww = false;
+        return net_tls_read(s->tls, buf, n, &wr, &ww);
+    }
     ssize_t r = recv(s->fd, buf, n, MSG_DONTWAIT);
     if (r > 0) return (int)r;
     if (r == 0) return 0; /* orderly shutdown by the peer */
@@ -177,6 +183,10 @@ static int s_read(nema_obj_t *o, void *buf, size_t n) {
 
 static int s_write(nema_obj_t *o, const void *buf, size_t n) {
     sock_t *s = (sock_t *)o;
+    if (s->tls) {
+        bool wr = false, ww = false;
+        return net_tls_write(s->tls, buf, n, &wr, &ww);
+    }
 #ifdef MSG_NOSIGNAL
     ssize_t r = send(s->fd, buf, n, MSG_DONTWAIT | MSG_NOSIGNAL);
 #else
@@ -197,6 +207,7 @@ static uint32_t s_poll(nema_obj_t *o, uint32_t events) {
     FD_SET(s->fd, &es);
     struct timeval tv = {0, 0};
     uint32_t r = 0;
+    if (s->tls && (events & NEMA_POLL_IN) && net_tls_pending(s->tls) > 0) r |= NEMA_POLL_IN; /* decrypted bytes already here */
     arm(s, events);
     if (select(s->fd + 1, &rs, &ws, &es, &tv) > 0) {
         if (FD_ISSET(s->fd, &rs)) r |= NEMA_POLL_IN; /* data, a new connection, or end of stream */
@@ -231,6 +242,7 @@ static void s_destroy(nema_obj_t *o) {
     }
     nema_port_mutex_unlock(N.lock);
     pump_wake(); /* the pump rebuilds its set without this socket */
+    net_tls_close(s->tls);
     close(s->fd);
     nema_free(s);
 }
@@ -451,4 +463,117 @@ nema_err_t nema_net_accept(nema_obj_t *listener, int32_t timeout_ms, nema_obj_t 
         int r = nema_poll_objs(&p, 1, left);
         if (r < 0) return NEMA_ERR_INTR;
     }
+}
+
+/* ---- TLS (net_tls.c) ---- */
+
+/* Waits until fd is readable or writable as asked, in 100 ms slices so a fatal signal or the deadline ends it. */
+static nema_err_t wait_fd(int fd, bool rd, bool wr, uint64_t deadline) {
+    for (;;) {
+        fd_set rs, ws;
+        FD_ZERO(&rs);
+        FD_ZERO(&ws);
+        if (rd) FD_SET(fd, &rs);
+        if (wr || !rd) FD_SET(fd, &ws);
+        struct timeval tv = {0, 100000};
+        if (select(fd + 1, &rs, &ws, NULL, &tv) > 0) return NEMA_OK;
+        if (nema_interrupted()) return NEMA_ERR_INTR;
+        if (deadline && nema_port_time_us() >= deadline) return NEMA_ERR_TIMEOUT;
+    }
+}
+
+nema_err_t nema_net_tls(nema_obj_t *o, const char *host, bool verify, int32_t timeout_ms) {
+    if (!o || o->ops != &SOCK_OPS || !host || ((sock_t *)o)->listener) return NEMA_ERR_INVAL;
+    sock_t *s = (sock_t *)o;
+    if (s->tls) return NEMA_ERR_STATE;
+    net_tls_t *t = NULL;
+    nema_err_t err = net_tls_open(s->fd, host, verify, &t);
+    if (err != NEMA_OK) return err;
+    uint64_t deadline = timeout_ms >= 0 ? nema_port_time_us() + (uint64_t)timeout_ms * 1000u : 0;
+    for (;;) {
+        bool wr = false, ww = false;
+        int r = net_tls_handshake(t, &wr, &ww);
+        if (r == NEMA_OK) break;
+        if (r == NEMA_ERR_AGAIN) r = wait_fd(s->fd, wr, ww, deadline);
+        if (r != NEMA_OK) {
+            net_tls_close(t);
+            return (nema_err_t)r;
+        }
+    }
+    s->tls = t;
+    return NEMA_OK;
+}
+
+const char *nema_net_tls_backend(void) { return net_tls_backend(); }
+
+/* ---- ICMP echo ---- */
+
+static uint16_t icmp_sum(const uint8_t *p, size_t n) {
+    uint32_t s = 0;
+    for (size_t i = 0; i + 1 < n; i += 2) s += (uint32_t)(p[i] << 8 | p[i + 1]);
+    if (n & 1) s += (uint32_t)p[n - 1] << 8;
+    while (s >> 16) s = (s & 0xFFFF) + (s >> 16);
+    return (uint16_t)~s;
+}
+
+nema_err_t nema_net_ping(const char *host, uint16_t seq, int32_t timeout_ms, uint32_t *rtt_us, uint8_t ip_out[4]) {
+    uint8_t ip[4];
+    nema_err_t err = nema_net_resolve_addr(host, timeout_ms, ip);
+    if (err != NEMA_OK) return err;
+#if defined(ESP_PLATFORM)
+    int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP); /* lwIP: raw ICMP, replies carry the IP header */
+#else
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP); /* macOS and Linux: ICMP without privileges */
+#endif
+    if (fd < 0) return NEMA_ERR_UNSUPPORTED;
+    set_nonblock(fd);
+    uint8_t pkt[40];
+    memset(pkt, 0, sizeof(pkt));
+    pkt[0] = 8; /* echo request */
+    uint16_t id = (uint16_t)(nema_port_time_us() & 0xFFFF);
+    pkt[4] = (uint8_t)(id >> 8), pkt[5] = (uint8_t)id, pkt[6] = (uint8_t)(seq >> 8), pkt[7] = (uint8_t)seq;
+    for (size_t i = 8; i < sizeof(pkt); i++) pkt[i] = (uint8_t)('a' + (i - 8) % 26);
+    uint16_t sum = icmp_sum(pkt, sizeof(pkt));
+    pkt[2] = (uint8_t)(sum >> 8), pkt[3] = (uint8_t)sum;
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    memcpy(&sa.sin_addr, ip, 4);
+    uint64_t t0 = nema_port_time_us();
+    uint64_t deadline = t0 + (uint64_t)(timeout_ms > 0 ? timeout_ms : 1000) * 1000u;
+    if (sendto(fd, pkt, sizeof(pkt), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+        err = (nema_err_t)map_errno(errno);
+        close(fd);
+        return err;
+    }
+    err = NEMA_ERR_TIMEOUT;
+    for (;;) {
+        fd_set rs;
+        FD_ZERO(&rs);
+        FD_SET(fd, &rs);
+        struct timeval tv = {0, 100000};
+        if (select(fd + 1, &rs, NULL, NULL, &tv) > 0) {
+            uint8_t buf[128];
+            struct sockaddr_in from;
+            socklen_t fl = sizeof(from);
+            ssize_t n = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fl);
+            if (n > 0) {
+                size_t off = (buf[0] >> 4) == 4 ? (size_t)(buf[0] & 0x0F) * 4 : 0; /* an IP header first (raw, macOS) */
+                /* an echo reply with our sequence number (the id may be the kernel's on a datagram socket) */
+                if ((size_t)n >= off + 8 && buf[off] == 0 && buf[off + 6] == (uint8_t)(seq >> 8) && buf[off + 7] == (uint8_t)seq) {
+                    if (rtt_us) *rtt_us = (uint32_t)(nema_port_time_us() - t0);
+                    if (ip_out) memcpy(ip_out, &from.sin_addr, 4);
+                    err = NEMA_OK;
+                    break;
+                }
+            }
+        }
+        if (nema_interrupted()) {
+            err = NEMA_ERR_INTR;
+            break;
+        }
+        if (nema_port_time_us() >= deadline) break;
+    }
+    close(fd);
+    return err;
 }

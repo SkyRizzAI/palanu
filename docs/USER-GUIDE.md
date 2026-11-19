@@ -39,7 +39,14 @@ developer, About).
 ## 3. Networking
 
 **Wi-Fi**: Settings > Wi-Fi, turn it on, pick a network under *Other networks*, and type the password with the keyboard. A network that connected
-successfully is saved and reconnects by itself next time. From the terminal: `wifi scan`, `wifi connect SSID PASSWORD`.
+successfully is saved (up to 8, the most recent first) and joins by itself next time; when one is out of reach the next saved one is
+tried. Settings > Wi-Fi > *My networks* shows them: each has Auto-Join, a manual IPv4 address (address, subnet mask, router, DNS)
+instead of DHCP, and Forget. From the terminal: `wifi scan`, `wifi connect SSID PASSWORD`, `wifi saved`, `wifi forget SSID`,
+`wifi auto SSID on|off`, `wifi ip SSID ADDRESS MASK ROUTER [DNS]` or `wifi ip SSID dhcp`.
+
+**Internet tools**: `curl` fetches http:// and https:// (`-i` headers, `-I` headers only, `-X` method, `-H` a header, `-d` a body,
+`-L` follow redirects, `-o` save to a file, `-k` accept any certificate). `ping HOST` and `tcping HOST PORT` check that a host
+answers and how long it takes.
 
 **Bluetooth**: Settings > Bluetooth. The device advertises itself as **PalanuOS** so that a computer (Web Forge) can connect.
 

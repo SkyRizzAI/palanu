@@ -84,8 +84,8 @@ static void run(settings_job_t k) {
     case JOB_DISCONNECT:
         J.rc = pal_wifi_disconnect();
         break;
-    case JOB_FORGET:
-        J.rc = pal_wifi_forget();
+    case JOB_FORGET: /* one saved network by name, or all of them */
+        J.rc = J.a[0] ? pal_wifi_forget_net(J.a) : pal_wifi_forget();
         break;
     case JOB_SVC_START:
         J.rc = psys_svc_start(J.a);

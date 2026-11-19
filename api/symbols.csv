@@ -62,6 +62,8 @@ pal_dns_resolve,2,"int32_t(const char *, void *, uint32_t, int32_t)",net,dns_res
 pal_net_info,2,"int32_t(void *, uint32_t)",net,net_info,stable
 pal_set_nonblock,2,"int32_t(int32_t, int32_t)",,set_nonblock,stable
 pal_shutdown,2,"int32_t(int32_t, int32_t)",,shutdown,stable
+pal_tls_start,7,"int32_t(int32_t, const char *, int32_t)",net,tls_start,stable
+pal_http_fetch,7,"int32_t(const char *, const char *, const char *, const void *, uint32_t, void *, uint32_t, int32_t)",net,http_fetch,stable
 pal_toast,2,"int32_t(const char *, int32_t)",notify,toast,stable
 pal_notify_post,2,"int32_t(const char *, const char *, int32_t)",notify,notify_post,stable
 pal_notify_update,2,"int32_t(int32_t, const char *, const char *)",notify,notify_update,stable

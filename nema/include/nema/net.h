@@ -39,4 +39,18 @@ nema_err_t nema_net_listen(uint16_t port, nema_obj_t **out); /* backlog 2 */
 /* Waits up to timeout_ms (< 0: no limit) for a connection. NEMA_ERR_INVAL if listener is not a listening socket. */
 nema_err_t nema_net_accept(nema_obj_t *listener, int32_t timeout_ms, nema_obj_t **client);
 
+/* Turn a connected socket into a TLS client: the handshake runs now (up to timeout_ms, < 0 no limit; a fatal signal ends it),
+ * then reads and writes on the same object carry plain text and the wire is encrypted. host is the server name sent and
+ * checked against its certificate; verify false accepts any certificate (curl -k). NEMA_ERR_AUTH: the certificate is not
+ * trusted; NEMA_ERR_PROTO: the handshake failed; NEMA_ERR_UNSUPPORTED: this build has no TLS (the browser simulator);
+ * NEMA_ERR_STATE: already TLS. On an error the socket is left as it was (close it). */
+nema_err_t nema_net_tls(nema_obj_t *sock, const char *host, bool verify, int32_t timeout_ms);
+/* One ICMP echo (ping) to host: waits up to timeout_ms for the reply to sequence number seq and gives its round trip in
+ * microseconds and the address that answered (4 bytes, a, b, c, d; may be NULL). NEMA_ERR_TIMEOUT when no reply came,
+ * NEMA_ERR_NOENT for an unknown name, NEMA_ERR_UNSUPPORTED where the system has no ICMP socket. A fatal signal ends it. */
+nema_err_t nema_net_ping(const char *host, uint16_t seq, int32_t timeout_ms, uint32_t *rtt_us, uint8_t ip_out[4]);
+
+/* The TLS library behind it: "mbedtls" (board), "openssl" (native simulator) or "none". */
+const char *nema_net_tls_backend(void);
+
 #endif

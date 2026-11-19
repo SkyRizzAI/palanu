@@ -3,7 +3,7 @@
 Generated from `api/palanu/*.h` by `forge/packages/apigen`. Do not edit it by hand: change the definitions,
 then run `bun forge/packages/apigen/src/cli.ts`. `./pal check` rejects a file that is out of sync.
 
-API level: **6**. WebAssembly import module: `palanu`. SDK header: `sdk/palanu.h`.
+API level: **7**. WebAssembly import module: `palanu`. SDK header: `sdk/palanu.h`.
 The full list of names, signatures and permissions is in `api/symbols.csv`; `./pal check` enforces the change rules.
 
 ## Modules
@@ -20,7 +20,7 @@ The full list of names, signatures and permissions is in `api/symbols.csv`; `./p
 | `legend` | Key legends (API level 2): the bar at the bottom of the screen that says what the keys do. While the app's terminal is in front, the bar shows the legends the app published; the system's own apps fill the bar themselves. A legend names an action, not a key: the board prints its own key cap, so one text works on every board ("ok" is ENTER on hhv2). The text is items separated by ';', each NAME or NAME=label. NAME is one of ok, back, move, move_h, move_v, up, down, tab, menu, delete, home (any case), or a key cap in brackets for any other key: "ok=Jump;back=Quit;[SPACE]=Pause". An action the board has no key for is not shown, and items that do not fit the width are dropped from the right. The legends stay until the app changes them or ends. Showing or hiding the bar changes the terminal's rows: the app gets a RESIZE event. No permission is needed. |
 | `log` | Logging. Lines go to the system log (kept in memory, and printed on the console when that is on), tagged with the app's id, so the log shows which app wrote each line. |
 | `mem` | Memory. A WebAssembly app allocates from its own linear memory, with the allocator its SDK or libc brings; there is no pal_alloc in this API. The system charges the linear memory to the app and caps it at the manifest's "mem" (KB, 256 when not given): memory.grow past the cap fails, so an app never holds more than its manifest says. Native code (the system and the built-in apps) uses the kernel allocator, which has classes and owners. |
-| `net` | TCP and DNS, as a client or a server (IPv4). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it. Connect, resolve, and accept take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). UDP is not in this level. |
+| `net` | TCP and DNS, as a client or a server (IPv4), TLS on a TCP connection, and HTTP and HTTPS requests (API level 7). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it, also after pal_tls_start. Connect, resolve, accept, the TLS handshake and a request take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). An app's TLS always checks the server's certificate against the system's trusted roots. UDP is not in this level. |
 | `notify` | Notifications and toasts (API level 2). A notification has a title (up to 31 characters) and a text (up to 95); the system keeps the last 32 and the notification center shows them. A toast is a short message the system shows on top of the screen. Posting needs the notify permission. An app posts at most 4 notifications or toasts per second; the excess is refused with PAL_ERR_BUSY. Until the notification center exists, notifications are kept and logged, and shown by the notify shell command. |
 | `proc` | The app itself and its child processes: how it ends, what it was started with, the environment, and the commands it starts. A command line is argv[0] (the command name), then the arguments the user typed. Children are processes like any other: they share the app's stdin, stdout and stderr, and join its process group, so Ctrl-C reaches them too. An app may only wait for or signal the children it started. A child it neither waited for nor detached is reaped by the system when the app ends. |
 | `settings` | System settings (API level 2). A setting is a text key with a text value: ui.dark (0\|1), ui.theme (index or name), ui.size (0 small, 1 medium), time.tz (minutes from UTC), display.brightness (0 to 100; the panel keeps at least 5), term.font (0 to 2), device.name, and the radio policy radio.wifi and radio.ble (read only: the wifi and ble commands change them). Reading needs the settings.read permission and changing a value needs settings.write. A change applies at once and is kept across restarts. Unknown keys give PAL_ERR_NOENT; a read-only key gives PAL_ERR_PERM. |
@@ -743,7 +743,7 @@ Memory. A WebAssembly app allocates from its own linear memory, with the allocat
 
 ## net
 
-TCP and DNS, as a client or a server (IPv4). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it. Connect, resolve, and accept take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). UDP is not in this level.
+TCP and DNS, as a client or a server (IPv4), TLS on a TCP connection, and HTTP and HTTPS requests (API level 7). A socket is an ordinary handle: pal_read, pal_write, pal_close, and pal_wait work on it, also after pal_tls_start. Connect, resolve, accept, the TLS handshake and a request take a timeout and stop at once when the app is asked to end (Ctrl-C, kill). An app's TLS always checks the server's certificate against the system's trusted roots. UDP is not in this level.
 
 ### Constants
 
@@ -753,6 +753,7 @@ TCP and DNS, as a client or a server (IPv4). A socket is an ordinary handle: pal
 | `PAL_ERR_REFUSED` | `(-26)` |
 | `PAL_ERR_RESET` | `(-24)` |
 | `PAL_ERR_UNREACH` | `(-25)` |
+| `PAL_HTTP_HEAD_SIZE` | `8` |
 | `PAL_NET_INFO_SIZE` | `12` |
 
 ### Functions
@@ -826,6 +827,26 @@ int32_t pal_shutdown(int32_t h, int32_t how);
 Shuts down a socket the app owns: how is 0 (receiving), 1 (sending) or 2 (both). Returns 0, or a negative error.
 
 import `shutdown` · since 2
+
+#### `pal_tls_start`
+
+```c
+int32_t pal_tls_start(int32_t h, const char *host, int32_t timeout_ms);
+```
+
+Turns the connected TCP socket h into a TLS client for host (the server name, checked against its certificate): the handshake runs now, up to timeout_ms. Afterwards pal_read and pal_write on h carry plain text. Returns 0, or a negative error: PAL_ERR_AUTH (certificate not trusted), PAL_ERR_UNSUPPORTED, PAL_ERR_TIMEOUT.
+
+import `tls_start` · since 7 · needs `net`
+
+#### `pal_http_fetch`
+
+```c
+int32_t pal_http_fetch(const char *method, const char *url, const char *headers, const void *body, uint32_t body_len, void *out, uint32_t cap, int32_t timeout_ms);
+```
+
+Sends an HTTP or HTTPS request and waits up to timeout_ms for each step. method is GET, POST, PUT, DELETE, HEAD or PATCH; headers are extra lines of the form Name: value, separated by newlines (empty for none); body has body_len bytes (0 for none). Redirects are followed (up to 5). Writes the status, the body's full length and as much of the body as fits into out (see PAL_HTTP_HEAD_SIZE; cap >= 8). Returns the bytes written into out, or a negative error.
+
+import `http_fetch` · since 7 · needs `net`
 
 ## notify
 
