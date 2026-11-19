@@ -240,11 +240,21 @@ async function listDir(path: string) {
       size.textContent = it.dir ? "" : fmtSize(it.size);
       size.className = "num";
       const act = document.createElement("td");
-      if (!it.dir) {
-        const dl = document.createElement("button");
-        dl.textContent = "Download";
-        dl.onclick = () => void download(join(path, it.name), it.name);
-        act.append(dl);
+      act.className = "acts";
+      const full = join(path, it.name);
+      const button = (label: string, fn: () => void, cls = "") => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        if (cls) b.className = cls;
+        b.onclick = fn;
+        act.append(b);
+      };
+      if (!it.dir) button("Download", () => void download(full, it.name));
+      if (!it.dir && TEXT_RE.test(it.name) && it.size <= 262144) button("Edit", () => void editFile(full));
+      if (!it.dir && it.name.endsWith(".papp")) button("Install", () => void install(full));
+      if (it.name !== ".." && path !== "/") {
+        button("Rename", () => void renameEntry(path, it.name), "ghost");
+        button("Delete", () => void removeEntry(full, it.dir), "ghost danger");
       }
       tr.append(name, size, act);
       tbody.append(tr);
@@ -253,6 +263,69 @@ async function listDir(path: string) {
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="3" class="err">${(e as Error).message}</td></tr>`;
   }
+}
+
+const TEXT_RE = /\.(txt|md|sh|conf|cfg|ini|json|toml|csv|log|c|h|js|ts|py|lua)$|^[^.]+$/i;
+
+async function removeEntry(path: string, dir: boolean) {
+  if (!link || !confirm(`Delete ${path}?${dir ? " (a folder must be empty)" : ""}`)) return;
+  try {
+    await link.remove(path);
+    $("files-note").textContent = `Deleted ${path}`;
+    void listDir(cwd);
+  } catch (e) { $("files-note").textContent = (e as Error).message; }
+}
+
+async function renameEntry(dir: string, name: string) {
+  const to = link ? prompt(`New name for ${name}`, name) : null;
+  if (!link || !to || to === name || to.includes("/")) return;
+  try {
+    await link.rename(join(dir, name), join(dir, to));
+    void listDir(cwd);
+  } catch (e) { $("files-note").textContent = (e as Error).message; }
+}
+
+async function makeDir() {
+  const name = link && cwd !== "/" ? prompt("New folder name") : null;
+  if (!link || !name || name.includes("/")) return;
+  try {
+    await link.mkdir(join(cwd, name));
+    void listDir(cwd);
+  } catch (e) { $("files-note").textContent = (e as Error).message; }
+}
+
+async function install(path: string) {
+  if (!link) return;
+  $("files-note").textContent = `Installing ${path}…`;
+  try {
+    await link.install(path);
+    $("files-note").textContent = `Installed ${path}: it is in the device's launcher and runs by its id`;
+  } catch (e) { $("files-note").textContent = `Not installed: ${(e as Error).message}`; }
+}
+
+/* A text file in a dialog: read, edit, write back whole. */
+async function editFile(path: string) {
+  if (!link) return;
+  const dlg = $("edit") as HTMLDialogElement, text = $("edit-text") as HTMLTextAreaElement;
+  $("edit-path").textContent = path;
+  $("edit-err").textContent = "";
+  try {
+    text.value = new TextDecoder().decode(await link.read(path));
+  } catch (e) { $("files-note").textContent = (e as Error).message; return; }
+  dlg.showModal();
+  const form = $("edit-form") as HTMLFormElement;
+  const done = () => { form.onsubmit = null; $("edit-cancel").onclick = null; };
+  $("edit-cancel").onclick = () => { done(); dlg.close(); };
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    try {
+      await link!.write(path, new TextEncoder().encode(text.value));
+      done();
+      dlg.close();
+      $("files-note").textContent = `Saved ${path}`;
+      void listDir(cwd);
+    } catch (e) { $("edit-err").textContent = (e as Error).message; }
+  };
 }
 
 async function download(path: string, name: string) {
@@ -353,6 +426,7 @@ function init() {
   $("files-up").onclick = () => ($("files-input") as HTMLInputElement).click();
   ($("files-input") as HTMLInputElement).onchange = (e) => { const f = (e.target as HTMLInputElement).files; if (f?.length) void upload(f); (e.target as HTMLInputElement).value = ""; };
   $("files-refresh").onclick = () => void listDir(cwd);
+  $("files-mkdir").onclick = () => void makeDir();
   $("files-root").onclick = () => void listDir("/");
 
   $("ping").onclick = async () => { try { $("ping-out").textContent = `${(await link!.ping()).toFixed(0)} ms`; } catch (e) { $("ping-out").textContent = (e as Error).message; } };

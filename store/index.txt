@@ -1,0 +1,5 @@
+palanu-store 1
+devices	0.1.0	Devices	572	520f6ebf642e584363a36116e2163d1ff9bd4a1e671e8454615139a8392a4fa8	devices.papp	Lists the board's devices and blinks its LED
+hello-service	0.1.0	Hello service	1997	78fd2004e2e2b0f6064d45487108451cb5b39191cb62e461582da02cff3df0f7	hello-service.papp	A background service that logs a line every few seconds
+hello-tty	0.1.0	Hello TTY	8331	8664d19394b97ccf756a7d8ebb0712ff619f77ae393ee218044561a9881293eb	hello-tty.papp	The smallest terminal app: prints a greeting and its arguments
+net-client	0.1.0	Net client	2690	1a9ff59cbaa4ef0ef9a8e938e094c3f5828c6abc6dad46abf8c3a0029747bac6	net-client.papp	TCP client: connect, send a line, print the reply

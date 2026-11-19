@@ -229,6 +229,24 @@ export class Link {
     a = ack(); this.send(CH.fs, 3, Uint8Array.of(id)); await a;
   }
 
+  /** One fs request answered by OK or ERR: REMOVE 8, MKDIR 9, RENAME 10, INSTALL 11 (docs/PLP.md). */
+  private async fsOp(type: number, payload: Uint8Array, ms = 8000): Promise<void> {
+    const id = this.nextId++ & 255;
+    const p = this.wait((x) => x.chan === CH.fs && x.payload[0] === id, ms);
+    this.send(CH.fs, type, this.idFrame(id, payload));
+    const f = await p;
+    if (f.type !== 7) throw this.fsErr(f);
+  }
+  /** Removes a file, or an empty folder. */
+  remove(path: string) { return this.fsOp(8, new TextEncoder().encode(path)); }
+  mkdir(path: string) { return this.fsOp(9, new TextEncoder().encode(path)); }
+  rename(from: string, to: string) {
+    const te = new TextEncoder();
+    return this.fsOp(10, Uint8Array.from([...te.encode(from), 0, ...te.encode(to)]));
+  }
+  /** Installs a .papp already on the device, as `app install` does. */
+  install(path: string) { return this.fsOp(11, new TextEncoder().encode(path), 20000); }
+
   /** Send a firmware image; the device verifies it, switches to it, and reboots. */
   async ota(image: Uint8Array, progress: (done: number, total: number) => void = () => {}): Promise<void> {
     const step = async (type: number, payload: Uint8Array, ms = 8000) => {

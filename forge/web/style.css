@@ -99,3 +99,10 @@ dialog label { display: grid; gap: 4px; margin-block: 8px; }
 .crumbs a { color: var(--muted); text-decoration: none; padding: 4px 10px; border-radius: 6px; }
 .crumbs a[aria-current="page"] { color: var(--fg); background: var(--bg); }
 .crumbs a:hover { color: var(--accent); }
+
+/* Files: the row's actions, the edit dialog (Web Forge, docs/WEB-FORGE.md) */
+td.acts { white-space: nowrap; text-align: right; }
+td.acts button { margin-left: 4px; }
+button.danger { color: var(--err, #c0392b); }
+.editbox { width: min(760px, 92vw); }
+.editbox textarea { width: 100%; box-sizing: border-box; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }

@@ -41,3 +41,29 @@ for (const f of ["palanu-web.js", "palanu-web.wasm"]) {
   else console.warn(`simulator: ${join(webBuild, f)} missing; build it first (docs/SIMULATOR.md)`);
 }
 console.log(`wrote ${join(DIR, "dist/sim/index.html")} (${(simHtml.length / 1024).toFixed(0)} KB)`);
+
+// ---- the install page: dist/flash/ holds the page and, when ./pal build made one, the firmware image and its manifest
+const flashDir = join(DIR, "dist/flash");
+mkdirSync(flashDir, { recursive: true });
+const flashHtml = readFileSync(join(DIR, "flash.html"), "utf8").replace("/*__CSS__*/", () => readFileSync(join(DIR, "style.css"), "utf8"));
+writeFileSync(join(flashDir, "index.html"), flashHtml);
+const fw = join(DIR, "../../targets/hhv2/build");
+if (existsSync(join(fw, "flasher_args.json"))) {
+  const args = JSON.parse(readFileSync(join(fw, "flasher_args.json"), "utf8"));
+  const parts: { path: string; offset: number }[] = [];
+  for (const [off, file] of Object.entries(args.flash_files as Record<string, string>)) {
+    const name = file.split("/").pop()!;
+    copyFileSync(join(fw, file), join(flashDir, name));
+    parts.push({ path: name, offset: Number(off) });
+  }
+  const desc = JSON.parse(readFileSync(join(fw, "project_description.json"), "utf8"));
+  const manifest = {
+    board: "hhv2", chip: args.extra_esptool_args?.chip ?? "esp32s31", version: desc.project_version ?? "", built: new Date().toISOString().slice(0, 10),
+    flash_mode: args.flash_settings?.flash_mode ?? "keep", flash_freq: args.flash_settings?.flash_freq ?? "keep", flash_size: args.flash_settings?.flash_size ?? "keep",
+    parts,
+  };
+  writeFileSync(join(flashDir, "manifest.json"), JSON.stringify(manifest, null, 2));
+  console.log(`wrote ${flashDir} (firmware ${manifest.version}, ${parts.length} parts)`);
+} else {
+  console.log(`wrote ${flashDir} (no firmware image: run ./pal build first)`);
+}

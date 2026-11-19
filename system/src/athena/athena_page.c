@@ -267,7 +267,7 @@ static void page_build(void) {
             lv_obj_t *v = ath_text(row, &lv_font_montserrat_12, C_GREY);
             lv_label_set_long_mode(v, LV_LABEL_LONG_DOT);
             lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);
-            lv_obj_set_width(v, w / 2 - 40);
+            lv_obj_set_size(v, w / 2 - 40, 15); /* one line: a long value ends in dots inside its row */
             lv_label_set_text(v, "");
             lv_obj_align(v, LV_ALIGN_RIGHT_MID, -10, 0);
             A.pval[i] = v;

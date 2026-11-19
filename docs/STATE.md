@@ -23,7 +23,12 @@ The firmware is divided into layered components, and the layer boundaries are en
 - **WebAssembly apps (proven on the chip):** WAMR fast interpreter, `.papp` container (CBOR manifest, SHA-256), the `palanu` v1 import module with permissions, installed apps run as Nema processes and can be piped, instruction-limit watchdog, installation through Palanu Link or `app install`. SDK in `sdk/`, `palanu build|pack|install`, guide `docs/PAPP.md`.
 - **Browser simulator (verified in Chrome-class browser, not on the board):** the whole system runs in a Web Forge page (`./pal web`, `/sim/`): keyboard with the real matrix, hotkeys, key sequences, live LEDs/sensors/pins/I2C, editable Wi-Fi, TCP bridge (verified with `nc` against the local proxy), log panel, IndexedDB persistence. `docs/SIMULATOR.md`, ADR-0008.
 
+- **Catalogue and browser tools (ADR-0015):** the Store app and `store` (a list on any web server, SHA-256 checked); Web Forge
+  installs PalanuOS on a board over Web Serial (`/flash/`) and manages files (new folder, rename, delete, edit, install).
+
 ## Not done / not verified
+- The bun tests of Palanu Link (`bun test forge/packages/link`) have four failures that predate 19 November 2026: screen mirror
+  colours, many connections in a row, remote key, packages written to /apps.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
 - SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.
 - `.papp` signing and compression.

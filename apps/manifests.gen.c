@@ -14,6 +14,7 @@ const pal_reg_builtin_t PAL_BUILTIN_APPS[] = {
     {"monitor", "Monitor", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "monitor", "System", ""},
     {"files", "Files", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "files", "Tools", ""},
     {"editor", "Editor", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "editor", "Tools", ""},
+    {"store", "Store", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "store", "System", ""},
     {"logs", "Logs", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "logs", "System", ""},
     {"applist", "Apps", "1.0.0", 2, PAL_KIND_GUI, false, 0, 0, 0, 0, "apps", "System", "classic"},
 };

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install PalanuOS</title>
+<style>/*__CSS__*/
+.flash { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+.flash ol { line-height: 1.7; }
+.flash pre { max-height: 260px; overflow: auto; }
+.flash progress { width: 100%; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><b>Web Forge</b><span class="sub">PalanuOS</span></div>
+  <nav class="crumbs"><a href="../">Remote</a><a href="../sim/">Simulator</a><a href="./" aria-current="page">Install</a></nav>
+</header>
+<main class="flash">
+  <h2>Install PalanuOS on a board</h2>
+  <p class="muted">For a board with nothing on it, or to start over. A running PalanuOS updates itself from Remote &gt; Device instead
+    (its data is kept). This writes the bootloader, the partition table and the system over USB with Web Serial (Chrome or Edge on a
+    computer).</p>
+  <ol>
+    <li>Plug the board in with a USB cable.</li>
+    <li>Press <b>Connect</b> and pick its serial port. If none shows, hold the board's BOOT button while you plug it in.</li>
+    <li>Press <b>Install</b>. It takes a minute or two; the board restarts into PalanuOS.</li>
+  </ol>
+  <p id="image" class="muted">Reading the firmware image...</p>
+  <label class="check"><input id="erase" type="checkbox"> Erase the whole flash first (removes every file and setting on the board)</label>
+  <div class="row"><button id="connect">Connect</button><button id="install" disabled>Install</button><span id="chip" class="muted"></span></div>
+  <progress id="bar" max="1" value="0" hidden></progress>
+  <pre id="log" class="console"></pre>
+</main>
+<script type="module">
+import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.1/bundle.js";
+const $ = (id) => document.getElementById(id);
+const log = (s) => { $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; };
+let manifest = null, loader = null, transport = null;
+const terminal = { clean() {}, writeLine: log, write: (s) => { $("log").textContent += s; } };
+
+try {
+  manifest = await (await fetch("manifest.json", { cache: "no-store" })).json();
+  $("image").textContent = `Firmware: PalanuOS ${manifest.version} for ${manifest.board} (${manifest.chip}), built ${manifest.built}.`;
+} catch {
+  $("image").textContent = "No firmware image here: build it first (./pal build), then rebuild Web Forge (./pal web).";
+}
+
+if (!("serial" in navigator)) {
+  $("connect").disabled = true;
+  log("This browser has no Web Serial: use Chrome or Edge on a computer.");
+}
+
+$("connect").onclick = async () => {
+  try {
+    const port = await navigator.serial.requestPort();
+    transport = new Transport(port, true);
+    loader = new ESPLoader({ transport, baudrate: 460800, terminal, debugLogging: false });
+    const chip = await loader.main();
+    $("chip").textContent = chip;
+    if (manifest && !chip.toLowerCase().replace(/[^a-z0-9]/g, "").includes(manifest.chip.replace(/[^a-z0-9]/g, ""))) {
+      log(`This image is for ${manifest.chip}, the board is ${chip}: not installing.`);
+      return;
+    }
+    $("install").disabled = !manifest;
+  } catch (e) { log("Connect failed: " + e.message); }
+};
+
+$("install").onclick = async () => {
+  if (!loader || !manifest) return;
+  $("install").disabled = true;
+  $("bar").hidden = false;
+  try {
+    const fileArray = [];
+    for (const p of manifest.parts) {
+      const data = new Uint8Array(await (await fetch(p.path, { cache: "no-store" })).arrayBuffer());
+      fileArray.push({ data, address: p.offset });
+      log(`${p.path}: ${data.length} bytes at 0x${p.offset.toString(16)}`);
+    }
+    const total = fileArray.reduce((n, f) => n + f.data.length, 0);
+    let before = 0;
+    await loader.writeFlash({
+      fileArray, flashMode: manifest.flash_mode, flashFreq: manifest.flash_freq, flashSize: manifest.flash_size,
+      eraseAll: $("erase").checked, compress: true,
+      reportProgress: (i, written) => { $("bar").value = (fileArray.slice(0, i).reduce((n, f) => n + f.data.length, 0) + written) / total; },
+    });
+    log("Written. Restarting the board...");
+    await loader.after("hard-reset");
+    log("Done: PalanuOS starts on the board. Connect to it from Remote.");
+  } catch (e) { log("Install failed: " + e.message); $("install").disabled = false; }
+};
+</script>
+</body>
+</html>

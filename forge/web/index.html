@@ -9,7 +9,7 @@
 <body data-connected="0">
 <header class="bar">
   <div class="brand"><span class="mark" aria-hidden="true"></span><b>Web Forge</b><span class="sub">PalanuOS remote</span></div>
-  <nav class="crumbs"><a href="./" aria-current="page">Remote</a><a href="sim/" title="PalanuOS running in this page (needs ./pal web)">Simulator</a></nav>
+  <nav class="crumbs"><a href="./" aria-current="page">Remote</a><a href="sim/" title="PalanuOS running in this page (needs ./pal web)">Simulator</a><a href="flash/" title="Install PalanuOS on a board over USB">Install</a></nav>
   <div class="connect">
     <button id="c-usb" type="button" title="Web Serial">USB</button>
     <button id="c-ble" type="button" title="Web Bluetooth">Bluetooth</button>
@@ -65,6 +65,7 @@
       <code id="files-path">/home</code>
       <span class="grow"></span>
       <button id="files-refresh" class="ghost">Refresh</button>
+      <button id="files-mkdir" class="ghost">New folder</button>
       <button id="files-up">Upload here</button>
       <input id="files-input" type="file" multiple hidden>
     </div>
@@ -96,6 +97,15 @@
     </div>
   </section>
 </main>
+
+<dialog id="edit">
+  <form id="edit-form" method="dialog" class="editbox">
+    <h3>Edit <code id="edit-path"></code></h3>
+    <textarea id="edit-text" spellcheck="false" rows="18"></textarea>
+    <p id="edit-err" class="err"></p>
+    <div class="row end"><button id="edit-cancel" type="button" class="ghost">Cancel</button><button type="submit">Save</button></div>
+  </form>
+</dialog>
 
 <dialog id="pair">
   <form id="pair-form" method="dialog">

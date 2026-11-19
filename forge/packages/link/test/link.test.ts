@@ -51,6 +51,20 @@ test("files: write, read back, list, large and binary", async () => {
   l.close();
 });
 
+test("files: make a folder, rename, remove (and a missing path is an error)", async () => {
+  const l = await open();
+  await l.mkdir("/home/linkdir");
+  await l.write("/home/linkdir/a.txt", new TextEncoder().encode("hi"));
+  await l.rename("/home/linkdir/a.txt", "/home/linkdir/b.txt");
+  const names = (await l.list("/home/linkdir")).map((e) => e.name);
+  expect(names).toEqual(["b.txt"]);
+  await l.remove("/home/linkdir/b.txt");
+  await l.remove("/home/linkdir");
+  expect((await l.list("/home")).some((e) => e.name === "linkdir")).toBe(false);
+  await expect(l.remove("/home/no-such-file")).rejects.toThrow();
+  l.close();
+});
+
 test("remote shell runs commands", async () => {
   const l = await open();
   let out = "";

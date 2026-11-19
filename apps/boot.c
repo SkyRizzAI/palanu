@@ -42,6 +42,7 @@ void pal_apps_register_views(void); /* files, logs, viewfix commands (cmd_views.
 void pal_apps_register_vk(void); /* vkeyboard command (cmd_vk.c) */
 void pal_apps_register_uidemo(void);
 void pal_svc_register_radio_link(void);
+void pal_apps_register_store(void); /* store_app.c */
 void pal_svc_register_desktop(void);
 
 void pal_apps_register_all(void) {
@@ -172,6 +173,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_desktop_register(&pal_textview_view); /* the text viewer, an overlay opened by Files */
         pal_desktop_register(&pal_logs_view);     /* Logs: launcher app */
         pal_desktop_register(&pal_editor_view);   /* Editor: launcher app, `edit FILE`, Files > Edit */
+        pal_desktop_register(&pal_store_view);    /* Store: the app catalogue */
         pal_vk_register(); /* the on-screen keyboard overlay (vk.h) */
         pal_launcher_set_runner(pal_terminal_run); /* installed tty apps open in the Terminal */
         pal_desktops_boot(); /* the session named by desktop.env, unless boot.target is console or this is safe mode */
@@ -181,6 +183,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
     /* Background work is services now: registered here, started in `after` order. The radios start after the
      * desktop, so admission sees the memory the system really holds. */
     pal_svc_register_radio_link();
+    pal_apps_register_store();
     if (desktop_up) pal_svc_register_desktop();
     if (cfg->platform_services) cfg->platform_services();
     (void)pal_power_apply(psys_settings_int("power.profile", PAL_POWER_BALANCED)); /* the stored profile, now the board's ops exist */

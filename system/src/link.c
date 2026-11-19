@@ -30,7 +30,8 @@ enum { CTL_HELLO = 1, CTL_INFO = 2, CTL_PING = 3, CTL_PONG = 4, ERR = 0x7F };
 enum { TTY_OPEN = 1, TTY_DATA = 2, TTY_RESIZE = 3, TTY_CLOSE = 4 };
 enum { SCR_SUBSCRIBE = 1, SCR_PALETTE = 2, SCR_RECT = 3, SCR_REFRESH = 4, SCR_SIZE = 5, SCR_RECT565 = 6 };
 enum { OTA_BEGIN = 1, OTA_DATA = 2, OTA_END = 3, OTA_OK = 4 };
-enum { FS_LIST = 1, FS_ENTRY = 2, FS_END = 3, FS_READ = 4, FS_DATA = 5, FS_WRITE = 6, FS_OK = 7 };
+enum { FS_LIST = 1, FS_ENTRY = 2, FS_END = 3, FS_READ = 4, FS_DATA = 5, FS_WRITE = 6, FS_OK = 7,
+       FS_REMOVE = 8, FS_MKDIR = 9, FS_RENAME = 10, FS_INSTALL = 11 }; /* 8 to 11: added 19 November 2026 (docs/PLP.md) */
 
 enum { RX_IDLE, RX_HEAD, RX_BODY, RX_CRC };
 
@@ -83,6 +84,15 @@ static void send_err(pal_link_t *l, uint8_t chan, int8_t code, const char *msg) 
 static void send_fs_err(pal_link_t *l, uint8_t id, int code) {
     uint8_t b[3] = {id, (uint8_t)(int8_t)code, 0};
     send_frame(l, CH_FS, ERR, b, 2);
+}
+
+/* An error with its reason as text after the code (PLP: `id`, `code i8`, text), shown to the person (an install refused). */
+static void send_fs_err_text(pal_link_t *l, uint8_t id, int code, const char *text) {
+    uint8_t b[2 + 96];
+    size_t n = text ? strnlen(text, 96) : 0;
+    b[0] = id, b[1] = (uint8_t)(int8_t)code;
+    if (n) memcpy(b + 2, text, n);
+    send_frame(l, CH_FS, ERR, b, 2 + n);
 }
 
 /* ---- ctl ---- */
@@ -407,7 +417,8 @@ static void handle_fs(pal_link_t *l, uint8_t type, const uint8_t *p, size_t n) {
     if (n < 1) return;
     uint8_t id = p[0];
     char path[160];
-    if (type == FS_LIST || type == FS_READ || type == FS_WRITE) {
+    if (type == FS_LIST || type == FS_READ || type == FS_WRITE || type == FS_REMOVE || type == FS_MKDIR || type == FS_RENAME ||
+        type == FS_INSTALL) {
         size_t pl = n - 1 < sizeof(path) - 1 ? n - 1 : sizeof(path) - 1;
         memcpy(path, p + 1, pl);
         path[pl] = 0;
@@ -436,6 +447,36 @@ static void handle_fs(pal_link_t *l, uint8_t type, const uint8_t *p, size_t n) {
         }
         send_frame(l, CH_FS, FS_OK, &id, 1);
         break;
+    case FS_REMOVE: /* a file, or an empty folder */
+    case FS_MKDIR: {
+        nema_err_t r = type == FS_REMOVE ? nema_fs_unlink(path) : nema_fs_mkdir(path);
+        if (r != NEMA_OK) send_fs_err(l, id, r);
+        else send_frame(l, CH_FS, FS_OK, &id, 1);
+        break;
+    }
+    case FS_RENAME: { /* "from" NUL "to" */
+        size_t a = strnlen(path, sizeof(path));
+        const char *to = a + 1 < n - 1 ? path + a + 1 : NULL;
+        if (!to || !*to) {
+            send_fs_err(l, id, NEMA_ERR_INVAL);
+            break;
+        }
+        char dst[160];
+        size_t tl = n - 1 - (a + 1) < sizeof(dst) - 1 ? n - 1 - (a + 1) : sizeof(dst) - 1;
+        memcpy(dst, p + 1 + a + 1, tl);
+        dst[tl] = 0;
+        nema_err_t r = nema_fs_rename(path, dst);
+        if (r != NEMA_OK) send_fs_err(l, id, r);
+        else send_frame(l, CH_FS, FS_OK, &id, 1);
+        break;
+    }
+    case FS_INSTALL: { /* a .papp already written to the device: installed as `app install` would */
+        char app[32], msg[96];
+        nema_err_t r = pal_papp_install_msg(path, app, sizeof(app), msg, sizeof(msg));
+        if (r != NEMA_OK) send_fs_err_text(l, id, r, msg[0] ? msg : pal_papp_strerror(r));
+        else send_frame(l, CH_FS, FS_OK, &id, 1);
+        break;
+    }
     default: send_fs_err(l, id, NEMA_ERR_UNSUPPORTED); break;
     }
 }

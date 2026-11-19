@@ -22,7 +22,7 @@
 #include "pal/time.h"
 #include "pal/toast.h"
 
-#define MAX_VIEWS 20
+#define MAX_VIEWS 28 /* the system's views, the apps' and a session's; a full table makes a session fail to start */
 #define MAX_WATCH 5
 #define MAX_POSTS 8
 #define ID_MAX 24

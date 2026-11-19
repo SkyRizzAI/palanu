@@ -72,6 +72,11 @@ you trust.
 card-detect switch, so a card inserted after boot is mounted through Settings > Storage > **Mount SD Card** or `sd mount`.
 Remove the card only after **Eject SD Card** (or `sd eject`).
 
+## 5b. Getting apps
+
+**Store** (launcher) lists the apps of the catalogue: Refresh, then pick one and Install (or Update). From the terminal: `store`,
+`store install ID`, `store update`. See `docs/STORE.md`.
+
 ## 5a. Editing text
 
 **Editor** (launcher, `edit FILE` in the terminal, or Files > Tab > Edit) edits a text file of up to 256 KB. The arrows move,

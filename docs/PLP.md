@@ -83,6 +83,10 @@ A request carries an `id u8` first; every reply repeats that `id`.
 | 5 | DATA | `id`, file bytes (when from the client: part of a WRITE) |
 | 6 | WRITE | `id`, path. Answered with OK. Then the client sends DATA (at most 512 bytes) and waits for OK for each part (flow control without a large buffer), then END, answered with OK |
 | 7 | OK | `id` |
+| 8 | REMOVE | `id`, path: a file or an empty folder. Answered with OK or ERR |
+| 9 | MKDIR | `id`, path. Answered with OK or ERR |
+| 10 | RENAME | `id`, from, a NUL byte, to. Answered with OK or ERR |
+| 11 | INSTALL | `id`, path of a `.papp` already written: installed as `app install` does. Answered with OK, or ERR with the reason as text |
 | 0x7F | ERR | `id`, `code i8`, text |
 
 ### ota (5)

@@ -33,7 +33,8 @@ Crypto: X25519 and HMAC-SHA256 from WebCrypto (Chrome/Edge 133, Safari 17, Firef
 
 - **Screen**: a mirror of the screen (screen channel) on a canvas; click then type, special keys Home, Switch, Esc, Keyboard.
 - **Terminal**: a remote shell (tty channel) with xterm.js; the size follows the window.
-- **Files**: browse, download, upload (fs channel).
+- **Install** (`/flash/`): writes PalanuOS to a board over Web Serial with esptool-js, from the last `./pal build` (ADR-0015).
+- **Files**: browse, download, upload, new folder, rename, delete, edit a text file in place, and install a `.papp` (fs channel; REMOVE, MKDIR, RENAME and INSTALL since 19 November 2026).
 - **Device**: info, ping, firmware update (ota channel), serial console (USB path).
 
 ## Known limits
