@@ -188,6 +188,12 @@ describe("pappId", () => {
     expect(pappId(packPapp(wasm, { id: "a" }, { compress: false }))).toBe("a");
   });
 
+  test("a field left undefined keeps the default (the device refuses a manifest without an api level)", () => {
+    const b = Buffer.from(packPapp(wasm, { id: "a", api: undefined, kind: undefined }, { compress: false }));
+    expect(b.includes(Buffer.from([0x63, 0x61, 0x70, 0x69, 0x02]))).toBe(true); // "api": 2
+    expect(b.includes(Buffer.from("dkindctty", "latin1"))).toBe(true); // "kind": "tty"
+  });
+
   test("reads the id from a format 1 package", () => {
     // {"id": "old"}
     expect(pappId(v1([0xa1, 0x62, 0x69, 0x64, 0x63, 0x6f, 0x6c, 0x64]))).toBe("old");

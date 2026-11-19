@@ -88,7 +88,9 @@ export function packPapp(wasm: Uint8Array, m: Manifest, opts: PackOptions = {}):
   validateManifest(m);
   if (wasm.length < 8 || wasm[0] !== 0 || wasm[1] !== 0x61 || wasm[2] !== 0x73 || wasm[3] !== 0x6d) throw new Error("not a WebAssembly module");
   if (wasm.length > 1024 * 1024) throw new Error("module larger than 1 MB");
-  const manifest = Uint8Array.from(enc({ api: 2, kind: "tty", ...m }));
+  // undefined fields must not hide the defaults: { api: 2, ...{ api: undefined } } would drop the api level
+  const given = Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined));
+  const manifest = Uint8Array.from(enc({ api: 2, kind: "tty", ...given }));
   if (manifest.length > 4096) throw new Error("manifest larger than 4 KB");
   const compress = opts.compress !== false;
   const sections: { type: number; raw: Uint8Array }[] = [
