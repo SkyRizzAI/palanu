@@ -25,4 +25,5 @@ devices into Bluetooth keyboards; PalanuOS had the radio and the keys but no way
 - The firmware is at 84.8% of the update slot (the release warns at 85%): the next large feature needs room made first.
 - Proven by `test_hid` (the whole printable range, the modifiers, press and release) and in the simulator (golden images
   `keyboard-waiting`, `keyboard-connected`); the BLE transport builds for hhv2 but has not paired with a real host yet.
-- USB HID (the S31's USB device) can reuse the seam later with another transport.
+- USB HID: the seam is there (`pal_hid_set_transport(PAL_HID_USB, ...)`; a connected cable wins over Bluetooth), no driver yet:
+  a board whose USB device port can be a keyboard (TinyUSB) registers one and the Keyboard app uses it unchanged.

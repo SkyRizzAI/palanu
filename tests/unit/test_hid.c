@@ -75,9 +75,28 @@ TEST(a_typed_key_is_a_press_then_a_release) {
     CHECK_EQ(g_n, 2);
 }
 
+static pal_hid_state_t g_usb_state;
+static pal_hid_state_t f_usb_state(void) { return g_usb_state; }
+static const pal_hid_ops_t USB = {f_start, f_stop, f_usb_state, f_report, NULL};
+
+TEST(a_connected_usb_cable_wins_over_bluetooth) {
+    pal_hid_set(&FAKE);
+    pal_hid_set_transport(PAL_HID_USB, &USB);
+    g_usb_state = PAL_HID_WAITING;
+    CHECK(pal_hid() == &FAKE); /* the cable is not plugged in: Bluetooth */
+    g_usb_state = PAL_HID_CONNECTED;
+    CHECK(pal_hid() == &USB);
+    pal_hid_set(NULL);
+    g_usb_state = PAL_HID_WAITING;
+    CHECK(pal_hid() == &USB); /* only USB: it is the one to start */
+    CHECK(pal_hid_transport(PAL_HID_BLE) == NULL);
+    pal_hid_set_transport(PAL_HID_USB, NULL);
+}
+
 int main(void) {
     RUN(every_printable_character_has_a_key);
     RUN(control_keys_and_modifiers);
     RUN(a_typed_key_is_a_press_then_a_release);
+    RUN(a_connected_usb_cable_wins_over_bluetooth);
     return TEST_DONE();
 }

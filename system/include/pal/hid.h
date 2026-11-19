@@ -26,8 +26,15 @@ typedef struct {
     void (*peer)(char *out, size_t cap); /* who is connected, for the screen; may be NULL */
 } pal_hid_ops_t;
 
-void pal_hid_set(const pal_hid_ops_t *ops);
-const pal_hid_ops_t *pal_hid(void); /* NULL where there is no transport */
+/* Transports: the board registers each one it has. Bluetooth LE on hhv2 (hid_ble.c); USB is the seam for a board whose USB device
+ * port can be a keyboard (TinyUSB on the S3/S31): a driver registers PAL_HID_USB with the same ops and the Keyboard app uses it. */
+typedef enum { PAL_HID_BLE = 0, PAL_HID_USB = 1, PAL_HID_TRANSPORTS } pal_hid_transport_t;
+
+void pal_hid_set_transport(pal_hid_transport_t t, const pal_hid_ops_t *ops);
+const pal_hid_ops_t *pal_hid_transport(pal_hid_transport_t t); /* NULL when the board has not registered it */
+void pal_hid_set(const pal_hid_ops_t *ops); /* the Bluetooth transport (pal_hid_set_transport(PAL_HID_BLE, ops)) */
+/* The transport in use: a connected USB one first (a cable is the user's choice), else Bluetooth, else USB; NULL when none. */
+const pal_hid_ops_t *pal_hid(void);
 
 /* A PalanuOS key as a HID usage and modifiers (US layout). False for keys with no HID usage (a code point outside ASCII, the
  * system keys). */

@@ -4,10 +4,19 @@
 
 #include <string.h>
 
-static const pal_hid_ops_t *s_ops;
+static const pal_hid_ops_t *s_tr[PAL_HID_TRANSPORTS];
 
-void pal_hid_set(const pal_hid_ops_t *ops) { s_ops = ops; }
-const pal_hid_ops_t *pal_hid(void) { return s_ops; }
+void pal_hid_set_transport(pal_hid_transport_t t, const pal_hid_ops_t *ops) {
+    if ((unsigned)t < PAL_HID_TRANSPORTS) s_tr[t] = ops;
+}
+const pal_hid_ops_t *pal_hid_transport(pal_hid_transport_t t) { return (unsigned)t < PAL_HID_TRANSPORTS ? s_tr[t] : NULL; }
+void pal_hid_set(const pal_hid_ops_t *ops) { pal_hid_set_transport(PAL_HID_BLE, ops); }
+
+const pal_hid_ops_t *pal_hid(void) {
+    const pal_hid_ops_t *usb = s_tr[PAL_HID_USB];
+    if (usb && usb->state && usb->state() == PAL_HID_CONNECTED) return usb;
+    return s_tr[PAL_HID_BLE] ? s_tr[PAL_HID_BLE] : usb;
+}
 
 /* ASCII 0x20..0x7E: the usage, and 0x80 when Shift is needed. */
 #define S 0x80u
@@ -62,6 +71,7 @@ bool pal_hid_from_key(const pal_key_t *k, uint8_t *usage, uint8_t *mods) {
 nema_err_t pal_hid_type(const pal_key_t *k) {
     uint8_t u, m;
     if (!pal_hid_from_key(k, &u, &m)) return NEMA_ERR_INVAL;
+    const pal_hid_ops_t *s_ops = pal_hid();
     if (!s_ops || !s_ops->state || s_ops->state() != PAL_HID_CONNECTED) return NEMA_ERR_STATE;
     uint8_t keys[6] = {u, 0, 0, 0, 0, 0};
     nema_err_t r = s_ops->report(m, keys);
