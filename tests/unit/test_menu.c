@@ -166,6 +166,24 @@ TEST(navigation_wraps_and_skips_hidden_rows) {
     CHECK(!pal_menu_select(&m, 10)); /* nor a hidden row */
 }
 
+/* Up from the first row wraps to the last one on a page of any length (21 rows, like the Settings root: the index must not go
+ * through an unsigned -1, which lands on row 15 there). */
+static pal_menu_row_t WRAP_ROWS[21];
+TEST(navigation_wraps_up_to_the_last_row) {
+    reset_all();
+    for (int i = 0; i < 21; i++) WRAP_ROWS[i] = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "row"};
+    WRAP_ROWS[1] = (pal_menu_row_t){.kind = PAL_MENU_SECTION, .group = true};
+    static pal_menu_page_t page;
+    page = (pal_menu_page_t){.title = "Wrap", .rows = WRAP_ROWS, .n = 21};
+    pal_menu_t m;
+    pal_menu_init(&m, &page);
+    CHECK(pal_menu_select(&m, 0));
+    pal_menu_key(&m, &(pal_key_t){PAL_KEY_UP, 0, false, 0});
+    CHECK_EQ(page.sel, 20);
+    pal_menu_key(&m, &(pal_key_t){PAL_KEY_DOWN, 0, false, 0});
+    CHECK_EQ(page.sel, 0);
+}
+
 /* ---- the stack ---- */
 
 TEST(submenu_pushes_its_page_and_esc_pops_it_then_stops_at_root) {
@@ -426,6 +444,24 @@ TEST(layout_keeps_the_selection_visible_in_a_long_page) {
     pal_menu_layout(&m, t, W - 6, 120, &first, &count);
     CHECK_EQ(first, 0);
     CHECK(count > 0);
+}
+
+/* first and count are a span of indexes the draw walks: rows left out of the page (a group boundary) inside it must not cut the last
+ * rows off (the Settings root lost Developer and About under its four group boundaries). */
+TEST(layout_span_covers_the_last_row_past_hidden_rows) {
+    reset_all();
+    static pal_menu_row_t rows[21];
+    for (int i = 0; i < 21; i++) rows[i] = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "row", .run = run_act};
+    for (int i = 1; i < 21; i += 5) rows[i] = (pal_menu_row_t){.kind = PAL_MENU_SECTION, .group = true};
+    static pal_menu_page_t gp = {.title = "Groups", .rows = rows, .n = 21};
+    pal_menu_t m;
+    pal_menu_init(&m, &gp);
+    const pal_theme_t *t = pal_theme_active();
+    pal_menu_select(&m, 20);
+    int first = -1, count = -1;
+    pal_menu_layout(&m, t, W - 6, 120, &first, &count);
+    CHECK(20 >= first && 20 < first + count);
+    CHECK(19 < first + count);
 }
 
 TEST(wrapped_info_rows_are_taller_than_plain_rows) {
@@ -755,6 +791,7 @@ TEST(every_row_of_any_page_can_be_reached) {
 int main(void) {
     RUN(selection_starts_on_first_selectable_row_and_skips_sections);
     RUN(navigation_wraps_and_skips_hidden_rows);
+    RUN(navigation_wraps_up_to_the_last_row);
     RUN(submenu_pushes_its_page_and_esc_pops_it_then_stops_at_root);
     RUN(each_page_remembers_its_selection);
     RUN(a_full_stack_refuses_another_page);
@@ -772,6 +809,7 @@ int main(void) {
     RUN(dynamic_page_rebuilds_on_push_and_on_refresh);
     RUN(dynamic_page_store_has_a_limit);
     RUN(layout_keeps_the_selection_visible_in_a_long_page);
+    RUN(layout_span_covers_the_last_row_past_hidden_rows);
     RUN(wrapped_info_rows_are_taller_than_plain_rows);
     RUN(draw_paints_the_selected_row_inverted_in_both_themes);
     RUN(draw_handles_every_row_kind_without_clipping_the_screen);

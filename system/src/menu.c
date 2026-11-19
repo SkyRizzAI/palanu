@@ -202,7 +202,7 @@ static void move(pal_menu_page_t *p, int dir) {
     if (n == 0) return;
     int i = p->sel;
     for (size_t k = 0; k < n; k++) {
-        i = (int)(((size_t)(i + dir) % n + n) % n);
+        i = ((i + dir) % (int)n + (int)n) % (int)n; /* in int: -1 must wrap to the last row, not through an unsigned -1 */
         if (pal_menu_selectable(row_at(p, (size_t)i))) {
             p->sel = i;
             p->follow = true;

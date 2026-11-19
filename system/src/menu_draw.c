@@ -203,15 +203,19 @@ void pal_menu_layout(pal_menu_t *m, const pal_theme_t *t, int w, int list_h, int
     p->follow = false; /* only once per selection change: a key that scrolls to read rows must not be undone next frame */
     if (p->spx > maxs) p->spx = maxs;
     if (p->spx < 0) p->spx = 0;
+    /* first and count are a span of indexes (the draw walks first .. first + count - 1 and passes over the hidden rows in it), so
+     * count reaches the last row in view, not the number of rows shown */
+    int last = -1;
     for (size_t i = 0; i < p->n; i++) {
         int top = row_top(p, i, t, w);
         int rh = pal_menu_row_h(p, i, t, w);
         if (rh <= 0) continue;
         if (top + rh <= p->spx) continue;
-        if (*count == 0) *first = (int)i;
         if (top >= p->spx + view) break;
-        (*count)++;
+        if (last < 0) *first = (int)i;
+        last = (int)i;
     }
+    *count = last < 0 ? 0 : last - *first + 1;
 }
 
 static int choice_count(const pal_menu_row_t *r) {

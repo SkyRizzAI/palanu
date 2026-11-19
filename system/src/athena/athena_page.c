@@ -280,8 +280,19 @@ void ath_page_sync(pal_menu_t *m, uint32_t now) {
         A.pm = m;
         A.ppage = p;
         page_build();
+        A.pspx = p->spx;
         A.pvals_ms = now;
         return;
+    }
+    if (p->spx != A.pspx) { /* the keys scrolled the page without moving the selection (rows to read, or none to select) */
+        int d = p->spx - A.pspx;
+        A.pspx = p->spx;
+        if (p->spx == 0) lv_obj_scroll_to_y(A.page_list, 0, LV_ANIM_OFF);
+        else {
+            int px = (d < 0 ? -d : d) * ROW_H / 13; /* the menu scrolls in its logical rows of about 13 px */
+            if (px < ROW_H) px = ROW_H;
+            lv_obj_scroll_by_bounded(A.page_list, 0, d > 0 ? -px : px, LV_ANIM_OFF);
+        }
     }
     if (p->sel != A.psel) {
         int old = A.psel;

@@ -181,7 +181,8 @@ void pal_menu_toast(const char *text);
 
 /* Drawing. Pages are drawn into a, title bar at the top. Key legends are the legend bar (pal/legend.h), not the page's. */
 void pal_menu_draw(pal_menu_t *m, pal_canvas_t *c, pal_rect_t a, const pal_theme_t *t);
-/* The rows that fit below the title in h pixels, starting at the page's scroll (keeps the selection visible). */
+/* The rows that fit below the title in h pixels, starting at the page's scroll (keeps the selection visible): the indexes first ..
+ * first + count - 1, hidden rows inside that span included (they take no room). */
 void pal_menu_layout(pal_menu_t *m, const pal_theme_t *t, int w, int list_h, int *first, int *count);
 /* Scrolls the page so the selection is in view (after a key moves it; drawing does the same). */
 void pal_menu_follow(pal_menu_t *m);

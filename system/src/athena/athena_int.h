@@ -116,7 +116,7 @@ typedef struct {
     lv_obj_t *prow[MAX_PAGE_ROWS], *pval[MAX_PAGE_ROWS], *pbar[MAX_PAGE_ROWS], *plabel[MAX_PAGE_ROWS], *picon[MAX_PAGE_ROWS];
     int pidx[MAX_PAGE_ROWS]; /* the page row each drawn row shows */
     char ptext[MAX_PAGE_ROWS][VALUE_MAX];
-    int pn, psel;
+    int pn, psel, pspx; /* pspx: the page's scroll (pal_menu_page_t.spx) as last followed */
     pal_menu_t *pm;
     pal_menu_page_t *ppage;
     size_t prows;
