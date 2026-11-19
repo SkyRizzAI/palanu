@@ -163,7 +163,7 @@ Values are changed through the settings API (`psys_settings_set`, used by the Se
   it is not an overlay.
 - Screens with animation use `obscured` and `exposed` (home).
 
-Not done: the cycle key while locked is not yet restricted by these screens; that is desktop policy.
+While locked, every key goes to the lock screen (`desktop.c`), the cycle key included.
 Sound effects and audio status do not exist yet, so the volume slider stays disabled.
 
 ## UI scale (`ui.scale`)

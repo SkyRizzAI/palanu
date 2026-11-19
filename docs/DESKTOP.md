@@ -130,10 +130,8 @@ Esc closes. Memory per view: bytes of the owner whose name equals the view id (e
 
 ## Not yet done
 
-- Visual screens (lock, home, control center, notification center) and icons: work for the visual agent.
-- Boot code does not register a home binding yet: there is no target view available.
-- `link.c` does not use `pal_desktop_locked()` yet (see above).
-- Measurements on the board: not yet (orchestrator).
+- Nothing listed here: the screens, the home key bindings (`classic_start` binds Enter, Up and Down) and the lock check in `link.c`
+  exist. Desktop sessions and their open work are in docs/DESKTOPS.md.
 
 ## Tests
 

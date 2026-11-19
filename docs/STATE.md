@@ -1,6 +1,6 @@
 # Project state
 
-Updated 13 November 2026.
+Updated 19 November 2026.
 
 ## Component layout
 The firmware is divided into layered components, and the layer boundaries are enforced by the build (T0.1). In ESP-IDF: `nema/` (the portable kernel; it carries the POSIX backends `net_bsd` and `posix_fs`, like the host libraries), `system/` (subsystems; `system/src` is private, the public API is in `system/include`), `apps/` (built-in commands and views; they only see the public nema and system headers) and `platform/esp-idf/palanu` (the aggregator that targets REQUIRE, containing the ESP-IDF port and the hhv2 board). The host uses the libraries `nema`, `palsys` and `palapps`. An include that violates the layers fails to compile in both builds; a temporary probe that tried to include the private `nema/src` and `system/src` headers from `apps/` failed on the host and on the board.
@@ -8,7 +8,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 ## Working (tested)
 - **Nema** (kernel): classed and owned memory with an internal RAM reserve, task gate, one wait primitive, objects and handles, pipes, processes with signals and groups, two-sided TTY, registry, VFS with ramfs and `/bin`. 8 host tests, passing (also run with random scheduling jitter).
 - **Subsystems:** 8-bit indexed canvas with dirty rects, Spleen fonts, themes with replaceable components (4 themes, dark mode, 2 sizes), xterm terminal emulator (17 tests), input with an Nm/Fn layer, display, desktop with views, wall clock, a system console under the desktop sessions (boot log with service status lines, quiet splash, PIN login, Ctrl+Alt+Esc; ADR-0010 P1), desktop sessions that own the status bar and global keys (`classic`, `athena` in full colour with LVGL; `desktop use ID`, `desktop stop`, docs/DESKTOPS.md; Athena runs on hhv2). Sessions are whole: each owns its screens, lock screen and keys, and leaving a screen lands on its home (ADR-0010 P2). The screen is one RGB565 frame owned by the system, which remote mirroring reads in full colour (P4). Shell services (dialogs, pickers, text entry, busy, on-screen keyboard, toasts) are drawn by each session, or as text by the console (P3). Every settings key has one descriptor with its owner; one Settings app shows the system's keys under every session and each session's own only under it, with Settings > Desktop to switch (P5). Athena has four themes (Cupertino, Material, Softkey with a softkey bar, idle home and menu grid, and Trackball with an app row and an icon menu; ADR-0011), a home grid with clock and calendar widgets in a version per theme, and Settings drawn as iOS-style grouped cards under Cupertino. Apps have form and canvas screens at API level 6 (P6); Monitor is a form. Built-in apps have a look per desktop (ADR-0012): Files is a form, Logs and the text viewer are documents (`pal/doc.h`), the Terminal takes the session's colours.
-- **Userland:** shell (line editor, history, Tab, quoting, variables, pipes, redirection, `&&` `||` `&`, glob, alias, scripts), 30 commands, launcher, tabbed Terminal, Settings, Monitor.
+- **Userland:** shell (line editor, history, Tab, quoting, variables, pipes, redirection, `&&` `||` `&`, glob, alias, scripts), about 50 built-in commands and apps, launchers, tabbed Terminal, Settings, Monitor, Files, Logs.
 - **hhv2 board (proven on the chip):** boot, 80 MHz LCD with changed-area flush, TCA8418 keyboard, backlight, buzzer, RGB LED, shell on UART.
 - **Host simulator:** `./pal sim` (SDL2 window) and a script mode with screenshots.
 
@@ -24,21 +24,22 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 ## Not done / not verified
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
-- SSH from the board over Wi-Fi to a real server (vim, htop), HTTPS/TLS.
-- Graphical WebAssembly apps (graphics/view imports), `.papp` signing and compression, SD card.
+- SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS/TLS does not exist (curl is HTTP GET only).
+- `.papp` signing and compression.
 - Browser simulator on a host without the isolation headers (`coi-sw.js`, for GitHub Pages): written, not run in a real browser yet.
 - Browser simulator: no Bluetooth air interface, no inbound connections, no LAN discovery; the Palanu Link servers do not listen in the browser.
 - BLE: ping was tested from an iPhone; shell, files, and screen over BLE and the Forge BLE client have not been tried.
+- Stored only, nothing applies them yet: `power.profile`, display rotation, `ui.clock24`. One saved Wi-Fi network, no manual IP. App events KEY, FOCUS, NOTIFY and SETTING are reserved and not produced. RELEASE.md section 6 lists the confirmed gaps.
 
 ## Phases
 | Phase | State |
 |---|---|
-| F0 Measure first, set up code guardrails | done (T0.1 to T0.6): layered components, `./pal check` enforces the layers, `perf`/`mem`/`boot`, `./pal hwtest`, golden images, 11 host test suites. Baseline numbers in `docs/SIZE-BUDGETS.md` |
+| F0 Measure first, set up code guardrails | done: layered components, `./pal check` enforces the layers, `perf`/`mem`/`boot`, `./pal hwtest`, golden images (166 scenes), 69 host test suites. Baseline numbers in `docs/SIZE-BUDGETS.md` |
 | F1 Nema and simulator | done |
-| F2 Graphics and UI | partial: canvas, themes, basic components, launcher icons; not yet: dialogs, text input, toast, overlay layer, gallery and golden images |
+| F2 Graphics and UI | done: canvas, themes with components, dialogs, text input, toasts, the overlay layer, the on-screen keyboard, gallery and golden images; desktop sessions classic and Athena (ADR-0010 to 0012) |
 | F3 Processes, TTY, shell, terminal | done |
-| F4 Built-in apps, launcher | partial: grid launcher, Terminal, single-page Settings, Monitor, persistent storage; not yet: app switcher, service manager (`svc`), Files app, network/about Settings pages, `desktop.home`, boot targets and safe mode |
-| F5 Networking and SSH | done and tested against OpenSSH on a computer; the test from the board over Wi-Fi is waiting on the user |
+| F4 Built-in apps, launcher | done: launchers, app switcher, Terminal, Settings with its pages, Monitor, Files, Logs, the text viewer, the service manager (`svc`), boot targets and safe mode |
+| F5 Networking and SSH | done and tested against OpenSSH on a computer; shown once from the board over Wi-Fi; TLS is not done |
 | F6 Palanu Link | done over UART and TCP; BLE tested (ping from an iPhone) |
-| F7 Dynamic apps | done for terminal apps; graphical apps not yet |
-| F8 BLE, power, release | OTA and rollback done; BLE tested with a ping from an iPhone; battery is read but not calibrated |
+| F7 Dynamic apps | done for terminal apps and for form and canvas screens (API level 6) |
+| F8 BLE, power, release | OTA and rollback done; BLE tested with a ping from an iPhone; battery is read but not calibrated; power profiles are stored only |

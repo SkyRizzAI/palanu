@@ -488,6 +488,48 @@ TEST(entry_confirm_returns_the_text) {
     CHECK_EQ(g_pops, 1);
 }
 
+/* A second question from the first one's callback (a PIN, then its confirmation; a network's name, then its password): the
+ * keyboard has closed when the callback runs, so the next request is taken and opens the keyboard again. */
+static char g_second[16];
+static pal_vk_entry_t g_second_e;
+static nema_err_t g_second_r = NEMA_ERR_INVAL;
+static void first_cb(int len, void *ctx) {
+    (void)ctx;
+    g_cb_calls++;
+    if (len < 0) return;
+    g_second_e = (pal_vk_entry_t){"Confirm the PIN", "", g_second, sizeof(g_second), true, false};
+    g_second_r = pal_vk_edit_async(&g_second_e, entry_cb, NULL);
+}
+
+TEST(a_callback_can_ask_the_next_question) {
+    reset();
+    char buf[16] = "";
+    pal_vk_entry_t e = {"PIN", "", buf, sizeof(buf), true, false};
+    g_cb_calls = 0;
+    g_second_r = NEMA_ERR_INVAL;
+    CHECK_EQ(pal_vk_edit_async(&e, first_cb, NULL), NEMA_OK);
+    pal_vk_view.pump(&pal_vk_view);
+    press_char('1');
+    press_char('2');
+    press_char('3');
+    press_char('4');
+    press_sym(PAL_KEY_ENTER);
+    CHECK_EQ(g_cb_calls, 1);
+    CHECK(strcmp(buf, "1234") == 0);
+    CHECK_EQ(g_second_r, NEMA_OK); /* not BUSY: the first keyboard was closed before the callback */
+    pal_vk_view.pump(&pal_vk_view);
+    CHECK(pal_vk_is_open());
+    CHECK(vk_S.ui.entry);
+    press_char('1');
+    press_char('2');
+    press_char('3');
+    press_char('4');
+    press_sym(PAL_KEY_ENTER);
+    CHECK_EQ(g_cb_calls, 2);
+    CHECK(strcmp(g_second, "1234") == 0);
+    CHECK(!pal_vk_is_open());
+}
+
 /* The owner's case: a Wi-Fi password with a '!'. The arrows reach '!' on the symbol layer and Enter types it; the
  * keyboard stays open. Typing on the physical keyboard then Enter confirms. */
 TEST(enter_types_the_key_the_arrows_chose_in_an_entry) {
@@ -643,6 +685,7 @@ int main(void) {
     RUN(the_enter_key_sends_enter_and_closes_the_keyboard);
     RUN(fixed_text_does_not_follow_the_app);
     RUN(entry_confirm_returns_the_text);
+    RUN(a_callback_can_ask_the_next_question);
     RUN(enter_types_the_key_the_arrows_chose_in_an_entry);
     RUN(entry_cancel_leaves_the_buffer);
     RUN(entry_empty_rule);

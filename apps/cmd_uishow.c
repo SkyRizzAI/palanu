@@ -16,6 +16,7 @@
 #include "pal/notify.h"
 #include "pal/settings.h"
 #include "pal/time.h"
+#include "pal/desktops.h"
 #include "pal/ui.h"
 
 /* Sets the clock so that local time reads y-m-d h:mi (the time zone is applied the way pal_time_local applies it). */
@@ -37,7 +38,16 @@ static void samples(void) {
     psys_notify_post("system", "Wi-Fi connected", "Joined Home-5G with address 192.168.1.20.", 0);
 }
 
+/* Opens a screen of the running desktop session; false (and a message) when it has none of that name (another session's). */
+static bool s_failed;
+static void open_view(const char *id) {
+    if (pal_ui_request_view(id)) return;
+    pal_eprintf("uishow: %s is not a screen of the running desktop (%s)\n", id, pal_desktops_active()[0] ? pal_desktops_active() : "none");
+    s_failed = true;
+}
+
 static int cmd_uishow(int argc, char **argv) {
+    s_failed = false;
     static const char usage[] =
         "usage: uishow home [anim:NAME] [FRAME] [fit=center|fit|stretch|crop] [anchor=NAME] [bar=0|1] [sleep=MS] |\n"
         "               launcher [strip|grid|compact|list] [ref] | applist [ref] | lock [FRAME] | control |\n"
@@ -82,7 +92,7 @@ static int cmd_uishow(int argc, char **argv) {
             }
         }
         pal_ui_home_freeze(frame);
-        pal_ui_request_view("home");
+        open_view("home");
     } else if (!strcmp(what, "launcher")) {
         /* launcher [strip|grid|compact|list] [ref]: ref shows the reference entries (launcher_fixture.c) */
         int style = PAL_UI_LAUNCHER_STRIP;
@@ -96,28 +106,28 @@ static int cmd_uishow(int argc, char **argv) {
         set_local(2026, 1, 1, 10, 0); /* The reference launcher shots are at 10:00 */
         pal_ui_set_launcher(style);
         pal_ui_launcher_fixture(fixture);
-        pal_ui_request_view("launcher");
+        open_view("launcher");
     } else if (!strcmp(what, "applist")) {
         /* applist [ref]: ref shows the reference app list (launcher_fixture.c) */
         set_local(2026, 1, 1, 10, 0); /* The reference app list shot is at 10:00 */
         pal_ui_applist_fixture(argc > 2 && !strcmp(argv[2], "ref"));
-        pal_ui_request_view("applist");
+        open_view("applist");
     } else if (!strcmp(what, "lock")) {
         pal_ui_lock_freeze(argc > 2 ? atoi(argv[2]) : -1); /* FRAME holds the animation at one playback position */
-        pal_ui_request_view("lock");
+        open_view("lock");
     } else if (!strcmp(what, "control")) {
-        pal_ui_request_view("control");
+        open_view("control");
     } else if (!strcmp(what, "notifications")) {
         if (argc > 2 && !strcmp(argv[2], "empty")) psys_notify_clear();
         else samples();
         set_local(2026, 1, 1, 10, 9);
-        pal_ui_request_view("notifications");
+        open_view("notifications");
     } else if (!strcmp(what, "gallery")) {
-        pal_ui_request_view("gallery");
+        open_view("gallery");
     } else if (!strcmp(what, "settings")) {
         set_local(2026, 1, 1, 10, 0); /* The reference Settings shots are at 10:00 */
         pal_settings_request_page(argc > 2 ? argv[2] : "root");
-        pal_ui_request_view("settings");
+        open_view("settings");
     } else if (!strcmp(what, "splash")) {
         /* splash [MS] [restart]: the boot splash, or the restart one, with the bar held at MS milliseconds */
         if (argc > 3 && !strcmp(argv[3], "restart")) pal_ui_splash_restart();
@@ -153,6 +163,7 @@ static int cmd_uishow(int argc, char **argv) {
         pal_eprintf("%s", usage);
         return 1;
     }
+    if (s_failed) return 1;
     pal_printf("uishow: %s\n", what);
     return 0;
 }

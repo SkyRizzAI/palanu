@@ -9,7 +9,7 @@
 #include "pal/theme.h"
 
 /* The Terminal app: tabs of shell sessions. Each session is a TTY, an emulator, and a shell process, so
- * the same shell works on the screen, on a UART, and (later) through Palanu Link. A shell that exits closes its tab; when it was
+ * the same shell works on the screen, on a UART, and through Palanu Link. A shell that exits closes its tab; when it was
  * the last one the app is done (pal_app_exit) and the running desktop session shows its home. */
 
 #define MAX_SESS 4

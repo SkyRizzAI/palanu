@@ -121,6 +121,7 @@ typedef struct {
     pal_menu_page_t *ppage;
     size_t prows;
     uint32_t pvals_ms;
+    uint32_t prsig; /* what the drawn rows say (rows_sig): a page rebuilt with as many rows but other rows is drawn again */
     int mode; /* 0 home, 1 toolkit page, 2 an app drawn by the compositor */
     /* the lock greeter (the session's own lock screen; the PIN is the system's) */
     lv_obj_t *lock, *lock_clock, *lock_date, *lock_dots, *lock_msg, *lock_hint;

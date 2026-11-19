@@ -129,8 +129,9 @@ void pal_ui_register_all(void);
 /* Show the lock screen now (the control center's Lock tile and the lock key), and leave it (PIN or two Enters). */
 void pal_ui_lock_now(void);
 void pal_ui_unlock(void);
-/* Ask the desktop to open a view from any task (uishow, the golden tool). Taken up on the desktop's next pump. */
-void pal_ui_request_view(const char *id);
+/* Ask the running desktop session to open a view from any task (uishow, the golden tool): "lock" is its lock screen, "home" its
+ * home, any other id a view it registered. false when it has no such screen (another session's, or no session); nothing opens. */
+bool pal_ui_request_view(const char *id);
 /* The golden tool freezes the wallpaper at a frame so screens are reproducible. frame < 0 unfreezes. */
 void pal_ui_home_freeze(int frame);
 /* The golden tool freezes the lock screen's animation at a playback position (frame < 0 unfreezes). */

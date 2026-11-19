@@ -129,6 +129,7 @@ static int cmd_desktop(int argc, char **argv) {
     if (argc == 3 && (!strcmp(argv[1], "use") || !strcmp(argv[1], "start"))) {
         nema_err_t r = pal_desktops_use(argv[2]);
         if (r == NEMA_ERR_NOENT) pal_eprintf("desktop: no desktop called %s (`desktop list`)\n", argv[2]);
+        else if (r == NEMA_ERR_PERM) pal_eprintf("desktop: the device is locked; unlock it first\n");
         else if (r != NEMA_OK) pal_eprintf("desktop: %s did not start; no session is running\n", argv[2]);
         else {
             pal_printf("desktop: %s\n", argv[2]);
@@ -141,7 +142,10 @@ static int cmd_desktop(int argc, char **argv) {
             pal_eprintf("desktop: no session is running\n");
             return 1;
         }
-        pal_desktops_stop();
+        if (pal_desktops_stop() == NEMA_ERR_PERM) {
+            pal_eprintf("desktop: the device is locked; unlock it first\n");
+            return 1;
+        }
         pal_printf("desktop: stopped; the console has the screen\n");
         return 0;
     }

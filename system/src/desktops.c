@@ -126,6 +126,10 @@ static void boot_now(void) {
 
 static void run_job(job_t *j) {
     j->r = NEMA_OK;
+    if (j->op != 2 && pal_desktop_locked()) { /* a session change while locked would take the lock screen away with the session */
+        j->r = NEMA_ERR_PERM;
+        return;
+    }
     if (j->op == 0) j->r = use_now(j->id);
     else if (j->op == 1) {
         stop_active();
@@ -138,9 +142,9 @@ nema_err_t pal_desktops_use(const char *id) {
     return on_loop(&j);
 }
 
-void pal_desktops_stop(void) {
+nema_err_t pal_desktops_stop(void) {
     job_t j = {NULL, 1, NEMA_OK};
-    (void)on_loop(&j);
+    return on_loop(&j);
 }
 
 void pal_desktops_boot(void) {

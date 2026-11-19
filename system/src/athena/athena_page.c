@@ -71,7 +71,7 @@ static void page_style_row(int i) {
     if (r->kind == PAL_MENU_SECTION) return;
     bool on = A.pidx[i] == A.psel;
     ath_focus_bg(A.prow[i], on, C_ROW);
-    lv_color_t ink = r->danger ? C_RED : r->disabled ? C_GREY : C_INK;
+    lv_color_t ink = r->disabled ? C_GREY : r->danger ? C_RED : C_INK; /* a row that cannot be used looks it, even a destructive one */
     lv_obj_set_style_text_color(A.plabel[i], on ? C_WHITE : ink, 0);
     if (A.pval[i] && r->kind != PAL_MENU_TOGGLE) lv_obj_set_style_text_color(A.pval[i], on ? C_WHITE : C_GREY, 0);
     if (A.picon[i]) lv_obj_set_style_text_color(A.picon[i], on ? C_WHITE : C_BLUE, 0);
@@ -273,12 +273,31 @@ static void page_build(void) {
 }
 
 /* Follows the bound menu: a new page or row count rebuilds, a new selection restyles, values refresh twice a second. */
+/* What the rows say: kind, label text, icon, whether they show, are disabled or destructive, and the title. A page that builds
+ * its rows again (a Wi-Fi scan, the PIN page after a change) keeps its count and its address, so this is what tells it moved. */
+static uint32_t rows_sig(const pal_menu_page_t *p) {
+    uint32_t h = 2166136261u;
+#define MIX(v) (h = (h ^ (uint32_t)(v)) * 16777619u)
+    for (const char *c = p->title; c && *c; c++) MIX((unsigned char)*c);
+    for (size_t k = 0; k < p->n; k++) {
+        const pal_menu_row_t *r = &p->rows[k];
+        MIX(r->kind);
+        MIX(pal_menu_row_hidden(r) | r->disabled << 1 | r->danger << 2 | r->inert << 3 | r->group << 4);
+        MIX((uintptr_t)r->icon);
+        for (const char *c = r->label; c && *c; c++) MIX((unsigned char)*c);
+    }
+#undef MIX
+    return h;
+}
+
 void ath_page_sync(pal_menu_t *m, uint32_t now) {
     pal_menu_page_t *p = pal_menu_top(m);
     if (!p) return;
-    if (m != A.pm || p != A.ppage || p->n != A.prows) {
+    uint32_t sig = rows_sig(p);
+    if (m != A.pm || p != A.ppage || p->n != A.prows || sig != A.prsig) {
         A.pm = m;
         A.ppage = p;
+        A.prsig = sig;
         page_build();
         A.pspx = p->spx;
         A.pvals_ms = now;

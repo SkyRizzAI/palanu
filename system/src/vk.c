@@ -21,6 +21,7 @@ enum { REQ_NONE, REQ_OPEN, REQ_OPEN_TEXT, REQ_CLOSE, REQ_ENTRY, REQ_CANCEL };
 vk_state_t vk_S = {.flash = -1};
 
 static void complete(int len);
+static void finish(int len);
 static void close_now(void);
 
 /* ---- the view ---- */
@@ -220,14 +221,10 @@ static void confirm(void) {
         vk_S.dirty_caret = true; /* nothing to send: the caret says the box is empty */
         return;
     }
-    complete((int)vk_S.len);
-    close_now();
+    finish((int)vk_S.len);
 }
 
-static void cancel(void) {
-    complete(PAL_VK_CANCEL);
-    close_now();
-}
+static void cancel(void) { finish(PAL_VK_CANCEL); }
 
 /* A key on the keyboard was pressed (on screen or by Enter on the physical keyboard). */
 static void press(int idx) {
@@ -360,10 +357,12 @@ static void begin_entry(pal_vk_entry_t *e, void (*cb)(int, void *), void *ctx) {
 
 /* Called when the entry ends (confirmed, cancelled, or the overlay went away): the result goes to the buffer, then to the
  * callback. Does not close the keyboard. */
-static void complete(int len) {
+/* Takes the answer out of the keyboard: the text into the caller's entry, the callback out of the state. Returns the length to
+ * report and gives back the callback to run. */
+static int take(int len, void (**cb)(int, void *), void **ctx) {
     pal_vk_entry_t *e = vk_S.ent;
-    void (*cb)(int, void *) = vk_S.cb;
-    void *ctx = vk_S.ctx;
+    *cb = vk_S.cb;
+    *ctx = vk_S.ctx;
     vk_S.ent = NULL;
     vk_S.cb = NULL;
     vk_S.ctx = NULL;
@@ -377,6 +376,23 @@ static void complete(int len) {
         memset(vk_S.text, 0, sizeof(vk_S.text));
         vk_S.len = vk_S.cursor = 0;
     }
+    return len;
+}
+
+static void complete(int len) {
+    void (*cb)(int, void *);
+    void *ctx;
+    len = take(len, &cb, &ctx);
+    if (cb) cb(len, ctx);
+}
+
+/* The user answered: the keyboard closes first, then the callback runs, so it may ask the next question (a PIN and its
+ * confirmation, a network's name and then its password). */
+static void finish(int len) {
+    void (*cb)(int, void *);
+    void *ctx;
+    len = take(len, &cb, &ctx);
+    close_now();
     if (cb) cb(len, ctx);
 }
 

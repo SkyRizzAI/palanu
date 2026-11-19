@@ -106,6 +106,21 @@ TEST(the_lock_screen_is_the_session_own_and_the_console_is_reachable_from_it) {
     CHECK(!pal_desktop_locked());
 }
 
+/* The lock is the system's: a session change while locked (from a shell over Link or a script) is refused, and the lock stays. */
+TEST(a_session_change_while_locked_is_refused_and_the_lock_stays) {
+    CHECK(pal_desktop_lock() == NEMA_OK);
+    CHECK(wait_top("athena-lock"));
+    CHECK(pal_desktops_use("classic") == NEMA_ERR_PERM);
+    CHECK(pal_desktops_stop() == NEMA_ERR_PERM);
+    CHECK(pal_desktop_locked());
+    CHECK(wait_top("athena-lock"));
+    CHECK(!strcmp(pal_desktops_active(), "athena"));
+    key(PAL_KEY_ENTER, 0);
+    key(PAL_KEY_ENTER, 0); /* no PIN: Enter twice */
+    CHECK(wait_top(NULL));
+    CHECK(!pal_desktop_locked());
+}
+
 TEST(switching_back_takes_every_athena_screen_away) {
     for (int i = 0; i < 3; i++) { /* LVGL starts and stops each time */
         CHECK(pal_desktops_use("classic") == NEMA_OK);
@@ -197,6 +212,7 @@ int main(void) {
     RUN(classic_owns_its_screens_and_esc_lands_on_its_home);
     RUN(athena_has_none_of_the_classic_screens_and_esc_lands_on_its_home);
     RUN(the_lock_screen_is_the_session_own_and_the_console_is_reachable_from_it);
+    RUN(a_session_change_while_locked_is_refused_and_the_lock_stays);
     RUN(switching_back_takes_every_athena_screen_away);
     RUN(with_no_session_the_console_has_the_screen_and_esc_goes_nowhere);
     RUN(a_dialog_is_drawn_by_athena_and_answered_by_the_system);

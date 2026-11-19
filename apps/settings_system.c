@@ -217,11 +217,13 @@ static void pin_second(void *ctx, bool ok, const char *text) {
     (void)ctx;
     if (!ok) return;
     if (strcmp(s_pin1, text ? text : "") != 0) {
+        memset(s_pin1, 0, sizeof(s_pin1));
         settings_toast("PINs do not match");
         return;
     }
     if (settings_text_apply((void *)"security.pin", s_pin1)) settings_toast("PIN set");
     memset(s_pin1, 0, sizeof(s_pin1));
+    pal_menu_refresh(settings_menu()); /* "Change PIN", and Clear PIN can be used now */
 }
 
 static void pin_first(void *ctx, bool ok, const char *text) {

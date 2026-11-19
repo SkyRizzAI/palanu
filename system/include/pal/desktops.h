@@ -37,11 +37,12 @@ const pal_desktop_env_t *pal_desktops_find(const char *id);
 const char *pal_desktops_active(void); /* the id of the active desktop; "" before any started */
 
 /* Stop the active desktop and start ID, then show its home. NEMA_ERR_NOENT for an unknown id (nothing changes); NEMA_ERR_IO when
- * it failed to start (no session runs, the console is in front). Saves the choice in `desktop.env` when it worked. */
+ * it failed to start (no session runs, the console is in front); NEMA_ERR_PERM while the device is locked (the lock is the
+ * system's: changing the session must not open it). Saves the choice in `desktop.env` when it worked. */
 nema_err_t pal_desktops_use(const char *id);
 
-/* Stop the active desktop: no session runs and the console takes the screen. */
-void pal_desktops_stop(void);
+/* Stop the active desktop: no session runs and the console takes the screen. NEMA_ERR_PERM while the device is locked. */
+nema_err_t pal_desktops_stop(void);
 
 /* At boot, after the views are registered: start the desktop named by `desktop.env`, unless boot.target is console or this is
  * safe mode. An unknown name or a failed start leaves the console in front with the reason. */

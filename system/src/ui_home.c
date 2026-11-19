@@ -52,8 +52,6 @@ static struct {
     bool was_off;      /* the display was off at the last tick: the desktop repaints on wake */
     kui_canvas_t kc;   /* the logical canvas the desktop is drawn into */
     uint8_t mono[PAL_ANIM_MAX_W * PAL_ANIM_MAX_H / 8]; /* an indexed frame converted to mono bits */
-    char req[24];
-    volatile bool req_pending;
 } H NEMA_EXT_BSS; /* zero at boot (external RAM where the board has it); enter() sets last_min and chip_sig */
 
 static uint32_t now_ms(void) { return (uint32_t)(pal_sys_uptime_us() / 1000u); }
@@ -215,13 +213,6 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     paint(c, a);
 }
 
-static void pump(pal_view_t *v) {
-    (void)v;
-    if (!H.req_pending) return;
-    H.req_pending = false;
-    if (!strcmp(H.req, "lock")) pal_ui_lock_now(); /* the lock goes through the desktop's lock state */
-    else pal_desktop_open(H.req);
-}
 
 static void tick(pal_view_t *v, uint32_t t) {
     (void)v;
@@ -281,11 +272,19 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     }
 }
 
-void pal_ui_request_view(const char *id) {
-    if (!id) return;
-    nema_strlcpy(H.req, id, sizeof(H.req));
-    H.req_pending = true;
-    pal_desktop_invalidate(); /* wakes the desktop, which runs the pump that opens the view */
+/* Any session, any task: the lock is the running session's lock screen, home its home, any other id a view it has registered.
+ * The calls below queue the change for the desktop task. */
+bool pal_ui_request_view(const char *id) {
+    if (!id) return false;
+    if (!strcmp(id, "lock")) return pal_desktop_lock() == NEMA_OK;
+    if (!strcmp(id, "home")) {
+        if (!pal_desktop_home_id()[0]) return false;
+        pal_desktop_home();
+        return true;
+    }
+    if (!pal_desktop_view(id)) return false; /* not a screen of the running session */
+    pal_desktop_open(id);
+    return true;
 }
 
 void pal_ui_home_freeze(int frame) {
@@ -296,6 +295,6 @@ void pal_ui_home_freeze(int frame) {
 
 pal_view_t pal_home_view = {
     .id = "home", .title = "Home", .flags = PAL_VIEW_FULLSCREEN | PAL_VIEW_HIDDEN, .enter = enter, .leave = leave,
-    .draw = draw, .key = key, .pump = pump, .tick = tick, .tick_ms = HOME_TICK_MS, .obscured = obscured, .exposed = exposed,
+    .draw = draw, .key = key, .tick = tick, .tick_ms = HOME_TICK_MS, .obscured = obscured, .exposed = exposed,
     .legends = HOME_LEGENDS, .nlegends = 2,
 };

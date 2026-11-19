@@ -46,7 +46,7 @@ Date: 2026-11-14. "Proven" means it was run and the result was observed.
 
 | Gate | Status | Evidence or what is missing |
 |---|---|---|
-| Host tests (63) and golden images (125 screens x 2 themes) | proven | `./pal test`, `./pal golden check` |
+| Host tests (69) and golden images (166 scenes x 2 themes) | proven | `./pal test`, `./pal golden check` |
 | Code rules, API ledger, derived files | proven | `./pal check` (also checks the version) |
 | Internal RAM: Wi-Fi and Bluetooth together | proven | 120 KB free, 80 KB minimum while both are on; `ramcheck` in the build |
 | Stack frame of every function | proven | `ramcheck` (limit 1.5 KB; shell commands 4 KB) |
@@ -61,7 +61,7 @@ Date: 2026-11-14. "Proven" means it was run and the result was observed.
 | Second board (T8.2) and headless target (T8.1) | **not yet** | needs another board from you; the porting steps are in `PORTING-A-BOARD.md` |
 | Secure boot and flash encryption (T8.3) | **undecided** | product decision: irreversible once the eFuse is burned |
 | Palanu Link data encryption after sign-in | **not yet** | a known limit, `PLP.md` "Threat model" |
-| Web simulator (T7.4) | **not yet** | the desktop simulator exists; the WebAssembly version does not |
+| Web simulator (T7.4) | proven in a browser | `./pal web` runs the whole system in a page (docs/SIMULATOR.md); not yet run on a host without the isolation headers |
 
 ## 4. Endurance test
 
