@@ -9,7 +9,8 @@
 #include "pal/theme.h"
 
 /* The Terminal app: tabs of shell sessions. Each session is a TTY, an emulator, and a shell process, so
- * the same shell works on the screen, on a UART, and (later) through Palanu Link. */
+ * the same shell works on the screen, on a UART, and (later) through Palanu Link. A shell that exits closes its tab; when it was
+ * the last one the app is done (pal_app_exit) and the running desktop session shows its home. */
 
 #define MAX_SESS 4
 
@@ -199,16 +200,19 @@ static void pump(pal_view_t *v) {
             pal_beep(60);
         }
         int code;
-        if (nema_proc_wait(s->pid, &code, 0) == NEMA_OK) { /* the shell exited: replace it */
-            if (count() > 1) {
-                session_close(i);
+        if (nema_proc_wait(s->pid, &code, 0) == NEMA_OK) { /* the shell exited (exit, end of input): its tab closes */
+            session_close(i);
+            if (count() > 0) {
                 if (T.cur == i) {
                     for (int j = 0; j < MAX_SESS; j++)
                         if (T.s[j].used) T.cur = j;
                 }
             } else {
-                session_close(i);
-                session_start(v, i);
+                /* The last tab: the Terminal is an app on the desktop, so it is done, and the session goes to its home. The next
+                 * open starts a new shell. Only the system console (tty1) gives a new login when its shell exits (console.c). */
+                T.ready = false;
+                T.cur = 0;
+                if (front) pal_app_exit();
             }
             pal_desktop_invalidate_all();
         }

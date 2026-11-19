@@ -19,7 +19,7 @@ A 4x10 matrix (TCA8418), 39 keys, columns run from right to left (C9 is leftmost
   moves down and Fn twice closes it (like Esc). **Shift twice quickly:** Caps Lock. Details in `VKEYBOARD.md`.
 - **⟳ (cycle):** tap = switch app, hold = home.
 - **Ctrl + Alt + Esc:** the system console and back (docs/DESKTOPS.md); it works on every screen and no desktop can take it.
-- **Alt + N / W / Tab:** new terminal tab / close / next. **Shift + PgUp/PgDn** (Fn+R/F): scroll history.
+- **Alt + N / W / Tab:** new terminal tab / close / next. `exit` closes the tab; the last one closes the Terminal. **Shift + PgUp/PgDn** (Fn+R/F): scroll history.
 
 ## Not yet confirmed
 The secondary symbol of the `P` key and the `0` function on the `Nm` key are presumed from photos; confirm on the board.

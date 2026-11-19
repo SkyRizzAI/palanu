@@ -84,6 +84,8 @@ typedef struct {
   gives them back at its stop (`lv_deinit`).
 - **Leaving a screen.** Esc that a screen does not take, the home key, and `pal_app_exit()` all go to the running session's home. No
   code outside a session names a session's screen. With no session, Esc and the home key go nowhere and `lock` is refused.
+  The Terminal is such an app: `exit` (or end of input) closes its tab, and closing the last tab ends the app, so the session shows
+  its home and the next open starts a new shell. Only the system console (tty1) logs in again when its shell exits.
 - **Key order.** The system's (Ctrl+Alt+Esc, the screen wake), then the lock screen, then the session's keys (`chrome.key`, then its home
   keys), then the top overlay, then the front view.
 - **Apps per session.** An app manifest may say `desktops = ["classic"]` (`apps/apps.toml`; in a package, `"desktops": "classic"`): the
