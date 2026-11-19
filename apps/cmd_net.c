@@ -271,12 +271,17 @@ static int cmd_curl(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         bool more = i + 1 < argc;
-        if (!strcmp(a, "-i")) out.show_headers = true;
-        else if (!strcmp(a, "-I")) head_only = out.show_headers = true;
-        else if (!strcmp(a, "-s")) out.quiet = true;
-        else if (!strcmp(a, "-k")) q.insecure = true;
-        else if (!strcmp(a, "-L")) q.redirects = 8;
-        else if (!strcmp(a, "-X") && more) q.method = argv[++i];
+        /* letters that take no value may be joined, as curl allows: -sIL */
+        bool flags = a[0] == '-' && a[1] && strspn(a + 1, "iIskL") == strlen(a + 1);
+        if (flags) {
+            for (const char *f = a + 1; *f; f++) {
+                if (*f == 'i') out.show_headers = true;
+                else if (*f == 'I') head_only = out.show_headers = true;
+                else if (*f == 's') out.quiet = true;
+                else if (*f == 'k') q.insecure = true;
+                else q.redirects = 8;
+            }
+        } else if (!strcmp(a, "-X") && more) q.method = argv[++i];
         else if (!strcmp(a, "-H") && more && nh < CURL_HEADERS) headers[nh++] = argv[++i];
         else if (!strcmp(a, "-d") && more) {
             q.body = argv[++i];

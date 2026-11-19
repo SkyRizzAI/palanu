@@ -31,6 +31,13 @@ The firmware is divided into layered components, and the layer boundaries are en
   firmware update needs a signed list or developer mode. Proven by `test_store_fw` and in the simulator (no slot there); not yet on
   hhv2. The release key is not made yet (the owner's step, `docs/RELEASE.md`).
 
+- **Proven on hhv2 (19 November 2026, over serial):** HTTPS with `curl` (Google, Cloudflare, GitHub, Wikipedia, lua.org; example.com
+  fails because its root CA is not in the common certificate bundle chosen for size, `-k` skips the check), the firmware update from
+  a signed catalogue (3.5 MB over Wi-Fi in about 50 s, the image checked, then booted from ota_1 and again from ota_0), `update
+  check`, `store list`, Lua, power profiles switching live, the log file, the saved Wi-Fi list, `ping`. The Keyboard app starts and
+  stops its Bluetooth keyboard (Link over BLE stops and comes back); pairing with a real host and scp/sftp from the board are not
+  tried yet. Found and fixed there: the shell spun after any command longer than the history delay.
+
 ## Not done / not verified
 - **Keyboard (ADR-0018):** the device as a Bluetooth LE keyboard (HID over GATT, bonded in NVS); proven by `test_hid` and in the
   simulator, built for hhv2, not yet paired with a real host. USB HID is not done.

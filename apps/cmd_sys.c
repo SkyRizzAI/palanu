@@ -14,6 +14,7 @@
 #include "pal/time.h"
 #include "pal/theme.h"
 #include "pal/ui.h"
+#include "pal/version.h"
 
 static bool same_name(const char *a, const char *b) { /* ASCII case-insensitive */
     for (; *a && *b; a++, b++)
@@ -130,7 +131,7 @@ static int cmd_log(int argc, char **argv) {
 }
 
 static int cmd_uname(int argc, char **argv) {
-    pal_printf("PalanuOS 0.1 %s %s\n", pal_board()->name, pal_board()->chip);
+    pal_printf("PalanuOS %s %s %s\n", PAL_OS_VERSION, pal_board()->name, pal_board()->chip);
     return 0;
 }
 
