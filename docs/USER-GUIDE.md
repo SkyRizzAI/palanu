@@ -114,6 +114,9 @@ the same keys, known hosts and profiles as `ssh`.
 **Lua**: `lua` opens a Lua 5.4 prompt, `lua script.lua` runs a script; the `pal` module reads and writes files, runs commands and
 posts notifications (`man lua`).
 
+**Music**: `play ode` plays a tune on the buzzer (`play -l` lists them); `play 'name:d=4,o=5,b=120:c,e,g,2c6'` plays any RTTTL
+ringtone text, and `play FILE` one saved in a file. Ctrl-C stops it. Lua has `pal.tone` and `pal.play`.
+
 **Small tools**: `calc 2*(3+4)` (or `calc` alone for one line at a time, with `ans`), `printf FORMAT ARGS`, and `man`: the offline
 manual (`man guide`, `man keys`, `man store`, `man -k WORD`), also there without a network.
 

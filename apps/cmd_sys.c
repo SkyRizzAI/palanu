@@ -5,6 +5,7 @@
 
 #include "libapp.h"
 #include "builtin.h"
+#include "pal/music.h"
 #include "pal/power.h"
 #include "pal/board.h"
 #include "pal/desktop.h"
@@ -223,6 +224,37 @@ static void apply_theme(void) {
     pal_settings_save();
 }
 
+/* play [NAME | RTTTL | FILE] | -l: a tune on the buzzer (pal/music.h). Ctrl-C stops it. */
+static int cmd_play(int argc, char **argv) {
+    if (argc < 2 || !strcmp(argv[1], "-l")) {
+        pal_printf("tunes:");
+        for (size_t i = 0; pal_music_builtin_at(i); i++) pal_printf(" %s", pal_music_builtin_at(i));
+        pal_printf("\nusage: play NAME | 'name:d=4,o=5,b=120:c,e,g' | FILE.rtttl\n");
+        return argc < 2 ? 2 : 0;
+    }
+    const char *tune = pal_music_builtin(argv[1]);
+    char *file = NULL;
+    if (!tune && strchr(argv[1], ':')) tune = argv[1];
+    if (!tune) {
+        int fd = nema_open(argv[1], NEMA_O_READ);
+        size_t n = 0;
+        if (fd >= 0) {
+            file = pal_read_all(fd, &n);
+            nema_close(fd);
+        }
+        if (!file) {
+            pal_eprintf("play: %s: not a tune, nor a file\n", argv[1]);
+            return 1;
+        }
+        tune = file;
+    }
+    nema_err_t r = pal_music_play(tune);
+    nema_free(file);
+    if (r == NEMA_ERR_NOENT) pal_eprintf("play: this device has no buzzer\n");
+    else if (r == NEMA_ERR_INVAL) pal_eprintf("play: not RTTTL (name:d=4,o=5,b=120:notes)\n");
+    return r == NEMA_OK || r == NEMA_ERR_INTR ? 0 : 1;
+}
+
 static int cmd_setting(int argc, char **argv) {
     if (argc != 3) {
         pal_eprintf("usage: setting KEY VALUE\n");
@@ -317,6 +349,7 @@ static const nema_app_t SYS_APPS[] = {
     APP("theme", "show or change the theme", cmd_theme, 0), APP("brightness", "backlight percent", cmd_brightness, 0),
     {"flushes", "display flush count", cmd_flushes, 0, NEMA_APP_HIDDEN},
     {"setting", "set a settings key (dev: golden scenes)", cmd_setting, 0, NEMA_APP_HIDDEN},
+    {"play", "play a tune on the buzzer: play NAME | RTTTL | FILE (play -l lists them)", cmd_play, 8192, 0},
 };
 
 void pal_apps_register_sys(void);

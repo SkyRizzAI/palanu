@@ -10,6 +10,7 @@
 #include "lua.h"
 #include "lualib.h"
 #include "pal/board.h"
+#include "pal/music.h"
 #include "pal/notify.h"
 #include "pal/settings.h"
 #include "pal/sysinfo.h"
@@ -282,9 +283,29 @@ static int l_beep(lua_State *L) {
     return 0;
 }
 
+static int l_tone(lua_State *L) { /* pal.tone(hz, ms): blocks for ms */
+    pal_tone((int)luaL_checkinteger(L, 1), (int)luaL_checkinteger(L, 2));
+    return 0;
+}
+
+static int l_play(lua_State *L) { /* pal.play(rtttl or a built-in name): true, or nil and why */
+    const char *t = luaL_checkstring(L, 1);
+    const char *b = pal_music_builtin(t);
+    nema_err_t r = pal_music_play(b ? b : t);
+    if (r == NEMA_ERR_INTR) return luaL_error(L, "interrupted");
+    if (r != NEMA_OK) {
+        lua_pushnil(L);
+        lua_pushstring(L, r == NEMA_ERR_NOENT ? "no buzzer" : "not RTTTL");
+        return 2;
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
 static const luaL_Reg PAL_FNS[] = {{"sleep", l_sleep},   {"uptime", l_uptime}, {"readfile", l_readfile}, {"writefile", l_writefile},
                                    {"ls", l_ls},         {"exists", l_exists}, {"remove", l_remove},     {"mkdir", l_mkdir},
                                    {"run", l_run},       {"setting", l_setting}, {"notify", l_notify},   {"beep", l_beep},
+                                   {"tone", l_tone},     {"play", l_play},
                                    {NULL, NULL}};
 
 static int open_pal(lua_State *L) {

@@ -30,6 +30,8 @@ library's files, not the device's. In their place:
 | `pal.setting(name)` | a setting's value as text (`pal.setting("ui.theme")`), or nil |
 | `pal.notify(title [, text])` | posts a notification |
 | `pal.beep([ms])` | sounds the buzzer |
+| `pal.tone(hz, ms)` | one tone for ms (0 Hz: a rest) |
+| `pal.play(tune)` | an RTTTL tune or a built-in one (`"ode"`); `true`, or `nil, why` |
 | `pal.version`, `pal.board` | the PalanuOS version and the board's name |
 
 ## Limits
