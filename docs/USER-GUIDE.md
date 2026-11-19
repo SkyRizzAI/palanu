@@ -75,7 +75,9 @@ Remove the card only after **Eject SD Card** (or `sd eject`).
 ## 5b. Getting apps
 
 **Store** (launcher) lists the apps of the catalogue: Refresh, then pick one and Install (or Update). From the terminal: `store`,
-`store install ID`, `store update`. See `docs/STORE.md`.
+`store install ID`, `store update`. See `docs/STORE.md`. PalanuOS itself updates from the same catalogue: `update` shows whether a
+newer system is offered, `update install` writes it to the other slot (it starts at the next restart), or Settings > Developer >
+Updates.
 
 ## 5a. Editing text
 

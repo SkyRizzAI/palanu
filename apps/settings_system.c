@@ -290,6 +290,24 @@ static void ota_text(void *ctx, char *out, size_t cap) {
     snprintf(out, cap, "%s", pal_ota() ? "ready" : "not on this build");
 }
 
+char settings_update_text[48];
+bool settings_update_ready;
+
+static void update_text(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    snprintf(out, cap, "%s", settings_update_text);
+}
+
+static void update_check_run(void *ctx) {
+    (void)ctx;
+    settings_run_job(JOB_UPDATE_CHECK, NULL, NULL, "Checking the catalogue...");
+}
+
+static void update_install_run(void *ctx) {
+    (void)ctx;
+    settings_run_job(JOB_UPDATE_INSTALL, NULL, NULL, "Downloading PalanuOS...");
+}
+
 static pal_menu_row_t UPDATES_STORE[8] NEMA_EXT_BSS;
 
 static void build_updates(pal_menu_page_t *p) {
@@ -303,6 +321,17 @@ static void build_updates(pal_menu_page_t *p) {
     r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "Update over Link", .text = ota_text,
                          .hint = "Install from Forge over Palanu Link"};
     pal_menu_add(p, &r);
+    /* from the catalogue (ADR-0016): check, then install what it offers */
+    r = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "Check for update", .icon = "store", .text = update_text,
+                         .run = update_check_run, .hint = "PalanuOS from the app catalogue"};
+    pal_menu_add(p, &r);
+    if (settings_update_ready) {
+        r = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "Install update", .icon = "store", .run = update_install_run,
+                             .disabled = !pal_ota(), .hint = pal_ota() ? NULL : "This build cannot update itself",
+                             .confirm = "PalanuOS is written to the other slot. The device keeps the current system until you restart.",
+                             .ok_label = "Install"};
+        pal_menu_add(p, &r);
+    }
 }
 
 pal_menu_page_t PG_UPDATES = {.title = "Updates", .store = UPDATES_STORE, .cap = 8, .build = build_updates};

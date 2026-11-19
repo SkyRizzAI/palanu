@@ -71,6 +71,11 @@ export function publicKeyHex(seed: Uint8Array): string {
   return spki.subarray(spki.length - 32).toString("hex");
 }
 
+/** An Ed25519 signature (64 bytes) over a 32-byte digest: how packages and the catalogue's index.txt.sig are signed. */
+export function signDigest(seed: Uint8Array, digest: Uint8Array): Uint8Array {
+  return new Uint8Array(edSign(null, Buffer.from(digest), privateKey(seed)));
+}
+
 /** Reads a key file: 64 hex digits, or 32 raw bytes. */
 export function seedFromText(bytes: Uint8Array): Uint8Array {
   if (bytes.length === 32) return bytes;

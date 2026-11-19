@@ -49,7 +49,9 @@ async function offline(cmd: string, a: string[]): Promise<boolean> {
     if (exists(out)) throw new Error(`${out} exists; keys are never overwritten`);
     const seed = randomBytes(32);
     writeFileSync(out, seed.toString("hex") + "\n", { mode: 0o600 });
-    console.log(`wrote ${out} (keep it secret); public key (add to /etc/trust/<name>.pub on the device):\n${publicKeyHex(seed)}`);
+    const pub = publicKeyHex(seed);
+    console.log(`wrote ${out} (keep it secret); public key (add to /etc/trust/<name>.pub on the device):\n${pub}`);
+    console.log(`as a release key compiled into the firmware (system/src/release_keys.h):\n    {${pub.match(/../g)!.map((b) => "0x" + b).join(", ")}},`);
     return true;
   }
   if (cmd !== "build" && cmd !== "pack") return false;

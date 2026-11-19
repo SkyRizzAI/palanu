@@ -8,6 +8,8 @@
 #include "nema/nema.h"
 #include "nema/task.h"
 #include "pal/sd.h"
+#include "pal/store.h"
+#include "pal/version.h"
 #include "pal/papp.h"
 #include "pal/radio.h"
 #include "pal/svc.h"
@@ -31,7 +33,7 @@ static struct {
 } J NEMA_EXT_BSS;
 
 static const char *const NAMES[] = {"", "Wi-Fi on", "Wi-Fi off", "Bluetooth on", "Bluetooth off", "Scan", "Connect",
-                                    "Disconnect", "Forget", "Start", "Stop", "Restart", "Uninstall", "Mount card", "Eject card", "Remote on", "Remote off"};
+                                    "Disconnect", "Forget", "Start", "Stop", "Restart", "Uninstall", "Mount card", "Eject card", "Remote on", "Remote off", "Check for update", "Update"};
 
 const char *settings_job_name(settings_job_t k) { return (unsigned)k < sizeof(NAMES) / sizeof(NAMES[0]) ? NAMES[k] : ""; }
 
@@ -113,6 +115,26 @@ static void run(settings_job_t k) {
     case JOB_SD_EJECT:
         J.rc = pal_sd_eject();
         break;
+    case JOB_UPDATE_CHECK:
+    case JOB_UPDATE_INSTALL: {
+        char msg[96];
+        pal_store_entry_t e;
+        J.rc = pal_store_refresh(msg, sizeof(msg));
+        if (J.rc != NEMA_OK) {
+            set_error(msg);
+        } else if (!pal_store_firmware(&e)) {
+            J.rc = NEMA_ERR_NOENT;
+            set_error("No update for this board");
+        } else if (k == JOB_UPDATE_CHECK) {
+            bool newer = pal_store_version_cmp(e.version, PAL_OS_VERSION) > 0;
+            snprintf(J.a, sizeof(J.a), newer ? "PalanuOS %s is available" : "Up to date", e.version);
+        } else {
+            J.rc = pal_store_update_firmware(NULL, NULL, msg, sizeof(msg));
+            if (J.rc != NEMA_OK) set_error(msg);
+            else snprintf(J.a, sizeof(J.a), "PalanuOS %s installed: restart to use it", e.version);
+        }
+        break;
+    }
     default:
         J.rc = NEMA_ERR_INVAL;
         break;

@@ -25,6 +25,10 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 - **Catalogue and browser tools (ADR-0015):** the Store app and `store` (a list on any web server, SHA-256 checked); Web Forge
   installs PalanuOS on a board over Web Serial (`/flash/`) and manages files (new folder, rename, delete, edit, install).
+- **The system from the catalogue (ADR-0016):** `update` and Settings > Developer > Updates download the board's firmware line
+  straight into the other slot (size and SHA-256 checked while streaming); the list can be signed (`index.txt.sig`, Ed25519) and a
+  firmware update needs a signed list or developer mode. Proven by `test_store_fw` and in the simulator (no slot there); not yet on
+  hhv2. The release key is not made yet (the owner's step, `docs/RELEASE.md`).
 
 ## Not done / not verified
 - Not done from the 19 November 2026 analysis: SFTP/SCP (the board's libssh is built without SFTP), a scripting language (Lua or

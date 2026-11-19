@@ -8,9 +8,11 @@
 #include "libapp.h"
 #include "pal/desktop.h"
 #include "pal/dialog.h"
+#include "pal/board.h"
 #include "pal/menu.h"
 #include "pal/store.h"
 #include "pal/theme.h"
+#include "pal/version.h"
 #include "pal/toast.h"
 #include "views.h"
 
@@ -243,7 +245,57 @@ static int cmd_store(int argc, char **argv) {
     return 2;
 }
 
-static const nema_app_t STORE_APPS[] = {{"store", "the app catalogue: list, info, install, update", cmd_store, 12288, 0}};
+static void fw_progress(uint32_t done, uint32_t total, void *ctx) {
+    int *last = (int *)ctx, pct = total ? (int)((uint64_t)done * 100u / total) : 0;
+    if (pct / 10 != *last / 10) pal_printf("  %d%%\n", pct);
+    *last = pct;
+}
+
+/* update: the firmware from the catalogue (ADR-0016). check: what is offered; install: write it to the other slot (--reboot
+ * restarts into it when it is done). */
+static int cmd_update(int argc, char **argv) {
+    const char *sub = argc > 1 ? argv[1] : "check";
+    bool reboot = argc > 2 && !strcmp(argv[2], "--reboot");
+    if (strcmp(sub, "check") && strcmp(sub, "install")) {
+        pal_eprintf("usage: update [check | install [--reboot]]\n");
+        return 2;
+    }
+    char msg[96];
+    if (pal_store_refresh(msg, sizeof(msg)) != NEMA_OK) {
+        pal_eprintf("update: %s\n", msg);
+        return 1;
+    }
+    pal_store_entry_t e;
+    if (!pal_store_firmware(&e)) {
+        pal_printf("the catalogue has no firmware for this board\n");
+        return 0;
+    }
+    int cmp = pal_store_version_cmp(e.version, PAL_OS_VERSION);
+    pal_printf("running %s, catalogue %s (%lu KB, list %s)\n", PAL_OS_VERSION, e.version, (unsigned long)(e.size / 1024u),
+               pal_store_signed() ? "signed" : "not signed");
+    if (!strcmp(sub, "check")) {
+        pal_printf("%s\n", cmp > 0 ? "an update is available: update install" : "up to date");
+        return 0;
+    }
+    if (cmp <= 0) pal_printf("not newer than the running system; installing it anyway\n");
+    int last = -1;
+    if (pal_store_update_firmware(fw_progress, &last, msg, sizeof(msg)) != NEMA_OK) {
+        pal_eprintf("update: %s\n", msg);
+        return 1;
+    }
+    pal_printf("PalanuOS %s is written to the other slot and starts at the next boot\n", e.version);
+    if (reboot) {
+        pal_printf("restarting...\n");
+        nema_sleep_ms(300);
+        pal_reboot();
+    }
+    return 0;
+}
+
+static const nema_app_t STORE_APPS[] = {{"store", "the app catalogue: list, info, install, update", cmd_store, 12288, 0},
+                                        {"update", "the system from the catalogue: check, install [--reboot]", cmd_update, 12288, 0}};
 
 void pal_apps_register_store(void);
-void pal_apps_register_store(void) { nema_app_register(&STORE_APPS[0]); }
+void pal_apps_register_store(void) {
+    for (size_t i = 0; i < sizeof(STORE_APPS) / sizeof(STORE_APPS[0]); i++) nema_app_register(&STORE_APPS[i]);
+}

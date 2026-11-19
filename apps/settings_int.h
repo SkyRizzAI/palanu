@@ -61,7 +61,12 @@ typedef enum {
     JOB_SD_EJECT,
     JOB_REMOTE_ON,  /* the Palanu Link servers over TCP and WebSocket */
     JOB_REMOTE_OFF,
+    JOB_UPDATE_CHECK,   /* the catalogue's firmware line for this board (ADR-0016); a: the result text */
+    JOB_UPDATE_INSTALL, /* that firmware into the other slot */
 } settings_job_t;
+/* What the last update check found ("" before one): the Updates page shows it, and offers Install when update_ready. */
+extern char settings_update_text[48];
+extern bool settings_update_ready;
 
 bool settings_job_start(settings_job_t k, const char *a, const char *b);
 bool settings_job_busy(void);

@@ -20,6 +20,26 @@ id<TAB>version<TAB>name<TAB>size<TAB>sha256<TAB>path<TAB>summary
 ```
 `path` is relative to the list (or a full URL). A line that does not parse is skipped.
 
+A line whose id is `firmware:<board>` (`firmware:hhv2`) is PalanuOS for that board, not an app: Store and `store list` leave it
+out, and `update` reads it (ADR-0016).
+
+## Signing
+`index.txt.sig` next to the list holds 64 bytes: an Ed25519 signature over the list's SHA-256. The device trusts it when the key
+is in `/etc/trust` (one hex public key per file) or compiled in as a release key (`system/src/release_keys.h`). An unsigned list
+still serves apps; the system image only comes from a signed list, or in developer mode.
+
+## The system
+- `update` (or `update check`) reads the catalogue and compares its firmware for this board with the running version;
+  `update install [--reboot]` downloads it straight into the other update slot, checking its size and SHA-256 as it streams, and
+  only a matching image starts at the next boot.
+- Settings > Developer > Updates: Check for update, then Install update.
+
 ## Making a catalogue
 `bun forge/tools/store.ts build [DIR]` builds the projects listed in `forge/tools/store.ts` into `DIR` (default `store/`) and writes
-`index.txt`; `bun forge/tools/store.ts index DIR` writes only the list for packages already there. Push `store/` and devices see it.
+`index.txt`; `bun forge/tools/store.ts index DIR` writes only the list for packages already there (keeping the summaries it had).
+Push `store/` and devices see it. Options for both:
+- `--firmware BOARD=FILE[@URL]`: a firmware line for PalanuOS (the version in `system/include/pal/version.h`); the device downloads
+  `URL`, or `FILE` copied next to the list when no URL is given.
+- `--sign KEYFILE`: writes `index.txt.sig` with a key from `bun forge/tools/palanu.ts keygen`.
+
+`./pal release` does this for hhv2: the new image at its GitHub release download, signed when `PALANU_RELEASE_KEY` names the key.

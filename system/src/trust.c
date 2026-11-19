@@ -1,6 +1,6 @@
 /* Trust for installed packages (docs/PAPP.md, "Confiança"). The trust store is the files in /etc/trust: each holds one
- * Ed25519 public key, as 32 raw bytes or as 64 hex digits (whitespace allowed). A built-in release key list is compiled
- * in, empty for now. Developer mode is the setting dev.mode=1 in /data/settings. The policy is one pure function, so the
+ * Ed25519 public key, as 32 raw bytes or as 64 hex digits (whitespace allowed). The release keys in release_keys.h are
+ * compiled in (empty until the owner makes one). Developer mode is the setting dev.mode=1 in /data/settings. The policy is one pure function, so the
  * host tests can run the whole matrix (tests/unit/test_papp.c). */
 #include <stdio.h>
 #include <string.h>
@@ -8,16 +8,16 @@
 #include "crypto_prim.h"
 #include "pal/papp.h"
 #include "pal/trust.h"
+#include "release_keys.h"
 
 #define TRUST_DIR "/etc/trust"
 #define SETTINGS_FILE "/data/settings"
 #define TRUST_FILE_MAX 160 /* a raw key is 32 bytes; a hex key is 64 digits plus a newline; the rest is ignored */
 
-/* Release keys compiled into the firmware. Empty until a release key exists; the list is read by psys_trust_load. */
-#define RELEASE_KEY_COUNT 0
-#if RELEASE_KEY_COUNT > 0
-static const uint8_t RELEASE_KEYS[RELEASE_KEY_COUNT][32] = {{0}};
-#endif
+/* Release keys compiled into the firmware (release_keys.h). Empty until a release key exists; the list is read by psys_trust_load.
+ * A zero placeholder keeps the array legal when the list is empty; it is never used as a key. */
+static const uint8_t RELEASE_KEYS[][32] = {PAL_RELEASE_KEYS{0}};
+#define RELEASE_KEY_SLOTS (sizeof(RELEASE_KEYS) / sizeof(RELEASE_KEYS[0])) /* the keys and the placeholder */
 
 static int hex_nibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -50,9 +50,7 @@ static bool key_from_file(const uint8_t *b, size_t n, uint8_t out[32]) {
 
 size_t psys_trust_load(uint8_t (*keys)[32], size_t max) {
     size_t n = 0;
-#if RELEASE_KEY_COUNT > 0
-    for (size_t i = 0; i < RELEASE_KEY_COUNT && n < max; i++) memcpy(keys[n++], RELEASE_KEYS[i], 32);
-#endif
+    for (size_t i = 0; i + 1 < RELEASE_KEY_SLOTS && n < max; i++) memcpy(keys[n++], RELEASE_KEYS[i], 32);
     nema_dirent_t e;
     for (size_t i = 0; nema_fs_readdir(TRUST_DIR, i, &e) == NEMA_OK; i++) {
         if (e.type != NEMA_T_FILE || e.name[0] == '.' || n >= max) continue;

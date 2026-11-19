@@ -1,14 +1,20 @@
 #!/usr/bin/env bun
 // The app catalogue (docs/STORE.md, ADR-0015): builds the packages of the projects listed below and writes the list the device reads
 // (system/src/store.c): a first line "palanu-store 1", then per package id, version, name, size, sha256, path, summary, by tabs.
-//   bun forge/tools/store.ts build [OUTDIR]     default OUTDIR: store/ (what the device fetches from GitHub by default)
-//   bun forge/tools/store.ts index DIR          only the list, for .papp files already in DIR
+//   bun forge/tools/store.ts build [OUTDIR] [options]   default OUTDIR: store/ (what the device fetches from GitHub by default)
+//   bun forge/tools/store.ts index DIR [options]        only the list, for .papp files already in DIR
+// Options (ADR-0016):
+//   --firmware BOARD=FILE[@URL]  a "firmware:BOARD" line for PalanuOS (the version in system/include/pal/version.h): size and
+//                                SHA-256 from FILE; the device downloads URL, or FILE copied next to the list when no URL is given
+//   --sign KEYFILE               index.txt.sig: Ed25519 over the list's SHA-256 with a key from `palanu keygen`. A device trusts it
+//                                when the public key is in /etc/trust or compiled in as a release key (system/src/trust.c)
 // The packages are unsigned: a device installs them in developer mode, or after a release key signs them.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { buildProject, readAppSpec } from "./palanu_app.ts";
+import { seedFromText, signDigest } from "../packages/papp/src/index.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
@@ -52,6 +58,10 @@ function manifestOf(p: Uint8Array): { id: string; ver: string; name: string } {
   throw new Error("no manifest");
 }
 
+const argv = process.argv.slice(2);
+const opts = (name: string) => argv.flatMap((a, i) => (a === name && argv[i + 1] ? [argv[i + 1]] : []));
+const OS_VERSION = /PAL_OS_VERSION "([^"]+)"/.exec(readFileSync(join(ROOT, "system/include/pal/version.h"), "utf8"))![1];
+
 function index(dir: string, summaries: Record<string, string>) {
   const lines = ["palanu-store 1"];
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".papp")).sort()) {
@@ -61,11 +71,32 @@ function index(dir: string, summaries: Record<string, string>) {
     const clean = (s: string) => s.replace(/[\t\r\n]/g, " ");
     lines.push([m.id, m.ver, clean(m.name), p.length, sha, f, clean(summaries[m.id] ?? "")].join("\t"));
   }
-  writeFileSync(join(dir, "index.txt"), lines.join("\n") + "\n");
-  console.log(`${join(dir, "index.txt")}: ${lines.length - 1} packages`);
+  for (const spec of opts("--firmware")) {
+    const m = /^([a-z0-9_-]+)=([^@]+)(?:@(.+))?$/.exec(spec);
+    if (!m || !existsSync(m[2])) throw new Error(`--firmware BOARD=FILE[@URL]: ${spec}`);
+    const [, board, file, url] = m;
+    const img = readFileSync(file);
+    let path = url;
+    if (!path) {
+      path = `palanuos-${OS_VERSION}-${board}.bin`;
+      copyFileSync(file, join(dir, path));
+    }
+    const sha = createHash("sha256").update(img).digest("hex");
+    lines.push([`firmware:${board}`, OS_VERSION, "PalanuOS", img.length, sha, path, `PalanuOS ${OS_VERSION} for ${board}`].join("\t"));
+  }
+  const text = lines.join("\n") + "\n";
+  writeFileSync(join(dir, "index.txt"), text);
+  console.log(`${join(dir, "index.txt")}: ${lines.length - 1} entries`);
+  const key = opts("--sign")[0];
+  if (key) {
+    const digest = createHash("sha256").update(text).digest();
+    writeFileSync(join(dir, "index.txt.sig"), signDigest(seedFromText(new Uint8Array(readFileSync(key))), digest));
+    console.log(`${join(dir, "index.txt.sig")}: signed`);
+  }
 }
 
-const [cmd, arg] = process.argv.slice(2);
+const [cmd, arg0] = argv;
+const arg = arg0 && !arg0.startsWith("--") ? arg0 : undefined;
 if (cmd === "build") {
   const out = resolve(arg ?? join(ROOT, "store"));
   mkdirSync(out, { recursive: true });
@@ -79,8 +110,11 @@ if (cmd === "build") {
   }
   index(out, summaries);
 } else if (cmd === "index" && arg && existsSync(arg)) {
-  index(resolve(arg), {});
+  /* the summaries the list already has are kept */
+  const old = join(resolve(arg), "index.txt"), summaries: Record<string, string> = {};
+  if (existsSync(old)) for (const l of readFileSync(old, "utf8").split("\n").slice(1)) { const f = l.split("\t"); if (f.length > 6) summaries[f[0]] = f[6]; }
+  index(resolve(arg), summaries);
 } else {
-  console.error("usage: store.ts build [OUTDIR] | index DIR");
+  console.error("usage: store.ts build [OUTDIR] | index DIR   [--firmware BOARD=FILE[@URL]] [--sign KEYFILE]");
   process.exit(2);
 }

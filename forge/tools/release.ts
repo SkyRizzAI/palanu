@@ -136,7 +136,15 @@ writeFileSync(join(out, `release-${version}.json`), JSON.stringify({
 }, null, 2) + "\n");
 console.log(`dist/release/: ${files.join(", ")}`);
 
+/* The catalogue offers the new image to devices (ADR-0016): a firmware line pointing at the release download, and index.txt.sig
+ * when PALANU_RELEASE_KEY names the release key file (a device updates from an unsigned list only in developer mode). */
+const repo = /github\.com[:/](.+?)(\.git)?$/.exec(git("remote get-url origin").trim())?.[1] ?? "SkyRizzAI/palanu";
+const fwUrl = `https://github.com/${repo}/releases/download/v${version}/${name}`;
+const relKey = process.env.PALANU_RELEASE_KEY;
+if (sh(`bun forge/tools/store.ts index store --firmware hhv2=${join(out, name)}@${fwUrl}${relKey ? ` --sign ${relKey}` : ""}`).code) fail("the catalogue update failed");
+if (!relKey) console.log("store/index.txt is not signed: set PALANU_RELEASE_KEY to sign it (docs/RELEASE.md)");
+
 step("commit and tag (local; nothing is pushed)");
 /* The commit only when the files changed: a version that was already written by hand (0.9.0) leaves nothing to commit, and the tag then goes on HEAD. */
-if (sh(`git add VERSION CHANGELOG.md system/include/pal/version.h && (git diff --cached --quiet || git commit -q -m "Release ${version}") && git tag -a v${version} -m "PalanuOS ${version}"`).code) fail("the commit or the tag failed");
+if (sh(`git add VERSION CHANGELOG.md system/include/pal/version.h store/index.txt && (test ! -f store/index.txt.sig || git add store/index.txt.sig) && (git diff --cached --quiet || git commit -q -m "Release ${version}") && git tag -a v${version} -m "PalanuOS ${version}"`).code) fail("the commit or the tag failed");
 console.log(`\nreleased ${version}: commit and tag v${version} are local. Push them yourself when you decide to publish.`);

@@ -36,6 +36,22 @@ void pal_store_installed(const char *id, char *version, size_t cap);
  * reason when it fails. */
 nema_err_t pal_store_install(const char *id, void (*progress)(uint32_t done, uint32_t total, void *ctx), void *ctx, char *msg,
                              size_t msgcap);
+/* ---- firmware (ADR-0016) ----
+ * A line whose id is "firmware:<board>" is that board's PalanuOS image (the raw app image `./pal build` writes), not an app: the
+ * app list leaves it out. The list may be signed: index.txt.sig next to it holds 64 bytes, an Ed25519 signature over the list's
+ * SHA-256, by a key in /etc/trust or a release key compiled in. A firmware update needs a signed list, or developer mode. */
+#define PAL_STORE_FW_PREFIX "firmware:"
+/* The last refresh found a signature by a trusted key. */
+bool pal_store_signed(void);
+/* The firmware line for this board (pal_board_info()->name). */
+bool pal_store_firmware(pal_store_entry_t *out);
+/* Compares two versions part by part as numbers ("0.10.0" is newer than "0.9.1"): -1, 0 or 1. */
+int pal_store_version_cmp(const char *a, const char *b);
+/* Downloads this board's firmware straight into the inactive slot (pal_ota), checking the size and SHA-256 the list gives while it
+ * streams; only a matching image is made the next boot. The caller reboots. NEMA_ERR_UNSUPPORTED without update support (the
+ * simulator), NEMA_ERR_PERM when the list is not signed and developer mode is off. */
+nema_err_t pal_store_update_firmware(void (*progress)(uint32_t done, uint32_t total, void *ctx), void *ctx, char *msg, size_t msgcap);
+
 /* Parses a list (for the tests and pal_store_refresh): returns the entries read, or -1 when it is not a store list. */
 int pal_store_parse(const char *text, size_t len, pal_store_entry_t *out, size_t max);
 

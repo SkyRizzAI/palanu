@@ -17,7 +17,13 @@ OTA slot (warning at 85%, failure at 95%); (5) with `--board`: the release image
 The output: `VERSION`, `version.h` and `CHANGELOG.md` (a new section from the commit subjects since the last tag), `dist/release/`
 (`palanuos-X-hhv2.bin`, `web-forge-X.html`, `SHA256SUMS-X`, `release-X.json`), one "Release X" commit, and the tag `vX`.
 **Nothing is pushed or published**: that decision is yours. The update package is that `.bin` (`palanu ota`, Web Forge >
-Device > Firmware update, or `./pal flash`).
+Device > Firmware update, or `./pal flash`). The release also adds the image to `store/index.txt` as `firmware:hhv2`, pointing at
+`https://github.com/<repo>/releases/download/vX/palanuos-X-hhv2.bin`, so devices can `update` once the tag and that file are
+published (ADR-0016). With `PALANU_RELEASE_KEY=/path/release.key` the list is signed (`store/index.txt.sig`).
+
+**The release key.** Make it once, on a computer you trust, and keep the file offline:
+`bun forge/tools/palanu.ts keygen release.key`. It prints the public key and a line for `system/src/release_keys.h`; commit that
+line (never the `.key`). Every device built after that trusts packages and catalogues signed with it.
 
 **The release build differs from the developer build in one way**: developer mode is off by default, so an unsigned `.papp`
 package is rejected until the owner turns it on in Settings > Developer or puts a public key in `/etc/trust/`
@@ -113,3 +119,5 @@ AM/PM suffix in the home and lock layouts; the power profile needs a service tha
 4. Trying Web Forge over USB and Bluetooth in Chrome with a real board.
 5. Trying SSH again (echo, Ctrl-C, Ctrl-D) after today's fix.
 6. Publishing: `./pal release ...` makes a local tag; pushing and putting `dist/release/` at a download location is your step.
+7. The release key (ADR-0016): make it with `palanu keygen`, keep the file offline, and add its public line to
+   `system/src/release_keys.h`. Until then the catalogue is unsigned and a device updates its system from it only in developer mode.

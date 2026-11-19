@@ -312,6 +312,15 @@ static void job_done(settings_job_t k, int rc, const char *arg) {
         snprintf(msg, sizeof(msg), "Card can be removed");
         pal_menu_refresh(settings_menu());
         break;
+    case JOB_UPDATE_CHECK:
+        snprintf(settings_update_text, sizeof(settings_update_text), "%s", rc == NEMA_OK ? arg : "Check failed");
+        settings_update_ready = rc == NEMA_OK && strstr(arg, "available") != NULL;
+        snprintf(msg, sizeof(msg), "%s", arg[0] ? arg : pal_strerror(rc));
+        break;
+    case JOB_UPDATE_INSTALL:
+        if (rc == NEMA_OK) settings_update_ready = false, snprintf(settings_update_text, sizeof(settings_update_text), "Restart to finish");
+        snprintf(msg, sizeof(msg), "%s", rc == NEMA_OK ? arg : arg[0] ? arg : pal_strerror(rc));
+        break;
     case JOB_UNINSTALL:
         if (rc == NEMA_OK) {
             snprintf(msg, sizeof(msg), "Uninstalled %s", arg);
