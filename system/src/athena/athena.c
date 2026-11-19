@@ -11,6 +11,8 @@
  * athena_shell.c (services, toasts), athena_softkeys.c (the softkey bar), athena_theme.c (themes), athena_widgets.c (home widgets). */
 #include "athena_int.h"
 #include "pal/doc.h"
+#include "pal/perf.h"
+#include "pal/sysinfo.h"
 #include "pal/shell.h"
 #include "athena_pool.h"
 
@@ -531,10 +533,15 @@ static void softkeys_follow(void) {
     }
 }
 
+static uint32_t s_sent_px, s_send_us; /* this frame's sends, for the perf counters */
+
 static void send(int x0, int y0, int x1, int y1) {
     if (x1 < x0 || y1 < y0) return;
     pal_rect_t r = {x0, y0, x1 - x0 + 1, y1 - y0 + 1};
+    uint64_t t0 = pal_sys_uptime_us();
     pal_display_present_rgb565(s_frame, A.w, r);
+    s_send_us += (uint32_t)(pal_sys_uptime_us() - t0);
+    s_sent_px += (uint32_t)(r.w * r.h);
 }
 
 static void chrome_frame(uint32_t now) {
@@ -591,8 +598,11 @@ static void chrome_frame(uint32_t now) {
     A.owned = owned;
     A.display_on = on;
     if (A.force) lv_obj_invalidate(lv_screen_active());
+    uint64_t draw0 = pal_sys_uptime_us();
     lv_timer_handler();
+    uint32_t draw_us = (uint32_t)(pal_sys_uptime_us() - draw0);
     if (!on) return;
+    s_sent_px = s_send_us = 0;
     if (owned && A.kind != SHEET_NONE && !ath_home_in_front()) {
         /* a sheet over an app: only the bar and the sheet are ours; the app stays on the panel around it */
         if (A.force || A.pending) {
@@ -610,6 +620,10 @@ static void chrome_frame(uint32_t now) {
     }
     A.pending = false;
     A.force = false;
+    if (s_sent_px) { /* the perf overlay and `perf` count Athena's frames as they count the classic flush */
+        pal_perf_flush_done(draw_us + s_send_us, s_send_us, s_sent_px);
+        pal_perf_key_shown();
+    }
 }
 
 static int32_t chrome_next(uint32_t now) {

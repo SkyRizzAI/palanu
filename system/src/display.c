@@ -135,13 +135,30 @@ uint32_t pal_display_flush_count(void) { return D.flushes; }
 
 bool pal_display_has_rgb565(void) { return D.ready && D.ops.present_rgb565 != NULL; }
 
+/* A desktop that draws its own RGB565 frame (Athena) covers the perf overlay: paint it again over what was copied and
+ * send both in one rectangle. */
+static void send_frame_with_overlay(pal_rect_t r) {
+    pal_canvas_t *c = &D.canvas;
+    int x0 = c->dirty_x0, y0 = c->dirty_y0, x1 = c->dirty_x1, y1 = c->dirty_y1;
+    pal_rect_t o;
+    if (pal_perf_overlay_paint(c, true, r, &o)) {
+        to_frame(c->px, c->stride, o, D.palette);
+        int rx1 = r.x + r.w > o.x + o.w ? r.x + r.w : o.x + o.w, ry1 = r.y + r.h > o.y + o.h ? r.y + r.h : o.y + o.h;
+        if (o.x < r.x) r.x = o.x;
+        if (o.y < r.y) r.y = o.y;
+        r.w = rx1 - r.x, r.h = ry1 - r.y;
+    }
+    c->dirty_x0 = x0, c->dirty_y0 = y0, c->dirty_x1 = x1, c->dirty_y1 = y1;
+    send_frame(r);
+}
+
 bool pal_display_present_rgb565(const uint16_t *px, int stride, pal_rect_t r) {
     if (!pal_display_has_rgb565() || r.w <= 0 || r.h <= 0) return false;
     nema_port_mutex_lock(D.flock);
     for (int y = r.y; y < r.y + r.h; y++)
         memcpy(D.frame + (size_t)y * (size_t)D.ops.width + (size_t)r.x, px + (size_t)y * (size_t)stride + (size_t)r.x, (size_t)r.w * 2u);
     nema_port_mutex_unlock(D.flock);
-    send_frame(r);
+    send_frame_with_overlay(r);
     return true;
 }
 
@@ -158,7 +175,7 @@ bool pal_display_blit_rgb565(const uint16_t *src, int stride, pal_rect_t r) {
     for (int y = 0; y < r.h; y++)
         memcpy(D.frame + (size_t)(r.y + y) * (size_t)D.ops.width + (size_t)r.x, src + (size_t)y * (size_t)stride, (size_t)r.w * 2u);
     nema_port_mutex_unlock(D.flock);
-    send_frame(r);
+    send_frame_with_overlay(r);
     return true;
 }
 void pal_display_frame_lock(bool on) {
