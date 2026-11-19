@@ -3,6 +3,7 @@
  * keyboard. Everything else (Wi-Fi networks, devices, battery) is configured from the page through the pal_web_* calls. */
 #include <emscripten.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -125,6 +126,80 @@ static bool has_arg(int argc, char **argv, const char *flag) {
     return false;
 }
 
+/* ---- the virtual cable: Web Forge reaches the simulator's Palanu Link as it reaches a board on USB ----
+ * Two single-producer, single-consumer byte rings, no locks: the page writes rx and reads tx from the browser thread; the
+ * "vlink" task reads rx and feeds the link, and the link's transmit (one at a time, under its transmit lock) writes tx. The
+ * link's transport is the cable, so it is trusted like a USB link (link.uart.trust) and needs no pairing. */
+#define VRING 65536u /* a power of two */
+typedef struct {
+    uint8_t b[VRING];
+    atomic_uint head; /* the producer's */
+    atomic_uint tail; /* the consumer's */
+} vring_t;
+static vring_t s_vrx, s_vtx;
+static atomic_int s_vreset;
+
+static size_t vring_put(vring_t *r, const uint8_t *d, size_t n) {
+    unsigned h = atomic_load(&r->head), t = atomic_load(&r->tail);
+    size_t room = VRING - (h - t), k = n < room ? n : room;
+    for (size_t i = 0; i < k; i++) r->b[(h + i) & (VRING - 1)] = d[i];
+    atomic_store(&r->head, h + (unsigned)k);
+    return k;
+}
+
+static size_t vring_get(vring_t *r, uint8_t *d, size_t cap) {
+    unsigned h = atomic_load(&r->head), t = atomic_load(&r->tail);
+    size_t have = h - t, k = cap < have ? cap : have;
+    for (size_t i = 0; i < k; i++) d[i] = r->b[(t + i) & (VRING - 1)];
+    atomic_store(&r->tail, t + (unsigned)k);
+    return k;
+}
+
+static int vlink_tx(void *ctx, const uint8_t *d, size_t n) {
+    (void)ctx;
+    for (int waited = 0; n;) { /* the page drains tx every frame; a page that stopped reading drops the frame after 5 s */
+        size_t k = vring_put(&s_vtx, d, n);
+        d += k, n -= k;
+        if (n && (waited += 2) > 5000) return -1;
+        if (n) nema_sleep_ms(2);
+    }
+    return 0;
+}
+
+static void vlink_task(void *arg) {
+    (void)arg;
+    pal_link_io_t io = {.tx = vlink_tx, .transport = PAL_LINK_UART};
+    pal_link_t *l = NULL;
+    uint8_t b[512];
+    for (;;) {
+        if (atomic_exchange(&s_vreset, 0)) { /* a new connection from the page: a fresh link, nothing left of the last one */
+            if (l) pal_link_destroy(l);
+            l = NULL;
+            atomic_store(&s_vrx.tail, atomic_load(&s_vrx.head));
+        }
+        size_t n = vring_get(&s_vrx, b, sizeof(b));
+        if (!n) {
+            nema_sleep_ms(4);
+            continue;
+        }
+        if (!l) l = pal_link_create(&io);
+        if (l) pal_link_feed(l, b, n);
+    }
+}
+
+static void vlink_start(void) {
+    nema_task_desc_t td = {.name = "vlink", .fn = vlink_task, .stack = 8192, .prio = 3, .core = -1,
+                           .role = NEMA_TASK_SYSTEM, .owner = nema_owner_register("link")};
+    if (nema_task_create(&td) != NEMA_OK) fprintf(stderr, "palanu-web: the virtual cable did not start\n");
+}
+
+/* The page connects: the link starts over (the page drains tx itself before it calls this). */
+EMSCRIPTEN_KEEPALIVE void pal_web_link_reset(void) { atomic_store(&s_vreset, 1); }
+/* Bytes from the page to the device; returns how many fit (the rest is the page's to retry). */
+EMSCRIPTEN_KEEPALIVE int pal_web_link_write(const uint8_t *d, int n) { return n > 0 ? (int)vring_put(&s_vrx, d, (size_t)n) : 0; }
+/* Bytes from the device to the page, at most cap. */
+EMSCRIPTEN_KEEPALIVE int pal_web_link_read(uint8_t *out, int cap) { return cap > 0 ? (int)vring_get(&s_vtx, out, (size_t)cap) : 0; }
+
 /* The page calls Module.callMain(args): --leds N --sensors N --gpios N --i2c --battery PCT --log. Boot runs on the worker thread
  * that main() lives on (PROXY_TO_PTHREAD). The simulated hardware is the native simulator's (platform/host/sim_hw.c). */
 int main(int argc, char **argv) {
@@ -150,6 +225,7 @@ int main(int argc, char **argv) {
         .desktops = desktops_arg(argc, argv),
     };
     pal_boot(&cfg);
+    vlink_start();
     for (;;) sleep(3600); /* main only boots; the tasks run on their own workers */
 }
 

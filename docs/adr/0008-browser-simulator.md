@@ -1,6 +1,6 @@
 # ADR-0008: The simulator also runs in the browser, inside Web Forge
 
-Status: accepted.
+Status: accepted; the separate page is superseded by ADR-0021 (one Web Forge page).
 
 ## Context
 The native simulator needs a build, SDL2 and a computer that has them. Trying PalanuOS, showing it, and setting up the hardware an app expects

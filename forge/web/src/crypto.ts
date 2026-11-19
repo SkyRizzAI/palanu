@@ -58,3 +58,7 @@ export const authResponse = (token: Uint8Array, nonce: Uint8Array, clientId: Uin
 
 export const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 export const fromHex = (s: string) => Uint8Array.from(s.match(/../g) ?? [], (h) => parseInt(h, 16));
+/** SHA-256 of data as lower-case hex (the Store checks a download against its catalogue line). */
+export async function sha256Hex(data: Uint8Array): Promise<string> {
+  return toHex(new Uint8Array(await subtle().digest("SHA-256", data as Uint8Array<ArrayBuffer>)));
+}

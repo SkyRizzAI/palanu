@@ -2,121 +2,383 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Web Forge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Palanu Forge</title>
 <style>/*__CSS__*/</style>
 </head>
-<body data-connected="0">
-<header class="bar">
-  <div class="brand"><span class="mark" aria-hidden="true"></span><b>Web Forge</b><span class="sub">PalanuOS remote</span></div>
-  <nav class="crumbs"><a href="./" aria-current="page">Remote</a><a href="sim/" title="PalanuOS running in this page (needs ./pal web)">Simulator</a><a href="flash/" title="Install PalanuOS on a board over USB">Install</a></nav>
-  <div class="connect">
-    <button id="c-usb" type="button" title="Web Serial">USB</button>
-    <button id="c-ble" type="button" title="Web Bluetooth">Bluetooth</button>
-    <form id="ws-form" class="ws">
-      <input id="ws-addr" type="text" inputmode="url" autocomplete="off" spellcheck="false" aria-label="Device address on Wi-Fi or LAN">
-      <button id="c-ws" type="submit">Wi-Fi / LAN</button>
-    </form>
-    <button id="disconnect" type="button" class="ghost" hidden>Disconnect</button>
-  </div>
-  <div id="status" class="status" data-kind="idle" role="status">Not connected</div>
+<body data-state="idle" data-source="none" data-section="display">
+<div class="ground">
+<div class="frame">
+
+<header class="top">
+  <svg class="mark" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18"><rect width="9" height="9" fill="var(--accent)"/><rect x="9" width="9" height="9" fill="var(--fg)"/><rect y="9" width="9" height="9" fill="var(--rose)"/><rect x="9" y="9" width="9" height="9" fill="var(--line-soft)"/></svg>
+  <div class="title px">PALANU FORGE</div>
+  <button id="chip" class="chip-dev" type="button" title="The device in this page">
+    <span class="dot" aria-hidden="true"></span><span id="chip-name">No device</span><span id="chip-kind" class="kind"></span>
+  </button>
+  <nav class="work" aria-label="Workspace">
+    <a href="#" data-work="device" aria-current="page" class="px">DEVICE</a>
+    <a href="#store" data-work="store" class="px">STORE</a>
+    <a href="flash/" class="px" title="Install PalanuOS on a board over USB (a blank board, or starting over)">INSTALL</a>
+  </nav>
 </header>
-<p id="ws-note" class="note"></p>
 
-<nav class="tabs" role="tablist">
-  <button data-tab="screen" role="tab">Screen</button>
-  <button data-tab="terminal" role="tab">Terminal</button>
-  <button data-tab="files" role="tab">Files</button>
-  <button data-tab="device" role="tab">Device</button>
-</nav>
+<div class="sectionbar">
+  <nav class="sections" aria-label="Sections">
+    <button type="button" data-section="display" class="px">
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1 3h14v9H1zM5 14h6"/></svg><span>DISPLAY</span></button>
+    <button type="button" data-section="files" class="px">
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1 3h5l2 2h7v8H1z"/></svg><span>FILES</span></button>
+    <button type="button" data-section="system" class="px">
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M4 1h8v14H4zM7 12h2M6 4h4"/></svg><span>SYSTEM</span></button>
+    <button type="button" data-section="setup" class="px">
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 4h7M12 4h2M2 12h2M7 12h7M9 2v4M7 10v4"/></svg><span>SIMULATOR</span></button>
+    <button type="button" data-section="store" class="px only-narrow">
+      <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5h12l-1 9H3zM5 5a3 3 0 0 1 6 0"/></svg><span>STORE</span></button>
+  </nav>
+  <div class="acts">
+    <button id="act-restart" type="button" class="btn px" hidden>RESTART</button>
+    <button id="act-stop" type="button" class="btn rose px" hidden>SHUTDOWN</button>
+  </div>
+</div>
+<p id="banner" class="banner" role="alert"></p>
 
-<main>
-  <section class="empty" aria-live="polite">
-    <h2>Connect a PalanuOS device</h2>
-    <ul>
-      <li><b>USB</b>: plug the board in and pick its serial port (Chrome or Edge on a computer). The cable is trusted: no pairing.</li>
-      <li><b>Bluetooth</b>: turn Bluetooth on in the device's Settings, then pick <i>PalanuOS</i> (Chrome or Edge).</li>
-      <li><b>Wi-Fi / LAN</b>: the device and this computer on the same network; type the device's address (Settings &gt; Wi-Fi shows it). Port 7001.</li>
-    </ul>
-    <p class="muted">Wireless links pair once: open the pairing window on the device (Settings &gt; Remote &gt; Pair, or <code>link pair</code> in its terminal) and type the 6-digit code here. Everything runs in this page; nothing goes through a server.</p>
-  </section>
-
-  <section data-panel="screen" class="panel">
-    <div class="screenwrap">
-      <canvas id="screen" width="320" height="240" tabindex="0" aria-label="Device screen: click it, then type"></canvas>
-    </div>
-    <div class="keys">
-      <button data-sym="16" title="Long press on the cycle key">Home</button>
-      <button data-sym="15" title="Tap on the cycle key">Switch</button>
-      <button data-sym="3">Esc</button>
-      <button data-sym="17" title="On-screen keyboard">Keyboard</button>
-      <button id="refresh" class="ghost">Refresh</button>
-    </div>
-    <p class="muted">Click the screen and type: arrows, Enter, Esc, Tab and letters go to the device.</p>
-  </section>
-
-  <section data-panel="terminal" class="panel" hidden>
-    <div id="term" class="term"></div>
-  </section>
-
-  <section data-panel="files" class="panel" hidden>
-    <div class="row">
-      <button id="files-root" class="ghost">/</button>
-      <code id="files-path">/home</code>
-      <span class="grow"></span>
-      <button id="files-refresh" class="ghost">Refresh</button>
-      <button id="files-mkdir" class="ghost">New folder</button>
-      <button id="files-up">Upload here</button>
-      <input id="files-input" type="file" multiple hidden>
-    </div>
-    <table class="files"><thead><tr><th>Name</th><th class="num">Size</th><th></th></tr></thead><tbody id="files-body"></tbody></table>
-    <p id="files-note" class="muted"></p>
-  </section>
-
-  <section data-panel="device" class="panel" hidden>
-    <div class="cols">
-      <div class="card">
-        <h3>Device</h3>
-        <dl id="info"></dl>
-        <div class="row"><button id="ping">Ping</button><span id="ping-out" class="muted"></span></div>
-        <p id="paired-note" class="muted"></p>
-        <button id="forget" class="ghost">Forget this pairing (here and on the device)</button>
+<!-- ======================================================== DISPLAY -->
+<main class="sec sec-display" data-sec="display">
+  <section class="box device" aria-label="Device">
+    <div class="screen-col">
+      <div id="bezel" class="bezel">
+        <div class="glass">
+          <canvas id="screen" width="320" height="240" tabindex="0" aria-label="Device screen: click it, then type"></canvas>
+          <div id="pixgrid" class="pixgrid"></div>
+          <div class="off" id="off">
+            <div class="px off-title">— OFF —</div>
+            <div class="off-acts">
+              <button id="start-sim" type="button" class="btn solid px">START SIMULATOR</button>
+              <button id="open-connect" type="button" class="btn px">CONNECT REMOTE</button>
+            </div>
+            <p id="sim-note" class="off-note"></p>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <h3>Firmware update</h3>
-        <p class="muted">A <code>palanuos.bin</code> from <code>./pal build</code> (targets/hhv2/build). The device writes it to its other slot, checks it, and restarts; a bad image rolls back.</p>
-        <label class="check"><input id="ota-confirm" type="checkbox"> Restart the device into the new firmware</label>
-        <input id="ota-file" type="file" accept=".bin">
-        <progress id="ota-bar" max="1" value="0" hidden></progress>
-        <p id="ota-note" class="muted"></p>
+      <div class="under px">
+        <span id="board-label">PALANU</span>
+        <span class="leds" id="leds" aria-label="LEDs"></span>
+        <span id="res-label">320×240</span>
       </div>
-      <div class="card wide">
-        <h3>Serial console</h3>
-        <pre id="console" class="console"></pre>
+      <div id="kb" class="kb" aria-label="Hardware keyboard" hidden></div>
+    </div>
+
+    <div class="pad">
+      <div class="pad-back">
+        <button type="button" class="key rose" data-key="esc" aria-label="Back">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6l-4 4 4 4"/><path d="M4 10h9a3 3 0 0 0 3-3V5"/></svg>
+        </button>
+        <span class="hint">BACK · Esc</span>
       </div>
+      <div class="dpad">
+        <span></span><button type="button" class="key" data-key="up" aria-label="Up">▲</button><span></span>
+        <button type="button" class="key" data-key="left" aria-label="Left">◀</button>
+        <button type="button" class="key ok px" data-key="enter">OK</button>
+        <button type="button" class="key" data-key="right" aria-label="Right">▶</button>
+        <span></span><button type="button" class="key" data-key="down" aria-label="Down">▼</button><span></span>
+      </div>
+      <span class="hint">arrows · Enter</span>
+      <div class="ab">
+        <div><button type="button" class="key sq px" data-key="switch" title="Switch app: a tap on the cycle key (F1)">SW</button><span class="hint">F1</span></div>
+        <div><button type="button" class="key sq px" data-key="home-app" title="Home: a long press on the cycle key (F2)">HM</button><span class="hint">F2</span></div>
+        <div><button type="button" class="key sq px" data-key="vkb" title="The on-screen keyboard">KB</button><span class="hint">vkb</span></div>
+      </div>
+      <div class="pad-tools">
+        <button id="kb-toggle" type="button" class="btn small px" aria-pressed="false" title="The hhv2 keyboard: presses the real key matrix">KEYS</button>
+        <button id="shot" type="button" class="btn small px" title="Save a PNG of the screen">SHOT</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="box console" aria-label="Console">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-ctab="term" class="px">TERMINAL</button>
+      <button type="button" role="tab" data-ctab="logs" class="px">LOGS</button>
+    </div>
+    <div class="ctab" data-cpanel="term">
+      <div id="term" class="term"></div>
+      <div class="empty-dev">
+        <div class="px">NO DEVICE</div>
+        <p>Start the simulator or connect a remote device to open a shell and see its logs.</p>
+      </div>
+    </div>
+    <div class="ctab" data-cpanel="logs" hidden>
+      <div class="logtools">
+        <input id="l-filter" type="search" placeholder="filter" autocomplete="off" spellcheck="false" aria-label="Filter the log">
+        <label class="tog"><input id="l-err" type="checkbox"><span>problems</span></label>
+        <label class="tog"><input id="l-wrap" type="checkbox"><span>wrap</span></label>
+        <button id="l-pause" type="button" class="btn small px" aria-pressed="false">PAUSE</button>
+        <button id="l-clear" type="button" class="btn small px">CLEAR</button>
+        <button id="l-save" type="button" class="btn small px">SAVE</button>
+      </div>
+      <pre id="log" class="log" tabindex="0"></pre>
+      <div class="logcount" id="l-count"></div>
     </div>
   </section>
 </main>
 
-<dialog id="edit">
-  <form id="edit-form" method="dialog" class="editbox">
-    <h3>Edit <code id="edit-path"></code></h3>
-    <textarea id="edit-text" spellcheck="false" rows="18"></textarea>
-    <p id="edit-err" class="err"></p>
-    <div class="row end"><button id="edit-cancel" type="button" class="ghost">Cancel</button><button type="submit">Save</button></div>
+<!-- ======================================================== FILES -->
+<main class="sec" data-sec="files" hidden>
+  <section class="box pane">
+    <div class="pathbar">
+      <button id="files-root" type="button" class="btn small px">/</button>
+      <code id="files-path" class="path">/home</code>
+      <span class="grow"></span>
+      <button id="files-refresh" type="button" class="btn small px">REFRESH</button>
+      <button id="files-mkdir" type="button" class="btn small px">NEW FOLDER</button>
+      <button id="files-up" type="button" class="btn small solid px">UPLOAD</button>
+      <input id="files-input" type="file" multiple hidden>
+    </div>
+    <div class="tablewrap"><table class="files"><thead><tr><th>Name</th><th class="num">Size</th><th></th></tr></thead><tbody id="files-body"></tbody></table></div>
+    <p id="files-note" class="note"></p>
+    <div class="needdev px">NO DEVICE</div>
+  </section>
+</main>
+
+<!-- ======================================================== SYSTEM -->
+<main class="sec" data-sec="system" hidden>
+  <div class="cards">
+    <section class="box card">
+      <h2 class="px">DEVICE</h2>
+      <dl id="info" class="kv"></dl>
+      <div class="row"><button id="ping" type="button" class="btn small px">PING</button><span id="ping-out" class="muted"></span></div>
+      <div class="needdev px">NO DEVICE</div>
+    </section>
+    <section class="box card only-remote">
+      <h2 class="px">PAIRING</h2>
+      <p id="paired-note" class="muted"></p>
+      <p class="muted">A wireless link pairs once; this browser keeps the token. Forget removes it here and on the device.</p>
+      <button id="forget" type="button" class="btn rose px">FORGET THIS PAIRING</button>
+    </section>
+    <section class="box card only-remote">
+      <h2 class="px">FIRMWARE UPDATE</h2>
+      <p class="muted">A <code>palanuos.bin</code> from <code>./pal build</code>. The device writes it to its other slot, checks it and restarts; a bad image rolls back.</p>
+      <label class="tog"><input id="ota-confirm" type="checkbox"><span>Restart the device into the new firmware</span></label>
+      <label class="btn px filebtn">CHOOSE IMAGE<input id="ota-file" type="file" accept=".bin" hidden></label>
+      <progress id="ota-bar" max="1" value="0" hidden></progress>
+      <p id="ota-note" class="muted"></p>
+    </section>
+    <section class="box card only-sim">
+      <h2 class="px">SIMULATOR</h2>
+      <dl class="kv"><dt>Frames</dt><dd id="p-frames">0</dd><dt>Frame rate</dt><dd id="p-fps">0</dd><dt>Uptime</dt><dd id="p-up">0 s</dd><dt>Isolation</dt><dd id="p-iso">?</dd></dl>
+      <p class="muted">The same C code as on the board, built to WebAssembly. Its files are kept in this browser.</p>
+      <button id="erase" type="button" class="btn rose px">ERASE SIMULATOR DATA</button>
+    </section>
+  </div>
+</main>
+
+<!-- ======================================================== SIMULATOR SETUP -->
+<main class="sec" data-sec="setup" hidden>
+  <div class="setup">
+    <nav class="cats" aria-label="Simulator settings">
+      <button type="button" data-cat="screen"><b class="px">SCREEN</b><span>panel, size, look</span></button>
+      <button type="button" data-cat="wifi"><b class="px">WI-FI</b><span>networks the scan finds</span></button>
+      <button type="button" data-cat="net"><b class="px">INTERNET</b><span>the socket bridge</span></button>
+      <button type="button" data-cat="ble"><b class="px">BLUETOOTH</b><span>the radio</span></button>
+      <button type="button" data-cat="power"><b class="px">POWER</b><span>battery</span></button>
+      <button type="button" data-cat="hw"><b class="px">HARDWARE</b><span>LEDs, sensors, pins, I2C</span></button>
+      <button type="button" data-cat="input"><b class="px">INPUT</b><span>keys, hotkeys, sequences</span></button>
+    </nav>
+
+    <div class="catpanes">
+      <section class="box cat" data-catp="screen">
+        <h2 class="px">SCREEN</h2>
+        <div class="set">
+          <div class="lbl">Panel<small>Read when the system starts</small></div>
+          <div class="ctl">
+            <div class="seg" id="d-res-seg"></div>
+            <div class="row"><input id="d-res" type="text" size="9" autocomplete="off" spellcheck="false" aria-label="Screen resolution, WIDTHxHEIGHT"><button id="d-res-apply" type="button" class="btn small px">APPLY &amp; RESTART</button></div>
+          </div>
+        </div>
+        <div class="set"><div class="lbl">Size</div><div class="ctl"><div class="seg" id="d-scale" data-opts="fit:FIT,1:1×,2:2×,3:3×,4:4×"></div></div></div>
+        <div class="set"><div class="lbl">Brightness</div><div class="ctl row"><input id="d-bright" type="range" min="10" max="100" step="1"><output id="d-bright-o" class="out"></output></div></div>
+        <div class="set"><div class="lbl">Look</div>
+          <div class="ctl toggles">
+            <label class="sw"><input id="d-smooth" type="checkbox"><i></i><span>Smooth scaling</span></label>
+            <label class="sw"><input id="d-grid" type="checkbox"><i></i><span>Pixel grid</span></label>
+            <label class="sw"><input id="d-gray" type="checkbox"><i></i><span>Grayscale (e-paper)</span></label>
+            <label class="sw"><input id="d-invert" type="checkbox"><i></i><span>Invert colours</span></label>
+            <label class="sw"><input id="d-bezel" type="checkbox"><i></i><span>Board frame</span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="box cat" data-catp="wifi" hidden>
+        <h2 class="px">WI-FI</h2>
+        <div class="stats"><div><span>RADIO</span><b id="n-wifi-radio" class="px">?</b></div><div><span>LINK</span><b id="n-wifi-link" class="px">?</b></div><div><span>ADDRESS</span><b class="px"><input id="n-ip" type="text" size="13" autocomplete="off" spellcheck="false" aria-label="The simulated device's address"></b></div></div>
+        <p class="muted">The networks a scan finds. A secure network with a password refuses any other one; leave it empty to accept every password.</p>
+        <div id="n-aps" class="aps"></div>
+        <div class="row">
+          <button id="n-add" type="button" class="btn small px">ADD NETWORK</button>
+          <button id="n-reset" type="button" class="btn small px">DEFAULTS</button>
+          <span class="grow"></span>
+          <label class="sw"><input id="n-refuse" type="checkbox"><i></i><span>Every connect fails</span></label>
+          <button id="n-drop" type="button" class="btn small rose px">DROP LINK</button>
+        </div>
+      </section>
+
+      <section class="box cat" data-catp="net" hidden>
+        <h2 class="px">INTERNET</h2>
+        <p class="muted">A browser cannot open raw sockets. When the system connects to host:port, the page opens a WebSocket instead.</p>
+        <div class="set"><div class="lbl">Bridge</div><div class="ctl"><div class="seg" id="b-mode" data-opts="direct:DIRECT,proxy:PROXY,off:OFF"></div><small id="b-mode-help" class="muted"></small></div></div>
+        <div class="set" id="b-proxy-row"><div class="lbl">Proxy URL<small>may use {host} and {port}</small></div><div class="ctl"><input id="b-proxy" type="text" autocomplete="off" spellcheck="false"></div></div>
+        <p class="muted"><code>./pal web</code> serves a proxy at <code>/tcp/{host}/{port}</code>, for this computer only.</p>
+      </section>
+
+      <section class="box cat" data-catp="ble" hidden>
+        <h2 class="px">BLUETOOTH</h2>
+        <div class="stats"><div><span>RADIO</span><b id="n-ble-radio" class="px">?</b></div></div>
+        <p class="muted">Turn it on in the device's Settings or with <code>ble on</code>. The simulated radio has no air: the system sees it present and on, so its pages, services and commands behave as on the board. A real peripheral cannot be bridged from a browser tab.</p>
+      </section>
+
+      <section class="box cat" data-catp="power" hidden>
+        <h2 class="px">POWER</h2>
+        <div class="battery"><div class="cell"><i id="h-bat-fill"></i></div><b id="h-bat-o" class="px">80%</b></div>
+        <div class="set"><div class="lbl">Charge</div><div class="ctl"><input id="h-bat" type="range" min="0" max="100"></div></div>
+        <label class="sw"><input id="h-nobat" type="checkbox"><i></i><span>No battery (the board cannot measure it)</span></label>
+      </section>
+
+      <section class="box cat" data-catp="hw" hidden>
+        <h2 class="px">HARDWARE</h2>
+        <p class="muted">How many exist is fixed when the system starts: apply and restart after a change.</p>
+        <div class="steppers">
+          <div class="stepper"><span>LEDs</span><input id="h-leds" type="number" min="0" max="8"></div>
+          <div class="stepper"><span>Sensors</span><input id="h-sens" type="number" min="0" max="8"></div>
+          <div class="stepper"><span>Pins</span><input id="h-gpios" type="number" min="0" max="8"></div>
+          <label class="sw"><input id="h-i2c" type="checkbox"><i></i><span>I2C bus</span></label>
+          <button id="h-apply" type="button" class="btn small solid px">APPLY &amp; RESTART</button>
+        </div>
+        <div id="h-led-card" class="sub"><h3 class="px">LEDS</h3><div id="h-led" class="chips"></div></div>
+        <div id="h-sen-card" class="sub"><h3 class="px">SENSORS</h3><div id="h-sen" class="sensors"></div></div>
+        <div id="h-gpio-card" class="sub"><h3 class="px">PINS</h3><p class="muted">Pin n is "Pin 10+n". Click to drive it as an input; an app that writes it shows the level.</p><div id="h-gpio" class="chips"></div></div>
+        <div id="h-i2c-card" class="sub"><h3 class="px">I2C DEVICES</h3><p class="muted">Addresses that answer a probe. Try <code>dev i2c scan</code>.</p>
+          <div id="h-i2c-list" class="chips"></div>
+          <form id="h-i2c-form" class="row"><input id="h-i2c-addr" type="text" placeholder="0x3C" size="6" aria-label="I2C address"><button type="submit" class="btn small px">ADD</button></form>
+        </div>
+      </section>
+
+      <section class="box cat" data-catp="input" hidden>
+        <h2 class="px">INPUT</h2>
+        <div class="toggles">
+          <label class="sw"><input id="k-all" type="checkbox"><i></i><span>Send keys even when the screen is not focused</span></label>
+          <label class="sw"><input id="k-sticky" type="checkbox"><i></i><span>Sticky modifiers on the key picture (Fn, Nm, Shift, Ctrl, Alt)</span></label>
+        </div>
+        <form id="k-form" class="row"><input id="k-line" type="text" placeholder="a command for the device" autocomplete="off" spellcheck="false" aria-label="Command to type on the device"><button type="submit" class="btn small solid px">SEND + ENTER</button></form>
+        <div class="sub"><h3 class="px">HOTKEYS</h3>
+          <p class="muted">Work anywhere on this page. An action is one step of a sequence (<code>key vkb</code>, <code>cmd ls</code>, <code>shot</code>, <code>restart</code>, <code>battery 15</code>).</p>
+          <div class="tablewrap"><table class="grid2"><thead><tr><th>Keys</th><th>Action</th><th></th></tr></thead><tbody id="hk-body"></tbody></table></div>
+          <div class="row"><button id="hk-add" type="button" class="btn small px">ADD HOTKEY</button><button id="hk-reset" type="button" class="btn small px">DEFAULTS</button></div>
+        </div>
+        <div class="sub"><h3 class="px">KEY SEQUENCES</h3>
+          <div class="row"><select id="sq-pick" aria-label="Saved sequence"></select><button id="sq-new" type="button" class="btn small px">NEW</button><button id="sq-del" type="button" class="btn small px">DELETE</button></div>
+          <textarea id="sq-text" rows="8" spellcheck="false" aria-label="Sequence steps"></textarea>
+          <div class="row">
+            <button id="sq-run" type="button" class="btn small solid px">RUN</button><button id="sq-stop" type="button" class="btn small px" disabled>STOP</button>
+            <label class="inline">Repeat <input id="sq-rep" type="number" min="1" max="999" value="1"></label>
+            <button id="sq-rec" type="button" class="btn small rose px" aria-pressed="false">RECORD</button>
+            <span id="sq-msg" class="muted"></span>
+          </div>
+          <details><summary>Steps</summary><pre class="help">cmd LINE        type LINE and press Enter
+type TEXT       type TEXT
+key NAME...     enter esc tab backspace up down left right
+                home end pgup pgdn delete switch home-app vkb
+                fntap, ctrl-X, alt-X
+wait MS         pause
+tap ROW COL     press and release a hardware key
+battery PCT     charge (-1: no battery)
+sensor I DEG    sensor I reads DEG degrees
+gpio I 0|1      drive pin I
+shot            save a screenshot
+restart         restart the system
+note TEXT       put a line in the log
+# comment</pre></details>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ======================================================== STORE -->
+<main class="sec" data-sec="store" hidden>
+  <section class="box pane store">
+    <div class="storebar">
+      <label class="search"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M7 2a5 5 0 1 0 0 10A5 5 0 0 0 7 2zM11 11l4 4"/></svg><input id="st-q" type="search" placeholder="Search apps" aria-label="Search apps" autocomplete="off"></label>
+      <span class="grow"></span>
+      <span class="muted">Install to</span><b id="st-target" class="px">no device</b>
+    </div>
+    <div class="row"><input id="st-url" type="text" autocomplete="off" spellcheck="false" aria-label="Catalogue address (index.txt)"><button id="st-load" type="button" class="btn small px">REFRESH</button></div>
+    <ul id="st-list" class="apps"></ul>
+    <p id="st-note" class="note"></p>
+  </section>
+</main>
+
+<footer class="foot">
+  <span class="state"><i></i><b id="f-state">IDLE</b></span>
+  <span id="f-plp">PLP: —</span>
+  <span id="f-src"></span>
+  <span id="f-fw"></span>
+  <span id="f-res" class="grow"></span>
+  <span id="f-up"></span>
+  <button id="theme" type="button" class="btn tiny">DARK</button>
+</footer>
+
+</div>
+</div>
+
+<dialog id="connect" class="dlg">
+  <form method="dialog" class="dlgbox">
+    <h2 class="px">CONNECT REMOTE</h2>
+    <div class="ways">
+      <button id="c-usb" type="button" class="way"><b class="px">USB</b><span>Plug the board in and pick its serial port. The cable is trusted: no pairing.</span></button>
+      <button id="c-ble" type="button" class="way"><b class="px">BLUETOOTH</b><span>Turn Bluetooth on in the device's Settings, then pick <i>PalanuOS</i>.</span></button>
+    </div>
+    <div class="way wsway">
+      <b class="px">WI-FI / LAN</b>
+      <span>The device and this computer on one network; Settings &gt; Wi-Fi shows its address.</span>
+      <div class="row"><input id="ws-addr" type="text" inputmode="url" autocomplete="off" spellcheck="false" aria-label="Device address on Wi-Fi or LAN"><button id="c-ws" type="button" class="btn small solid px">CONNECT</button></div>
+    </div>
+    <p id="ws-note" class="err"></p>
+    <p class="muted">Wireless links pair once with the 6-digit code from Settings &gt; Remote &gt; Pair (or <code>link pair</code>). Everything runs in this page; nothing goes through a server.</p>
+    <div class="row end"><button id="connect-cancel" type="button" class="btn px">CLOSE</button></div>
   </form>
 </dialog>
 
-<dialog id="pair">
-  <form id="pair-form" method="dialog">
-    <h3>Pair with <span id="pair-device">PalanuOS</span></h3>
-    <p class="muted">On the device open Settings &gt; Remote &gt; Pair, or run <code>link pair</code> in its terminal. Type the 6-digit code it shows. The window lasts 2 minutes and allows 3 tries.</p>
-    <label>Code <input id="pair-code" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" required autofocus></label>
-    <label>This browser's name <input id="pair-name" value="Web Forge" maxlength="24"></label>
+<dialog id="pair" class="dlg">
+  <form id="pair-form" method="dialog" class="dlgbox">
+    <h2 class="px">PAIR WITH <span id="pair-device">PALANUOS</span></h2>
+    <p class="muted">On the device open Settings &gt; Remote &gt; Pair, or run <code>link pair</code>. Type the 6-digit code it shows. The window lasts 2 minutes and allows 3 tries.</p>
+    <label class="field">Code <input id="pair-code" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" required autofocus></label>
+    <label class="field">This browser's name <input id="pair-name" value="Web Forge" maxlength="24"></label>
     <p id="pair-err" class="err"></p>
-    <div class="row end"><button id="pair-cancel" type="button" class="ghost">Cancel</button><button type="submit">Pair</button></div>
+    <div class="row end"><button id="pair-cancel" type="button" class="btn px">CANCEL</button><button type="submit" class="btn solid px">PAIR</button></div>
   </form>
 </dialog>
+
+<dialog id="edit" class="dlg wide">
+  <form id="edit-form" method="dialog" class="dlgbox">
+    <h2 class="px">EDIT <code id="edit-path"></code></h2>
+    <textarea id="edit-text" spellcheck="false" rows="18"></textarea>
+    <p id="edit-err" class="err"></p>
+    <div class="row end"><button id="edit-cancel" type="button" class="btn px">CANCEL</button><button type="submit" class="btn solid px">SAVE</button></div>
+  </form>
+</dialog>
+
+<dialog id="ask" class="dlg">
+  <form id="ask-form" method="dialog" class="dlgbox">
+    <h2 class="px" id="ask-title">?</h2>
+    <p id="ask-text" class="muted"></p>
+    <input id="ask-input" type="text" autocomplete="off" spellcheck="false">
+    <div class="row end"><button id="ask-no" type="button" class="btn px">CANCEL</button><button id="ask-yes" type="submit" class="btn solid px">OK</button></div>
+  </form>
+</dialog>
+
+<div id="cap" class="cap-overlay" hidden><div class="cap-box"><p class="px">PRESS THE KEYS</p><p class="muted">Esc cancels</p></div></div>
 <script type="module">/*__JS__*/</script>
 </body>
 </html>

@@ -115,10 +115,15 @@ void nema_port_mem_stats(int cls, size_t *free, size_t *min_free, size_t *larges
 }
 
 /* ---- time ---- */
+/* From the process start, as a board counts from its boot: CLOCK_MONOTONIC alone starts at the computer's boot here and at the
+ * epoch under Emscripten, so the uptime a simulator reports would be days or decades. The first call is in nema_init. */
 uint64_t nema_port_time_us(void) {
+    static uint64_t base;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
+    uint64_t now = (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
+    if (!base) base = now - 1; /* never 0 after the first call: time starts at 1 us */
+    return now - base;
 }
 
 void nema_port_random(void *buf, size_t len) {

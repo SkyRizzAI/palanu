@@ -5,20 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Install PalanuOS</title>
 <style>/*__CSS__*/
-.flash { max-width: 720px; margin: 24px auto; padding: 0 16px; }
-.flash ol { line-height: 1.7; }
-.flash pre { max-height: 260px; overflow: auto; }
+.flash { padding: 24px; display: flex; flex-direction: column; gap: 14px; max-width: 780px; }
+.flash h2 { font-size: 15px; letter-spacing: 2px; }
+.flash p, .flash ol { margin: 0; }
+.flash ol { line-height: 1.8; padding-left: 20px; }
+.flash .console { max-height: 260px; min-height: 120px; overflow: auto; margin: 0; padding: 10px; background: var(--term-bg); color: var(--term-fg); border: 2px solid var(--frame); font-size: 12px; white-space: pre-wrap; }
 .flash progress { width: 100%; }
+.check { display: inline-flex; gap: 8px; align-items: center; }
+#connect, #install { min-height: 40px; padding: 0 16px; font-family: var(--px); font-size: 12px; letter-spacing: 1px; background: transparent; color: var(--fg); border: 2px solid var(--frame); }
+#install:not(:disabled) { background: var(--accent); color: var(--on-accent); box-shadow: 3px 3px 0 var(--shadow); }
 </style>
 </head>
 <body>
-<header class="bar">
-  <div class="brand"><span class="mark" aria-hidden="true"></span><b>Web Forge</b><span class="sub">PalanuOS</span></div>
-  <nav class="crumbs"><a href="../">Remote</a><a href="../sim/">Simulator</a><a href="./" aria-current="page">Install</a></nav>
+<div class="ground">
+<div class="frame">
+<header class="top">
+  <svg class="mark" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18"><rect width="9" height="9" fill="var(--accent)"/><rect x="9" width="9" height="9" fill="var(--fg)"/><rect y="9" width="9" height="9" fill="var(--rose)"/><rect x="9" y="9" width="9" height="9" fill="var(--line-soft)"/></svg>
+  <div class="title px">PALANU FORGE</div>
+  <span class="grow"></span>
+  <nav class="work" aria-label="Workspace" style="display:flex">
+    <a href="../" class="px">DEVICE</a>
+    <a href="../#store" class="px">STORE</a>
+    <a href="./" class="px" aria-current="page">INSTALL</a>
+  </nav>
 </header>
 <main class="flash">
-  <h2>Install PalanuOS on a board</h2>
-  <p class="muted">For a board with nothing on it, or to start over. A running PalanuOS updates itself from Remote &gt; Device instead
+  <h2 class="px">INSTALL PALANUOS ON A BOARD</h2>
+  <p class="muted">For a board with nothing on it, or to start over. A running PalanuOS updates itself from System &gt; Firmware update instead
     (its data is kept). This writes the bootloader, the partition table and the system over USB with Web Serial (Chrome or Edge on a
     computer).</p>
   <ol>
@@ -32,6 +45,8 @@
   <progress id="bar" max="1" value="0" hidden></progress>
   <pre id="log" class="console"></pre>
 </main>
+</div>
+</div>
 <script type="module">
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.1/bundle.js";
 const $ = (id) => document.getElementById(id);

@@ -59,8 +59,8 @@ Settings > Remote shows the device address (`192.168.x.x:7001`) and the **Remote
 once:
 
 1. On the device: Settings > Remote > **Pair a Device**. A 6-digit code appears that is valid for 2 minutes and allows 3 attempts.
-2. On the computer: open **Web Forge** (`./pal web`, then http://localhost:5174 in Chrome or Edge), choose USB, Bluetooth, or
-   Wi-Fi/LAN, and type the code.
+2. On the computer: open **Web Forge** (`./pal web`, then http://localhost:5174 in Chrome or Edge), press **Connect remote**,
+   choose USB, Bluetooth, or Wi-Fi/LAN, and type the code. The same page runs the simulator (**Start simulator**).
 
 **Keyboard** (launcher): the device types into a phone, tablet or computer over Bluetooth. Open it, then pair "PalanuOS Keyboard"
 in the other side's Bluetooth settings; every key you press goes there (US layout). Hold the cycle key to leave. A paired host
@@ -126,7 +126,7 @@ manual (`man guide`, `man keys`, `man store`, `man -k WORD`), also there without
 
 ## 7. Updating the firmware
 
-From a computer: Web Forge > Device > **Firmware update**, or `palanu ota palanuos.bin`. The device writes the image to the other slot,
+From a computer: Web Forge > System > **Firmware update**, or `palanu ota palanuos.bin`. The device writes the image to the other slot,
 verifies it, then restarts into it. The new image must confirm itself within 10 seconds after boot; otherwise the
 bootloader returns to the old version. A corrupt image is rejected before the slot is replaced. Settings > Updates shows the version, the running
 slot, and whether updates over the link are supported.

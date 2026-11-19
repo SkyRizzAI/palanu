@@ -1,6 +1,6 @@
 # Project state
 
-Updated 19 November 2026.
+Updated 20 November 2026.
 
 ## Component layout
 The firmware is divided into layered components, and the layer boundaries are enforced by the build (T0.1). In ESP-IDF: `nema/` (the portable kernel; it carries the POSIX backends `net_bsd` and `posix_fs`, like the host libraries), `system/` (subsystems; `system/src` is private, the public API is in `system/include`), `apps/` (built-in commands and views; they only see the public nema and system headers) and `platform/esp-idf/palanu` (the aggregator that targets REQUIRE, containing the ESP-IDF port and the hhv2 board). The host uses the libraries `nema`, `palsys` and `palapps`. An include that violates the layers fails to compile in both builds; a temporary probe that tried to include the private `nema/src` and `system/src` headers from `apps/` failed on the host and on the board.
@@ -22,7 +22,8 @@ The firmware is divided into layered components, and the layer boundaries are en
 
 - **Apps at runtime (19 November 2026, ADR-0014):** sensitive permissions are asked at first use and kept per app; the event queue carries FOCUS, BLUR, EXPOSE, KEY, NOTIFY and SETTING; the kernel log is saved to `/data/log/system.log` by the `log-file` service.
 - **WebAssembly apps (proven on the chip):** WAMR fast interpreter, `.papp` container (CBOR manifest, SHA-256), the `palanu` v1 import module with permissions, installed apps run as Nema processes and can be piped, instruction-limit watchdog, installation through Palanu Link or `app install`. SDK in `sdk/`, `palanu build|pack|install`, guide `docs/PAPP.md`.
-- **Browser simulator (verified in Chrome-class browser, not on the board):** the whole system runs in a Web Forge page (`./pal web`, `/sim/`): keyboard with the real matrix, hotkeys, key sequences, live LEDs/sensors/pins/I2C, editable Wi-Fi, TCP bridge (verified with `nc` against the local proxy), log panel, IndexedDB persistence. `docs/SIMULATOR.md`, ADR-0008.
+- **Browser simulator (verified in Chrome-class browser, not on the board):** the whole system runs in Web Forge (`./pal web`, Start simulator): keyboard with the real matrix, hotkeys, key sequences, live LEDs/sensors/pins/I2C, editable Wi-Fi, TCP bridge (verified with `nc` against the local proxy), logs, IndexedDB persistence. `docs/SIMULATOR.md`, ADR-0008.
+- **One Web Forge page (20 November 2026, ADR-0021):** a board and the simulator in one page in the owner's pixel design: Display (screen, pad, Terminal, Logs), Files, System, the simulator's settings grouped like Settings, a Store that installs from a catalogue over the link, light and dark, a phone layout. The simulator is reached through a virtual cable (`pal_web_link_*`), so its shell and files work like a board's. Proven in the browser against the WebAssembly system and the native simulator over WebSocket; a board over USB or Bluetooth not re-tested with the new page.
 
 - **Catalogue and browser tools (ADR-0015):** the Store app and `store` (a list on any web server, SHA-256 checked); Web Forge
   installs PalanuOS on a board over Web Serial (`/flash/`) and manages files (new folder, rename, delete, edit, install).

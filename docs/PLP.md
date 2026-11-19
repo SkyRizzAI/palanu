@@ -106,6 +106,8 @@ must confirm itself (10 seconds after boot); if the device restarts before that,
 
 ## Transports
 
+- **Virtual cable** (the browser simulator, ADR-0021): Web Forge and the WebAssembly system share two memory rings (`pal_web_link_*`); the
+  device side is a cable link (`PAL_LINK_UART`), so it is trusted as the cable is.
 - **UART**: 115200 baud 8N1. Opening the port on macOS resets the board (DTR/RTS), so the client repeats HELLO until answered.
   On the hhv2 board one USB-UART cable serves the console and PLP at the same time.
 - **TCP**: port 7000 on the device (once Wi-Fi is connected); one client at a time, the session ends when the connection drops.
