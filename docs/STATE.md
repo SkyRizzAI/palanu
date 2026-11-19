@@ -51,7 +51,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 - Browser simulator on a host without the isolation headers (`coi-sw.js`, for GitHub Pages): written, not run in a real browser yet.
 - Browser simulator: no Bluetooth air interface, no inbound connections, no LAN discovery; the Palanu Link servers do not listen in the browser.
 - BLE: ping was tested from an iPhone; shell, files, and screen over BLE and the Forge BLE client have not been tried.
-- Stored only, nothing applies them yet: display rotation, `ui.clock24`. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. RELEASE.md section 6 lists the confirmed gaps.
+- Stored only, nothing applies it yet: display rotation. The 12-hour clock (`ui.clock24` off) shows on every clock. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. RELEASE.md section 6 lists the confirmed gaps.
 
 ## Phases
 | Phase | State |

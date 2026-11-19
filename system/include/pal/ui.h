@@ -75,7 +75,14 @@ bool pal_ui_pin_check(const char *pin);       /* true when the PIN is the stored
 const char *pal_ui_device_name(void);         /* device.name, for the launcher title */
 
 /* ---- formatting (ui_fmt.c; pure) ---- */
-void pal_ui_fmt_hm(int hour, int minute, char *out, size_t cap);                 /* "10:09" */
+void pal_ui_fmt_hm(int hour, int minute, char *out, size_t cap);                 /* "10:09"; "9:41" on a 12-hour clock */
+/* The 12-hour clock (ui.clock24 = 0): the hour as shown (1..12), the suffix ("" on a 24-hour clock), and hm with the suffix
+ * ("9:41 PM") for the small clocks. The large clocks draw pal_ui_fmt_hm and the suffix apart. */
+void pal_ui_set_clock24(bool on);
+bool pal_ui_clock24(void);
+int pal_ui_hour(int hour);
+const char *pal_ui_ampm(int hour);
+void pal_ui_fmt_clock(int hour, int minute, char *out, size_t cap);
 void pal_ui_fmt_date(const pal_tm_t *tm, char *out, size_t cap);                 /* "Sun 1 Feb 2026" */
 /* A notification's age: "now" under a minute, "12m" under an hour, "10:04" the same local day, "2d" otherwise. */
 void pal_ui_fmt_age(uint32_t now, uint32_t then, int tz_minutes, char *out, size_t cap);

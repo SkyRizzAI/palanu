@@ -39,8 +39,8 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     pal_tm_t tm;
     pal_time_local(&tm);
     K.minute = tm.minute;
-    char hm[8];
-    pal_ui_fmt_hm(tm.hour, tm.minute, hm, sizeof(hm));
+    char hm[12];
+    pal_ui_fmt_clock(tm.hour, tm.minute, hm, sizeof(hm));
 
     int inner_w = k->w - 2 * LOCK_PAD, inner_h = k->h - 2 * LOCK_PAD;
     int total = LOCK_TITLE_H + LOCK_GAP + LOCK_CAP_H;

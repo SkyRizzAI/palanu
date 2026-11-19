@@ -5,6 +5,7 @@
 #include "pal/kui.h"
 #include "pal/theme.h"
 #include "theme_widgets.h"
+#include "pal/ui.h"
 
 /* ---------------------------------------------------------------- default components */
 /* The status bar is the reference (kui_status.c): the palette's ink fills it and the clock, battery and Wi-Fi are drawn in paper. */
@@ -12,7 +13,7 @@ static kui_canvas_t S_BAR NEMA_EXT_BSS;
 
 static int kui_status_bar(pal_canvas_t *c, const pal_theme_t *t, const pal_status_t *st) {
     (void)t;
-    kui_status_t k = {st->hour, st->minute, st->battery, st->wifi > 0};
+    kui_status_t k = {pal_ui_hour(st->hour), st->minute, st->battery, st->wifi > 0}; /* 12 hours: no room for AM/PM here */
     kui_canvas_init(&S_BAR, c->w, c->h, kui_scale_q());
     kui_clear(&S_BAR, false);
     kui_status_draw(&S_BAR, &k);

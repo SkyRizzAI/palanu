@@ -80,6 +80,20 @@ TEST(clock_and_date_text) {
     CHECK(strcmp(b, "10:09") == 0);
     pal_ui_fmt_hm(0, 5, b, sizeof(b));
     CHECK(strcmp(b, "00:05") == 0);
+    pal_ui_set_clock24(false); /* the 12-hour clock: no leading zero, 12 for midnight and noon, the suffix apart */
+    pal_ui_fmt_hm(0, 5, b, sizeof(b));
+    CHECK(strcmp(b, "12:05") == 0);
+    pal_ui_fmt_clock(13, 41, b, sizeof(b));
+    CHECK(strcmp(b, "1:41 PM") == 0);
+    pal_ui_fmt_clock(12, 0, b, sizeof(b));
+    CHECK(strcmp(b, "12:00 PM") == 0);
+    pal_ui_fmt_clock(9, 30, b, sizeof(b));
+    CHECK(strcmp(b, "9:30 AM") == 0);
+    CHECK_EQ(pal_ui_hour(23), 11);
+    pal_ui_set_clock24(true);
+    pal_ui_fmt_clock(13, 41, b, sizeof(b));
+    CHECK(strcmp(b, "13:41") == 0);
+    CHECK(strcmp(pal_ui_ampm(13), "") == 0);
     pal_tm_t tm = {2026, 1, 1, 10, 9, 0, 4}; /* 1 January 2026 was a Thursday */
     pal_ui_fmt_date(&tm, b, sizeof(b));
     CHECK(strcmp(b, "Thu 1 Jan 2026") == 0);

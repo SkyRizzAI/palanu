@@ -101,15 +101,12 @@ Features that were checked directly in the code and are confirmed **absent**:
 - apps: BadUSB, Wallets, Stopwatch, Clock;
 - networking: Bluetooth Discoverable and Pair Request (pairing only goes through Palanu Link); (manual IP, several saved networks with
   Auto-Join, HTTPS and ping were added on 19 November 2026, ADR-0013);
-- system: screen `Rotation` (only stored), choice of
-  12-hour format (`ui.clock24` is only stored), Wi-Fi monitor/inject for security tools (needs a radio capability
-  that does not exist yet).
+- system: screen `Rotation` (only stored), Wi-Fi monitor/inject for security tools (needs a radio capability that does not
+  exist yet). The 12-hour clock was added on 19 November 2026 (Settings > Date & time > 24-hour clock off).
 
 The power profile is applied since 19 November 2026 (`pal/power.h`: the CPU frequency range through esp_pm, no light sleep yet;
-Developer > System > Battery & power, or `power PROFILE`). Two settings that are only stored (**Rotation**, **24-hour clock**) are **hidden** from Settings
-(`.hidden = true`, with a comment on when to restore them), so that no row does nothing; UI Scale used to be like that
-and has since been implemented for real. To make them real: Rotation needs the panel MADCTL and a rotating canvas; 12-hour needs an
-AM/PM suffix in the home and lock layouts; the power profile needs a service that applies it.
+Developer > System > Battery & power, or `power PROFILE`). **Rotation** is only stored and stays **hidden** from Settings
+(`.hidden = true`), so that no row does nothing; it needs the panel MADCTL and a rotating canvas.
 
 ## 7. What needs a decision or hardware from you
 

@@ -152,6 +152,8 @@ static void clock_block(kui_canvas_t *k, bool plate) {
     int bx = (k->w - bw) / 2;
     if (plate) kui_fill_round(k, bx - 4, CLOCK_Y - 4, bw + 8, date_y + df->charH + 4 - (CLOCK_Y - 4), 2, false);
     kui_text_scaled(k, big, (k->w - w) / 2, CLOCK_Y, hm, cs, true);
+    const char *ampm = pal_ui_ampm(tm.hour); /* a 12-hour clock: the suffix small, at the big clock's baseline */
+    if (ampm[0]) kui_text(k, df, (k->w + w) / 2 + 2, CLOCK_Y + big->charH * cs - df->charH, ampm, true);
     kui_text(k, df, (k->w - dw) / 2, date_y, date, true);
 }
 

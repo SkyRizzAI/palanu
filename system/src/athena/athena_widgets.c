@@ -8,6 +8,7 @@
 
 #include "athena_int.h"
 #include "pal/settings.h"
+#include "pal/ui.h"
 
 const char *const ATH_HOME_WIDGETS[] = {"clock", "calendar", NULL};
 
@@ -246,7 +247,9 @@ static void idle_clock_tick(lv_obj_t *box, const pal_tm_t *t) {
     int m = t->hour * 60 + t->minute;
     if (m == SC.last) return;
     SC.last = m;
-    lv_label_set_text_fmt(SC.time, "%02d:%02d", t->hour, t->minute);
+    char hm[12];
+    pal_ui_fmt_clock(t->hour, t->minute, hm, sizeof(hm));
+    lv_label_set_text(SC.time, hm);
     if (SC.long_date) {
         char d[48];
         ath_date_text(t, d, sizeof(d));

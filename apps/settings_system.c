@@ -17,6 +17,7 @@
 #include "pal/sysinfo.h"
 #include "pal/time.h"
 #include "settings_int.h"
+#include "pal/ui.h"
 
 
 
@@ -69,7 +70,7 @@ static void time_now(void *ctx, char *out, size_t cap) {
     (void)ctx;
     pal_tm_t tm;
     pal_time_local(&tm);
-    snprintf(out, cap, "%02d:%02d", tm.hour, tm.minute);
+    pal_ui_fmt_clock(tm.hour, tm.minute, out, cap);
 }
 
 /* Sets the clock to the local date and time given, keeping the rest. Local to UTC uses the time zone setting. */
@@ -126,11 +127,8 @@ static void build_datetime(pal_menu_page_t *p) {
     r = (pal_menu_row_t){.kind = PAL_MENU_CHOICE, .label = "Time zone", .icon = "clock", .ctx = NULL,
                          .choices = TZ_LABELS, .get = tz_get, .set = tz_set, .hint = "Nearest common offset", .key = "time.tz"};
     pal_menu_add(p, &r);
-    /* hidden until the clock screens read it: a 12-hour clock needs an AM/PM suffix in the home and lock layouts, and a
-     * switch that changes nothing is worse than no switch */
     r = (pal_menu_row_t){.kind = PAL_MENU_TOGGLE, .label = "24-hour clock", .ctx = (void *)"ui.clock24",
-                         .get = settings_bool_get, .set = settings_bool_set, .hidden = true,
-                         .hint = "Saved; the clock screens read it when wired"};
+                         .get = settings_bool_get, .set = settings_bool_set, .hint = "Off: 12 hours with AM and PM"};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "Network time", .icon = "wifi", .text = ntp_text,
                          .hint = "SNTP runs while Wi-Fi has an address"};

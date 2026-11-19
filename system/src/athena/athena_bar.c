@@ -1,6 +1,7 @@
 /* Athena's status bar: on LVGL's top layer above every screen, clear over the home and solid over an app; the clock, the radios and
  * the battery (as rising bars on a theme with level_bars), and the app's name over an app. */
 #include "athena_int.h"
+#include "pal/ui.h"
 
 /* ---- status bar ---- */
 
@@ -23,7 +24,9 @@ void ath_bar_update(bool always, uint32_t now) {
         st.ble == A.st.ble && st.link == A.st.link)
         return;
     A.st = st;
-    lv_label_set_text_fmt(A.bar_time, "%02d:%02d", st.hour, st.minute);
+    char hm[12];
+    pal_ui_fmt_clock(st.hour, st.minute, hm, sizeof(hm));
+    lv_label_set_text(A.bar_time, hm);
     char right[48];
     int n = 0;
     right[0] = 0;

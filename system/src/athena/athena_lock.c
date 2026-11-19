@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "athena_int.h"
+#include "pal/ui.h"
 
 /* ---- the lock greeter: Athena's lock screen. The PIN, its check and the lock state are the system's (pal/ui.h, pal/desktop.h). ---- */
 
@@ -47,7 +48,9 @@ void ath_lock_sync(void) {
     A.lock_dirty = false;
     pal_tm_t t;
     pal_time_local(&t);
-    lv_label_set_text_fmt(A.lock_clock, "%02d:%02d", t.hour, t.minute);
+    char hm[12];
+    pal_ui_fmt_clock(t.hour, t.minute, hm, sizeof(hm));
+    lv_label_set_text(A.lock_clock, hm);
     char date[40];
     ath_date_text(&t, date, sizeof(date));
     lv_label_set_text(A.lock_date, date);

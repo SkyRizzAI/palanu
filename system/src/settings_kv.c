@@ -16,6 +16,7 @@
 #include "athena_themes.h"
 #include "pal/power.h"
 #include "pal/settings.h"
+#include "pal/ui.h"
 
 #define TEXT_MAX 24 /* profile.user: characters, NUL included */
 
@@ -55,6 +56,12 @@ static void apply_log(const char *name, int32_t v) {
 
 /* ui.font: the reference font packs (Appearances > Font); the names are the packs of kui_fonts.c, in menu order. */
 static const char *const FONT_NAMES[] = {"Helvetica", "Haxrcorp4089", "ProFont", NULL};
+static void apply_clock24(const char *name, int32_t v) {
+    (void)name;
+    pal_ui_set_clock24(v != 0);
+    pal_desktop_invalidate_all(); /* every clock on the screen changes */
+}
+
 static void apply_font(const char *name, int32_t v) {
     (void)name;
     kui_font_pack_set(FONT_NAMES[v]);
@@ -72,7 +79,7 @@ static const kv_def_t DEFS[] = {
     {"display.rotation", KV_CHOICE, 0, 3, ROTATION_NAMES, 0, NULL, NULL},
     {"ui.statusbar", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"ui.legend", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the legend bar at the bottom (pal/legend.h); off hides it everywhere */
-    {"ui.clock24", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* 24 hours: what every clock shows today */
+    {"ui.clock24", KV_BOOL, 0, 1, NULL, 1, NULL, apply_clock24}, /* off: 12 hours with AM/PM (pal_ui_fmt_clock) */
     {"notify.dnd", KV_BOOL, 0, 1, NULL, 0, NULL, NULL},
     {"notify.beep", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"input.repeat_delay", KV_INT, 120, 1000, NULL, 420, NULL, apply_repeat},

@@ -83,7 +83,7 @@ a bell icon and "No notifications".
 | `ui.dark`, `ui.theme`, `ui.size` | as before | | Used by all screens through the palette. |
 | `ui.statusbar` | `0`, `1` | `1` | The status bar on top. Read by the desktop on every draw. |
 | `ui.legend` | `0`, `1` | `1` | The legend bar at the bottom (`docs/LEGEND.md`). Read by the desktop on every draw. |
-| `ui.clock24` | `0`, `1` | `1` | 24 hours (the current default). The clock renderer does not read it yet; `0` will mean 12 hours once wired. |
+| `ui.clock24` | `0`, `1` | `1` | `1`: 24 hours. `0`: 12 hours; the big home clock draws AM/PM beside it, the other clocks write "9:41 PM", the classic status bar shows the hour alone. |
 | `perf.overlay` | `0`, `1` | `0` | Performance overlay (runtime, not stored). |
 | `notify.dnd` | `0`, `1` | `0` | No toasts and no sound. The notification list is still filled. |
 | `notify.beep` | `0`, `1` | `1` | Buzzer sound on a notification (boards that have a buzzer). |
