@@ -3,7 +3,8 @@
  * at the right edge. Up and Down move the toolbar focus; past its ends they scroll the lines. Enter acts on the focused row, Left
  * and Right change the level. The nema log ring and the service logs (psys_svc_log_read) are merged in time order (logs_model.c).
  * Tab opens the options menu (follow, level, source, clear view). "/" searches the lines, n and N go on. The log is only read
- * while the app is in front (a 500 ms tick), so the view costs nothing in the background. */
+ * while the app is in front (a 500 ms tick), so the view costs nothing in the background. The screen is also bound as a document
+ * (pal/doc.h): the classic session draws it with draw below, a session that draws documents (Athena) in its own look. */
 #include <stdio.h>
 #include <string.h>
 
@@ -14,6 +15,7 @@
 #include "nema/log.h"
 #include "pal/desktop.h"
 #include "pal/dialog.h"
+#include "pal/doc.h"
 #include "pal/kui.h"
 #include "pal/svc.h"
 #include "pal/sysinfo.h"
@@ -70,6 +72,8 @@ static struct {
     int focus;                 /* the toolbar row that has the focus: 0 follow, 1 level, 2 clear */
     kui_canvas_t kc;
 } L NEMA_EXT_BSS;
+
+static pal_doc_t DOC; /* the screen as a document (below) */
 
 static bool alloc_all(void) {
     if (L.owned) return true;
@@ -164,6 +168,7 @@ static void rebuild(void) {
     L.nvis = logs_visible(L.refs, L.n, L.filter, L.comp, L.vis, LOGS_MAX);
     if (L.follow) L.top = logs_follow_top(L.nvis, L.page);
     L.dirty = false;
+    DOC.gen++;
 }
 
 static void refresh(void) {
@@ -267,6 +272,33 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     if (L.nvis > vis) kui_scrollbar(k, BAR_X, body, vis * BODY_LINE, L.top * BODY_LINE, vis * BODY_LINE, L.nvis * BODY_LINE);
     kui_present(c, k, a);
 }
+
+/* ---- the document (pal/doc.h): the same screen as data, for a session that draws it in its own look ---- */
+static void doc_title(void *ctx, char *out, size_t cap) { (void)ctx, snprintf(out, cap, "Logs (%d)", L.n); }
+static int doc_follow(void *ctx) { return (void)ctx, L.follow; }
+static void doc_level(void *ctx, char *out, size_t cap) { (void)ctx, snprintf(out, cap, "%s", logs_filter_name(L.filter)); }
+static const pal_doc_tool_t DOC_TOOLS[] = {
+    {.label = "Follow newest", .get = doc_follow},
+    {.label = "Level", .value = doc_level},
+    {.label = "Clear logs"},
+};
+static int doc_ntools(void *ctx) { return (void)ctx, toolbar_rows(); }
+static int doc_count(void *ctx) { return (void)ctx, L.nvis; }
+static void doc_line(void *ctx, int i, char *out, size_t cap, bool *mark) {
+    (void)ctx;
+    if (i < 0 || i >= L.nvis) {
+        out[0] = 0;
+        return;
+    }
+    const logs_ref_t *r = &L.refs[L.vis[i]];
+    format_row(out, cap, r);
+    *mark = row_has(r, L.query);
+}
+static void doc_empty(void *ctx, char *out, size_t cap) {
+    (void)ctx, snprintf(out, cap, "%s", L.n == 0 ? "No logs yet" : "No lines match the filter");
+}
+static pal_doc_t DOC = {.title = doc_title, .tools = DOC_TOOLS, .ntools = doc_ntools, .focus = &L.focus, .count = doc_count,
+                        .line = doc_line, .empty = doc_empty, .top = &L.top, .vis = &L.page, .mono = false};
 
 /* ---- search ---- */
 static void find(bool forward) {
@@ -469,6 +501,8 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
         break;
     default: return true;
     }
+    if (L.top > max) L.top = max; /* the page can be another look's (pal/doc.h) */
+    if (L.top < 0) L.top = 0;
     pal_desktop_invalidate();
     return true;
 }
@@ -495,6 +529,8 @@ static void enter(pal_view_t *v) {
         psys_toast("Out of memory", 1500);
         return;
     }
+    if (!L.page) L.page = 8; /* until a look has drawn the lines */
+    pal_doc_bind("logs", &DOC);
     refresh();
 }
 

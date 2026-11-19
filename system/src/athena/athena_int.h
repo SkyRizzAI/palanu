@@ -34,6 +34,8 @@
 #define SK_H 20 /* the softkey bar, when the theme has one */
 #define MAX_PAGE_ROWS 40
 #define VALUE_MAX 40
+#define MAX_DOC_LINES 20
+#define MAX_DOC_TOOLS 3
 
 /* The theme's tokens (athena_theme.c). Every colour and shape Athena draws comes from here. */
 typedef struct {
@@ -56,6 +58,7 @@ typedef struct {
     uint8_t menu_cols; /* idle_home: the menu grid's columns (0: 3) */
     bool menu_dark;    /* idle_home: the menu is icons on the wallpaper, no names; the selected app's name is the title */
     bool popup_right;  /* Options opens at the right edge (otherwise above the left softkey) */
+    uint32_t term_bg, term_fg; /* a terminal app's default colours in this theme */
 } ath_theme_t;
 
 extern const ath_theme_t *ath_T;
@@ -82,6 +85,7 @@ typedef struct {
     int w, h;
     /* status bar (on LVGL's top layer, above everything) */
     lv_obj_t *bar, *bar_time, *bar_right;
+    lv_obj_t *bar_title; /* over an app: its name in the middle of the bar */
     lv_obj_t *lvl_sig[4], *lvl_bat[5]; /* level_bars: the signal and battery bars */
     bool bar_solid;
     pal_status_t st;
@@ -136,6 +140,13 @@ typedef struct {
     bool toast_shown;
     /* the softkey bar (athena_softkeys.c) */
     lv_obj_t *sk, *sk_l, *sk_c, *sk_r;
+    /* a document screen (pal/doc.h) in Athena's look (athena_doc.c) */
+    lv_obj_t *doc, *doc_pane, *doc_title, *doc_body, *doc_empty;
+    lv_obj_t *doc_tool[MAX_DOC_TOOLS], *doc_tlabel[MAX_DOC_TOOLS], *doc_tval[MAX_DOC_TOOLS];
+    lv_obj_t *doc_line[MAX_DOC_LINES];
+    struct pal_doc *dm;
+    uint32_t dsig, dvals_ms;
+    int dvis, dtools;
 } athena_t;
 
 extern athena_t A;
@@ -173,6 +184,11 @@ pal_menu_t *ath_page_menu(void);
 void ath_build_page(void);
 void ath_page_sync(pal_menu_t *m, uint32_t now);
 
+/* the status bar (athena_bar.c) */
+void ath_build_bar(void);
+void ath_bar_update(bool always, uint32_t now);
+void ath_bar_style(bool solid);
+
 /* sheets and the Options popup (athena_sheet.c) */
 void ath_sheet_geometry(void);
 void ath_sheet_close(void);
@@ -199,6 +215,13 @@ void ath_menu_show(bool open); /* the idle home's app menu (athena.c) */
 void ath_softkeys_build(void);
 void ath_softkeys_set(const char *left, const char *mid, const char *right);
 void ath_softkeys_show(bool on);
+
+/* document screens (athena_doc.c, pal/doc.h): the bound doc of the screen in front, or NULL */
+struct pal_doc *ath_doc(void);
+pal_view_t *ath_app_view(void); /* the app's view in front: the top overlay that is not a shell service, else the front view */
+bool ath_send_key(pal_keysym_t sym); /* a key to that view as if pressed; true when it used it */
+void ath_build_doc(void);
+void ath_doc_sync(struct pal_doc *d, uint32_t now);
 
 /* shell services and toasts (athena_shell.c, pal/shell.h) */
 void ath_shell_build(void);

@@ -133,6 +133,9 @@ typedef struct {
     bool services;
     /* Rows at the bottom the desktop keeps for its own bar (a softkey bar): views stop above them and the compositor never sends them. */
     int bottom_px;
+    /* The terminal's default colours in this session's look (0xRRGGBB), over the classic theme's; tty_colors false keeps the theme's. */
+    bool tty_colors;
+    uint32_t tty_bg, tty_fg;
 } pal_desktop_chrome_t;
 
 /* Set by a desktop environment's start (NULL for classic); applied on the desktop task before the next frame, with a full redraw. The

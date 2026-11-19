@@ -57,15 +57,16 @@ static void sheet_open(sheet_t kind, const char *title, const char *const *rows,
 
 /* ---- Options (the left softkey, for a theme with softkeys): a popup above the softkey bar of what can be done here ---- */
 
-typedef enum { OPT_MENU, OPT_OPEN, OPT_RECENT, OPT_KEYBOARD, OPT_SETTINGS, OPT_LOCK, OPT_SELECT, OPT_BACK, OPT_HOME } opt_t;
+typedef enum { OPT_MENU, OPT_OPEN, OPT_RECENT, OPT_KEYBOARD, OPT_SETTINGS, OPT_LOCK, OPT_SELECT, OPT_BACK, OPT_HOME, OPT_APPMENU } opt_t;
 
-static const char *const OPT_LABEL[] = {"Menu", "Open", "Recent apps", "Keyboard", "Settings", "Lock", "Select", "Back", "Go to idle"};
+static const char *const OPT_LABEL[] = {"Menu", "Open", "Recent apps", "Keyboard", "Settings", "Lock", "Select", "Back", "Go to idle",
+                                        "App menu"};
 
 void ath_open_options(void) {
     uint8_t acts[MAX_ROWS];
     int n = 0;
-    if (ath_page_menu()) { /* a form: its row, back, and the session's own */
-        acts[n++] = OPT_SELECT, acts[n++] = OPT_BACK, acts[n++] = OPT_KEYBOARD, acts[n++] = OPT_RECENT, acts[n++] = OPT_HOME;
+    if (ath_page_menu() || ath_doc()) { /* a form or a document: its row, the app's own menu (its Tab), back, and the session's */
+        acts[n++] = OPT_SELECT, acts[n++] = OPT_APPMENU, acts[n++] = OPT_BACK, acts[n++] = OPT_KEYBOARD, acts[n++] = OPT_HOME;
     } else if (A.menu_open) {
         if (A.n > 0) acts[n++] = OPT_OPEN;
         acts[n++] = OPT_RECENT, acts[n++] = OPT_KEYBOARD, acts[n++] = OPT_SETTINGS, acts[n++] = OPT_LOCK;
@@ -103,7 +104,6 @@ void ath_open_options(void) {
 
 
 static void run_option(opt_t o) {
-    pal_menu_t *pm = ath_page_menu();
     switch (o) {
     case OPT_MENU: ath_menu_show(true); break;
     case OPT_OPEN:
@@ -113,12 +113,14 @@ static void run_option(opt_t o) {
     case OPT_KEYBOARD: pal_vk_open(); break;
     case OPT_SETTINGS: pal_desktop_open("settings"); break;
     case OPT_LOCK: pal_desktop_lock(); break;
-    case OPT_SELECT:
-        if (pm && pal_menu_activate(pm)) pal_desktop_invalidate();
-        break;
+    case OPT_SELECT: (void)ath_send_key(PAL_KEY_ENTER); break; /* as Enter on the screen in front */
+    case OPT_APPMENU: (void)ath_send_key(PAL_KEY_TAB); break;  /* the app's own menu key */
     case OPT_BACK:
-        if (pm && pal_menu_pop(pm)) pal_desktop_invalidate();
-        else pal_desktop_home();
+        if (!ath_send_key(PAL_KEY_ESC)) { /* not used: an overlay closes, a screen goes home */
+            pal_view_t *v = ath_app_view();
+            if (v && v == pal_desktop_overlay_top()) pal_desktop_overlay_pop();
+            else pal_desktop_home();
+        }
         break;
     case OPT_HOME: pal_desktop_home(); break;
     }

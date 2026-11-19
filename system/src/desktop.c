@@ -273,6 +273,8 @@ void desk_session_reset(const char *id) {
     if (pal_dpm_locked()) pal_dpm_set_locked(false, now_ms()); /* its lock screen is gone with it */
     pal_display_reserve_top(0);
     pal_display_reserve_bottom(0);
+    pal_theme_term_override(false, 0, 0);
+    if (pal_display_canvas()) pal_display_refresh_theme();
     D.inval_all = true;
     if (pal_display_canvas()) pal_mark_all(pal_display_canvas()); /* no display (a host test): nothing to redraw */
     nema_notify(&D.wake);
@@ -803,6 +805,8 @@ static void post_chrome(void *arg) {
     D.owned = false;
     pal_display_reserve_top(chrome_top());
     pal_display_reserve_bottom(chrome_bottom());
+    pal_theme_term_override(D.chrome && D.chrome->tty_colors, D.chrome ? D.chrome->tty_bg : 0, D.chrome ? D.chrome->tty_fg : 0);
+    if (pal_display_canvas()) pal_display_refresh_theme(); /* the terminal's colours are the session's */
     D.inval_all = true;
     if (pal_display_canvas()) pal_mark_all(pal_display_canvas());
 }

@@ -113,6 +113,7 @@ int pal_display_flush(void) {
 }
 
 void pal_display_refresh_theme(void) {
+    if (!D.ready) return;
     pal_theme_palette(D.palette);
     pal_mark_all(&D.canvas);
 }

@@ -3,7 +3,8 @@
  * lines in the mono font, one per row, cut at the right edge (the reference does not wrap). The file is read a chunk per pump call, so a
  * big file never holds the desktop. A binary file is a hex dump. Keys: Up/Down scroll, PgUp/PgDn, Home/End, "/" finds (virtual
  * keyboard entry), n and N go to the next and the previous match, L toggles line numbers. The model (rows, search, hex rows) is
- * textview_model.c. */
+ * textview_model.c. The screen is also bound as a document (pal/doc.h), so a session that draws documents (Athena) shows the file in
+ * its own look; the classic session draws it with draw below. */
 #include <stdio.h>
 #include <string.h>
 
@@ -12,6 +13,7 @@
 #include "files_model.h"
 #include "libapp.h"
 #include "pal/desktop.h"
+#include "pal/doc.h"
 #include "pal/kui.h"
 #include "pal/nav.h"
 #include "pal/overlay.h"
@@ -281,6 +283,64 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     kui_present(c, k, a);
 }
 
+/* ---- the document (pal/doc.h) ---- */
+static void ensure_layout(void) {
+    if (V.laid_cols == 0 && !V.reading && !V.T.binary && V.T.len) {
+        tv_layout(&V.T, COLS_NOWRAP);
+        V.laid_cols = COLS_NOWRAP;
+    }
+}
+static void doc_title(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    if (V.T.binary) snprintf(out, cap, "%s (hex)", V.name);
+    else if (V.reading) snprintf(out, cap, "%s", V.name);
+    else if (V.T.truncated) snprintf(out, cap, "%s (%d+ lines)", V.name, V.nlines);
+    else snprintf(out, cap, "%s (%d lines)", V.name, V.nlines);
+}
+static int doc_count(void *ctx) {
+    (void)ctx;
+    if (V.reading) return 0;
+    ensure_layout();
+    return V.T.binary ? tv_hex_rows(&V.T) : V.T.nrows;
+}
+static void doc_line(void *ctx, int row, char *out, size_t cap, bool *mark) {
+    (void)ctx;
+    out[0] = 0;
+    if (V.T.binary) {
+        size_t base = (size_t)row * TV_HEX_BYTES;
+        int n = snprintf(out, cap, "%06lX", (unsigned long)base);
+        for (int i = 0; i < TV_HEX_BYTES && base + (size_t)i < V.T.len && (size_t)n < cap; i++)
+            n += snprintf(out + n, cap - (size_t)n, " %02X", V.T.data[base + (size_t)i]);
+        return;
+    }
+    if (row < 0 || row >= V.T.nrows) return;
+    const tv_row_t *r = &V.T.rows[row];
+    size_t o = 0;
+    if (V.numbers) o = (size_t)snprintf(out, cap, r->line ? "%4lu  " : "      ", (unsigned long)r->line);
+    for (size_t p = r->start; p < r->end && o + 5 < cap;) { /* UTF-8 as it is; tabs to the next multiple of four */
+        uint32_t cp;
+        size_t n = tv_decode(V.T.data + p, r->end - p, &cp);
+        if (cp == '\t') {
+            do out[o++] = ' ';
+            while (o % 4 && o + 1 < cap);
+        } else if (cp >= 0x20 && cp != 0x7F) {
+            memcpy(out + o, V.T.data + p, n);
+            o += n;
+        }
+        p += n;
+    }
+    out[o] = 0;
+    uint32_t hit;
+    if (V.query[0]) *mark = tv_matches(&V.T, row, row, V.query, true, &hit, 1) > 0;
+}
+static void doc_empty(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    if (V.reading) snprintf(out, cap, "Reading... %luK", (unsigned long)(V.T.len / 1024));
+    else snprintf(out, cap, "(empty)");
+}
+static pal_doc_t DOC = {.title = doc_title, .count = doc_count, .line = doc_line, .empty = doc_empty, .top = &V.top, .vis = &V.page,
+                        .mono = true};
+
 /* ---- keys, pump, lifecycle ---- */
 static bool key(pal_view_t *v, const pal_key_t *k) {
     (void)v;
@@ -305,6 +365,7 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
         break;
     default: return true;
     }
+    DOC.gen++;
     pal_desktop_invalidate();
     return true;
 }
@@ -342,6 +403,8 @@ void pal_textview_open(const char *path) {
     V.have_match = false;
     V.laid_cols = 0;
     V.reading = true;
+    if (!V.page) V.page = 12; /* until a look has drawn the lines */
+    pal_doc_bind("textview", &DOC);
     if (pal_desktop_overlay_push(&pal_textview_view) != NEMA_OK) {
         close_file();
         psys_toast("Viewer is busy", 1500);

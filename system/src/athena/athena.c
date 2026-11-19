@@ -10,6 +10,7 @@
  * only its bar (and its softkey bar, for a theme with one). Parts: athena_lock.c (lock screen), athena_page.c (bound menus),
  * athena_shell.c (services, toasts), athena_softkeys.c (the softkey bar), athena_theme.c (themes), athena_widgets.c (home widgets). */
 #include "athena_int.h"
+#include "pal/doc.h"
 #include "pal/shell.h"
 #include "athena_pool.h"
 
@@ -53,98 +54,6 @@ static void flush(lv_display_t *d, const lv_area_t *a, uint8_t *px) {
     }
     A.pending = true;
     lv_display_flush_ready(d);
-}
-
-/* ---- status bar ---- */
-
-static const char *battery_glyph(int pct) {
-    if (pct >= 90) return LV_SYMBOL_BATTERY_FULL;
-    if (pct >= 60) return LV_SYMBOL_BATTERY_3;
-    if (pct >= 35) return LV_SYMBOL_BATTERY_2;
-    if (pct >= 10) return LV_SYMBOL_BATTERY_1;
-    return LV_SYMBOL_BATTERY_EMPTY;
-}
-
-/* The status costs an ADC sample for the battery: read it once a second at most, as the classic bar does (30 reads a second
- * tripped the interrupt watchdog on hhv2). */
-static void bar_update(bool always, uint32_t now) {
-    static uint32_t last_read;
-    if (!always && now - last_read < 1000u) return;
-    last_read = now;
-    pal_status_t st = pal_desktop_status();
-    if (!always && st.hour == A.st.hour && st.minute == A.st.minute && st.battery == A.st.battery && st.wifi == A.st.wifi &&
-        st.ble == A.st.ble && st.link == A.st.link)
-        return;
-    A.st = st;
-    lv_label_set_text_fmt(A.bar_time, "%02d:%02d", st.hour, st.minute);
-    char right[48];
-    int n = 0;
-    right[0] = 0;
-    if (st.link) n += snprintf(right + n, sizeof(right) - (size_t)n, "%s  ", LV_SYMBOL_LOOP);
-    if (st.ble) n += snprintf(right + n, sizeof(right) - (size_t)n, "%s  ", LV_SYMBOL_BLUETOOTH);
-    if (ath_T->level_bars) { /* the signal and the battery are bars: lit up to their level */
-        for (int i = 0; i < 4; i++) lv_obj_set_style_bg_opa(A.lvl_sig[i], i < st.wifi ? LV_OPA_COVER : LV_OPA_30, 0);
-        int lit = st.battery < 0 ? 0 : (st.battery + 19) / 20;
-        for (int i = 0; i < 5; i++) lv_obj_set_style_bg_opa(A.lvl_bat[i], i < lit ? LV_OPA_COVER : LV_OPA_30, 0);
-    } else {
-        if (st.wifi > 0) n += snprintf(right + n, sizeof(right) - (size_t)n, "%s  ", LV_SYMBOL_WIFI);
-        if (st.battery >= 0) snprintf(right + n, sizeof(right) - (size_t)n, "%d%%  %s", st.battery, battery_glyph(st.battery));
-    }
-    lv_label_set_text(A.bar_right, right);
-}
-
-/* Rising bars at x (left to right), the tallest on the side away from the screen's edge. */
-static void level_bars(lv_obj_t **out, int n, int x, bool rise_right) {
-    for (int i = 0; i < n; i++) {
-        lv_obj_t *b = lv_obj_create(A.bar);
-        lv_obj_remove_style_all(b);
-        int hh = 4 + (rise_right ? i : n - 1 - i) * 10 / n;
-        lv_obj_set_size(b, 3, hh);
-        lv_obj_set_pos(b, x + i * 5, BAR_H - 4 - hh);
-        lv_obj_set_style_bg_color(b, C_WHITE, 0);
-        lv_obj_set_style_bg_opa(b, LV_OPA_30, 0);
-        out[i] = b;
-    }
-}
-
-/* Over the home the bar is clear (the wallpaper shows through); over an app it is solid black, as the app's own top edge. */
-static void bar_style(bool solid) {
-    if (solid == A.bar_solid) return;
-    A.bar_solid = solid;
-    lv_obj_set_style_bg_opa(A.bar, solid ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-}
-
-static void build_bar(void) {
-    A.bar = lv_obj_create(lv_layer_top());
-    lv_obj_remove_style_all(A.bar);
-    lv_obj_set_size(A.bar, A.w, BAR_H);
-    lv_obj_set_pos(A.bar, 0, 0);
-    lv_obj_set_style_bg_color(A.bar, lv_color_hex(ath_T->bar_bg), 0);
-    lv_obj_set_style_bg_opa(A.bar, LV_OPA_TRANSP, 0);
-    A.bar_solid = false;
-    A.bar_time = lv_label_create(A.bar);
-    lv_obj_set_style_text_font(A.bar_time, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(A.bar_time, C_WHITE, 0);
-    if (ath_T->level_bars) { /* the signal on the left, the battery on the right, the clock between them */
-        level_bars(A.lvl_sig, 4, 8, true);
-        level_bars(A.lvl_bat, 5, A.w - 8 - 5 * 5 + 2, false);
-        lv_obj_align(A.bar_time, LV_ALIGN_CENTER, 0, 0);
-    } else {
-        lv_obj_align(A.bar_time, LV_ALIGN_LEFT_MID, 12, 0);
-    }
-    A.bar_toast = lv_label_create(A.bar); /* a toast takes the bar while it shows (athena_shell.c) */
-    lv_obj_set_style_text_font(A.bar_toast, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(A.bar_toast, C_WHITE, 0);
-    lv_label_set_long_mode(A.bar_toast, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(A.bar_toast, A.w - 24);
-    lv_obj_set_style_text_align(A.bar_toast, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(A.bar_toast, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(A.bar_toast, LV_OBJ_FLAG_HIDDEN);
-    A.bar_right = lv_label_create(A.bar);
-    lv_obj_set_style_text_font(A.bar_right, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(A.bar_right, C_WHITE, 0);
-    lv_obj_align(A.bar_right, LV_ALIGN_RIGHT_MID, ath_T->level_bars ? -40 : -10, 0);
-    bar_update(true, 0);
 }
 
 /* ---- home ---- */
@@ -486,7 +395,8 @@ bool ath_home_in_front(void) {
 
 static bool owns_screen(void) {
     /* a shell service in front is Athena's to draw (athena_shell.c): asked here, before the compositor's frame, so it never draws one */
-    return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || pal_shell_top(NULL) || ath_home_in_front() || ath_page_menu());
+    return A.disp && (pal_desktop_locked() || A.kind != SHEET_NONE || pal_shell_top(NULL) || ath_home_in_front() || ath_page_menu() ||
+                      ath_doc());
 }
 
 static void build_all(void);
@@ -516,6 +426,7 @@ static void build_all(void) {
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     build_home();
     ath_build_page();
+    ath_build_doc();
     A.sheet = lv_obj_create(lv_layer_top()); /* created before the bar, so the bar stays above it */
     lv_obj_remove_style_all(A.sheet);
     ath_sheet_geometry();
@@ -526,7 +437,7 @@ static void build_all(void) {
     lv_obj_remove_flag(A.sheet, LV_OBJ_FLAG_SCROLLABLE);
     ath_shell_build(); /* the modal for the shell services: above the sheet */
     ath_build_lock();  /* above the modal, below the bar */
-    build_bar();
+    ath_build_bar();
     ath_softkeys_build(); /* last: above everything, as the bar */
     A.force = true;
 }
@@ -538,7 +449,8 @@ static void theme_follow(void) {
     ath_T = want;
     lv_obj_clean(lv_layer_top());
     lv_obj_clean(lv_screen_active());
-    A.home = A.page = A.sheet = A.lock = A.backdrop = A.dim = A.modal = A.bar = A.menu = A.sk = NULL;
+    A.home = A.page = A.sheet = A.lock = A.backdrop = A.dim = A.modal = A.bar = A.menu = A.sk = A.doc = NULL;
+    A.dm = NULL;
     A.menu_open = false;
     A.kind = SHEET_NONE;
     A.svc_kind = 0, A.svc_sig = 0;
@@ -547,7 +459,7 @@ static void theme_follow(void) {
     A.mode = -1;
     A.bar_solid = false;
     build_all();
-    bar_update(true, 0);
+    ath_bar_update(true, 0);
     chrome_apply();
 }
 
@@ -587,7 +499,7 @@ static bool chrome_key(const pal_key_t *k) {
     }
     /* the left softkey or menu key (Tab) on a screen Athena draws: Menu on the idle screen, Options everywhere else; an app keeps its Tab */
     if ((ath_T->softkeys || ath_T->idle_home) && k->sym == PAL_KEY_TAB && !pal_shell_top(NULL) && !pal_desktop_locked() &&
-        (ath_home_in_front() || ath_page_menu())) {
+        (ath_home_in_front() || ath_page_menu() || ath_doc())) {
         if (ath_home_in_front() && !A.menu_open) ath_menu_show(true);
         else ath_open_options();
         return true;
@@ -609,6 +521,10 @@ static void softkeys_follow(void) {
     } else if (pm) {
         pal_menu_page_t *top = pal_menu_top(pm);
         ath_softkeys_set("Options", top && pal_menu_has_selectable(top) ? "Select" : "", pal_menu_depth(pm) > 1 ? "Back" : "Exit");
+    } else if (ath_doc()) {
+        pal_doc_t *d = ath_doc();
+        int nt = d->ntools ? d->ntools(d->ctx) : 0;
+        ath_softkeys_set("Options", d->focus && *d->focus >= 0 && *d->focus < nt ? "Select" : "", "Back");
     } else {
         ath_softkeys_set("", "", "Back");
     }
@@ -629,7 +545,7 @@ static void chrome_frame(uint32_t now) {
         theme_at = now;
         theme_follow();
     }
-    bar_update(false, now);
+    ath_bar_update(false, now);
     pal_tm_t t;
     pal_time_local(&t);
     if (t.hour * 60 + t.minute != A.last_minute) {
@@ -638,26 +554,36 @@ static void chrome_frame(uint32_t now) {
     }
     if (ath_home_in_front()) widgets_tick(false);
     pal_menu_t *pm = ath_page_menu();
-    int mode = ath_home_in_front() ? 0 : pm ? 1 : 2;
-    if (mode != A.mode) { /* the home and the page share the screen: show one */
+    pal_doc_t *dm = pm ? NULL : ath_doc();
+    int mode = ath_home_in_front() ? 0 : pm ? 1 : dm ? 3 : 2;
+    if (mode != A.mode) { /* the home, the page and the document share the screen: show one */
         A.mode = mode;
-        if (mode == 1) {
-            lv_obj_remove_flag(A.page, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(A.page); /* the home is rebuilt on every return, which puts it on top */
+        lv_obj_t *show = mode == 1 ? A.page : mode == 3 ? A.doc : NULL;
+        if (mode != 1) lv_obj_add_flag(A.page, LV_OBJ_FLAG_HIDDEN);
+        if (mode != 3) lv_obj_add_flag(A.doc, LV_OBJ_FLAG_HIDDEN);
+        if (show) {
+            lv_obj_remove_flag(show, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(show); /* the home is rebuilt on every return, which puts it on top */
             lv_obj_add_flag(A.home, LV_OBJ_FLAG_HIDDEN);
         } else {
-            lv_obj_add_flag(A.page, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(A.home, LV_OBJ_FLAG_HIDDEN);
         }
-        A.pm = NULL; /* rebuild the page when it shows again */
+        A.pm = NULL; /* rebuild the page or the document when it shows again */
+        A.dm = NULL;
         A.force = true;
     }
     if (pm) ath_page_sync(pm, now);
+    if (dm) ath_doc_sync(dm, now);
+    { /* over an app the bar names it (the clock is in the middle on a theme with level bars) */
+        pal_view_t *av = mode == 2 && !ath_T->level_bars ? ath_app_view() : NULL;
+        const char *want = av && av->title && strcmp(av->id, "athena") ? av->title : "";
+        if (strcmp(lv_label_get_text(A.bar_title), want)) lv_label_set_text(A.bar_title, want);
+    }
     ath_lock_sync();
     ath_shell_sync();
     softkeys_follow();
     bool owned = owns_screen();
-    bar_style(!ath_home_in_front());
+    ath_bar_style(!ath_home_in_front());
     bool on = pal_dpm_display_on();
     if (owned != A.owned || on != A.display_on || pal_console_generation() != A.console_gen) A.force = true; /* the console had the screen */
     A.console_gen = pal_console_generation();
@@ -690,13 +616,18 @@ static int32_t chrome_next(uint32_t now) {
     return A.disp ? 33 : 0;
 }
 
-static const pal_desktop_chrome_t CHROME = {.hide_bar = true, .hide_legend = true, .top_px = BAR_H, .key = chrome_key, .services = true,
-                                            .owns_screen = owns_screen, .frame = chrome_frame, .next_ms = chrome_next};
-/* The same with the softkey bar's rows kept at the bottom: an app stops above it. */
-static const pal_desktop_chrome_t CHROME_SK = {.hide_bar = true, .hide_legend = true, .top_px = BAR_H, .bottom_px = SK_H, .key = chrome_key,
-                                               .services = true, .owns_screen = owns_screen, .frame = chrome_frame, .next_ms = chrome_next};
+/* The chrome follows the theme: the softkey bar's rows (an app stops above them) and the terminal's colours. Two tables take turns, so
+ * the one the compositor holds is never changed under it. */
+static pal_desktop_chrome_t s_chrome[2];
+static int s_ci;
 
-static void chrome_apply(void) { pal_desktop_set_chrome(ath_T->softkeys ? &CHROME_SK : &CHROME); }
+static void chrome_apply(void) {
+    s_ci ^= 1;
+    s_chrome[s_ci] = (pal_desktop_chrome_t){.hide_bar = true, .hide_legend = true, .top_px = BAR_H, .bottom_px = ath_bottom(),
+                                            .key = chrome_key, .services = true, .owns_screen = owns_screen, .frame = chrome_frame,
+                                            .next_ms = chrome_next, .tty_colors = true, .tty_bg = ath_T->term_bg, .tty_fg = ath_T->term_fg};
+    pal_desktop_set_chrome(&s_chrome[s_ci]);
+}
 
 /* ---- the home view (the compositor's front view while Athena is home) ---- */
 

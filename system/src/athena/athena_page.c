@@ -122,7 +122,13 @@ static void page_build(void) {
     int inset = grouped ? 12 : 0, w = A.w - 2 * inset, y = grouped ? 6 : 2;
     lv_obj_t *card = NULL, *prev = NULL;
     int card_y = 0, card_n = 0;
-    for (size_t k = 0; k < A.ppage->n && A.pn < MAX_PAGE_ROWS; k++) {
+    /* a long page (a big folder) is drawn as a window of MAX_PAGE_ROWS rows around the selection, built again when it leaves it */
+    size_t start = 0;
+    if (A.ppage->n > MAX_PAGE_ROWS) {
+        int st = A.psel - MAX_PAGE_ROWS / 2, last = (int)A.ppage->n - MAX_PAGE_ROWS;
+        start = (size_t)(st < 0 ? 0 : st > last ? last : st);
+    }
+    for (size_t k = start; k < A.ppage->n && A.pn < MAX_PAGE_ROWS; k++) {
         const pal_menu_row_t *r = &A.ppage->rows[k];
         if (r->kind == PAL_MENU_SECTION && r->group) { /* a new card without a title */
             if (card) y = card_y + card_n * ROW_H + 14;
@@ -218,7 +224,7 @@ static void page_build(void) {
         }
         lv_obj_t *l = ath_text(row, &lv_font_montserrat_16, C_INK);
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l, w / 2 + 30 - text_x + 12);
+        lv_obj_set_size(l, w / 2 + 30 - text_x + 12, 19); /* one line: a long name ends in dots */
         lv_label_set_text(l, r->label ? r->label : "");
         lv_obj_align(l, LV_ALIGN_LEFT_MID, text_x, 0);
         A.plabel[i] = l;
@@ -284,6 +290,12 @@ void ath_page_sync(pal_menu_t *m, uint32_t now) {
     if (p->sel != A.psel) {
         int old = A.psel;
         A.psel = p->sel;
+        bool drawn = false;
+        for (int i = 0; i < A.pn && !drawn; i++) drawn = A.pidx[i] == A.psel;
+        if (!drawn) { /* outside the window of a long page */
+            page_build();
+            return;
+        }
         for (int i = 0; i < A.pn; i++)
             if (A.pidx[i] == old || A.pidx[i] == A.psel) {
                 page_style_row(i);

@@ -149,6 +149,13 @@ static uint16_t rgb565_swapped(uint32_t rgb) {
     return (uint16_t)((v >> 8) | (v << 8));
 }
 
+static struct {
+    bool on;
+    uint32_t bg, fg;
+} s_term;
+
+void pal_theme_term_override(bool on, uint32_t bg, uint32_t fg) { s_term.on = on, s_term.bg = bg, s_term.fg = fg; }
+
 void pal_theme_palette(uint16_t out[256]) {
     static const uint32_t ansi[16] = {
         0x000000, 0xCD3131, 0x0DBC79, 0xE5E510, 0x2472C8, 0xBC3FBC, 0x11A8CD, 0xE5E5E5,
@@ -166,8 +173,8 @@ void pal_theme_palette(uint16_t out[256]) {
     }
     const pal_theme_colors_t *c = &pal_theme_active()->colors;
     out[PAL_C_ON_ACCENT] = rgb565_swapped(c->on_accent);
-    out[PAL_C_TERM_BG] = rgb565_swapped(c->term_bg);
-    out[PAL_C_TERM_FG] = rgb565_swapped(c->term_fg);
+    out[PAL_C_TERM_BG] = rgb565_swapped(s_term.on ? s_term.bg : c->term_bg);
+    out[PAL_C_TERM_FG] = rgb565_swapped(s_term.on ? s_term.fg : c->term_fg);
     out[PAL_C_PANEL] = rgb565_swapped(c->panel);
     out[PAL_C_DIM] = rgb565_swapped(c->dim);
     out[PAL_C_ACCENT] = rgb565_swapped(c->accent);

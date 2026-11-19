@@ -100,6 +100,7 @@ typedef struct {          /* pal_desktop_set_chrome(&chrome) in start; cleared a
     int32_t (*next_ms)(uint32_t now_ms); /* when frame wants to run again */
     bool services;                       /* the session draws the shell services and toasts */
     int bottom_px;                       /* rows kept at the bottom (a softkey bar): views stop above, flushes never touch them */
+    bool tty_colors; uint32_t tty_bg, tty_fg; /* the terminal's default colours in this session's look */
 } pal_desktop_chrome_t;
 ```
 
@@ -159,6 +160,12 @@ analog face with an orange second hand, or big stacked digits with the day in a 
 beside the month, or the month with today on a teal square). Listing, adding, moving and removing widgets is later work; the home
 shows `ATH_HOME_WIDGETS` in order.
 
+**Two looks per app (ADR-0012).** An app describes its screen and keeps its keys; the session presents it. Files binds its listing
+as a form (`pal_menu_bind`), Logs and the text viewer bind a document (`pal/doc.h`: title, toolbar rows, lines), and the Files
+operations menu describes itself as a picker. The classic session draws each view as before; Athena draws forms as its lists,
+documents as a title, toolbar rows and the lines on a card (fixed-width for files), and pickers as its modal. Terminals stay tty and
+take the session's colours (`pal_desktop_chrome_t.tty_colors`): each Athena theme has its own. Over an app, Athena's bar names it.
+
 **Themes.** Athena's look is a theme of tokens (`system/src/athena/athena_theme.c`): colours (wallpaper, surface, rows, accent, text,
 switches, danger, keyboard mode keys, the bar over apps) and shape (corner radii of cards, rows and icons, centred or left-aligned
 titles, upper-case buttons, shadows or flat) and layout (ADR-0011: a softkey bar, an idle home, title panes, level bars, highlight
@@ -187,6 +194,7 @@ of the panel (in PSRAM) in direct mode.
 Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (the image is 91% of the OTA slot), no internal RAM
 beyond a few hundred bytes (the pool, the frame and its state are in PSRAM), and the desktop task's stack went from 6 to 8 KB.
 
-Golden scenes: `athena-trackball-home`, `athena-trackball-menu`, `athena-trackball-options`, `athena-trackball-settings`, `athena-softkey-home`, `athena-softkey-menu`, `athena-softkey-options`, `athena-softkey-settings`, `athena-softkey-app`,
+Golden scenes: `athena-files`, `athena-files-ops`, `athena-textview`, `athena-textview-hex`, `athena-logs`, `athena-material-files`,
+`athena-softkey-logs`, `athena-trackball-files`, `athena-trackball-home`, `athena-trackball-menu`, `athena-trackball-options`, `athena-trackball-settings`, `athena-softkey-home`, `athena-softkey-menu`, `athena-softkey-options`, `athena-softkey-settings`, `athena-softkey-app`,
 `athena-home`, `athena-select`, `athena-settings`, `athena-settings-display`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-shell`
 (`forge/tools/golden-scenes.json`). Unit test: `tests/unit/test_desktops.c` (the registry and the console's hand-off).

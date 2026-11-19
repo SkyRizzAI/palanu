@@ -2,7 +2,8 @@
  * file browser: open, view (the text viewer), copy, cut, paste, rename, delete, new folder, new text file, info, and install of a
  * .papp package. Listing and operations run in slices from the pump, so a big directory or copy never stalls the keys. Model:
  * files_model.c; operations: files_ops.c; the viewer: textview.c. Policy here: installed apps (/apps) are removed from Settings,
- * mount points are not removed, and deleting under /data asks twice (the text says so). */
+ * mount points are not removed, and deleting under /data asks twice (the text says so). The listing is also bound as a form
+ * (pal_menu_bind, ADR-0012): the classic session draws it with draw below, a session that draws forms (Athena) in its own look. */
 #include <stdio.h>
 #include <string.h>
 
@@ -15,6 +16,7 @@
 #include "pal/dialog.h"
 #include "pal/desktop.h"
 #include "pal/kui.h"
+#include "pal/menu.h"
 #include "pal/nav.h"
 #include "pal/overlay.h"
 #include "pal/papp.h"
@@ -527,6 +529,66 @@ static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     kui_present(c, k, a);
 }
 
+/* ---- the form (pal/menu.h): the listing as rows, for a session that draws forms in its own look. Two pages take turns, so a new
+ * listing is a new page to the session even when it has as many rows as the last one. The selection is F.sel, copied in. ---- */
+#define FORM_ROWS (FILES_MAX + 3)
+static pal_menu_row_t s_rows[FORM_ROWS] NEMA_EXT_BSS;
+static pal_menu_page_t s_page[2] NEMA_EXT_BSS;
+static char s_title[2][NEMA_PATH_MAX] NEMA_EXT_BSS;
+static int s_pi, s_built_n = -1;
+static bool s_built_loading;
+static pal_menu_t s_form NEMA_EXT_BSS;
+
+static void form_value(void *ctx, char *out, size_t cap) {
+    const files_ent_t *e = row_ent((int)(intptr_t)ctx);
+    out[0] = 0;
+    if (!e) return;
+    if (e->type == NEMA_T_FILE) files_size_str(out, cap, e->size);
+    else if (e->type == FILES_T_ROOT) {
+        char fs[16];
+        files_size_str(fs, sizeof(fs), e->size);
+        snprintf(out, cap, "%s free", fs);
+    }
+}
+static void form_run(void *ctx) {
+    F.sel = (int)(intptr_t)ctx;
+    if (!F.L.loading) activate();
+}
+static pal_menu_page_t *form_open(void *ctx) {
+    form_run(ctx);
+    return NULL; /* Files goes into the folder itself */
+}
+static void form_note(void *ctx, char *out, size_t cap) { snprintf(out, cap, "%s", (const char *)ctx); }
+
+static void form_build(void) {
+    s_pi ^= 1;
+    pal_menu_page_t *p = &s_page[s_pi];
+    files_crumb(s_title[s_pi], sizeof(s_title[s_pi]), F.cwd[0] ? F.cwd : "/");
+    int n = 0, total = rows_total();
+    for (int i = 0; i < total && n < FORM_ROWS - 2; i++) {
+        const files_ent_t *e = row_ent(i);
+        int kind = e ? files_kind(e) : FILES_K_DIR;
+        bool dir = !e || kind == FILES_K_DIR || kind == FILES_K_ROOT;
+        s_rows[n++] = (pal_menu_row_t){.kind = dir ? PAL_MENU_SUBMENU : PAL_MENU_ACTION, .label = e ? e->name : "..",
+                                       .icon = dir ? "files" : kind == FILES_K_PACKAGE ? "package" : "text", .ctx = (void *)(intptr_t)i,
+                                       .text = form_value, .run = form_run, .open = form_open, .show_value = true};
+    }
+    if (F.L.loading) s_rows[n++] = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "Loading...", .inert = true};
+    else if (F.L.truncated)
+        s_rows[n++] = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "More than 512 entries", .inert = true, .text = form_note,
+                                       .ctx = (void *)"the first 512 are shown"};
+    *p = (pal_menu_page_t){.title = s_title[s_pi], .rows = s_rows, .n = (size_t)n, .empty = "(empty)", .sel = F.sel};
+    s_built_n = total, s_built_loading = F.L.loading;
+    pal_menu_reset(&s_form, p);
+    pal_menu_bind("files", &s_form);
+}
+
+/* Follows the listing: a new one (or more rows while loading) builds the form again; otherwise the selection is copied in. */
+static void form_sync(void) {
+    if (rows_total() != s_built_n || F.L.loading != s_built_loading) form_build();
+    else s_page[s_pi].sel = F.sel;
+}
+
 /* ---- input, time ---- */
 static bool key(pal_view_t *v, const pal_key_t *k) {
     (void)v;
@@ -553,6 +615,7 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     default: return false;
     }
     clamp_sel();
+    form_sync();
     pal_desktop_invalidate();
     return true;
 }
@@ -577,6 +640,7 @@ static void pump(pal_view_t *v) {
             pal_desktop_invalidate();
         }
     }
+    if (F.cwd[0]) form_sync();
     job_pump();
     if (F.defer && --F.defer == 0 && F.defer_act == A_INSTALL) {
         F.defer_act = A_NONE;

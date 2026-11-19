@@ -1,7 +1,8 @@
 /* The Files operations menu (view "filemenu", an opaque overlay with the status bar): the reference FileOpsModal list look
  *. A ListSection with the entry's name, then the rows: a list with a
  * 2 px inset, the selected row inverted, a scrollbar when the rows do not fit. Up and Down move (no wrap), Enter picks, Esc
- * closes. Drawing goes through kui (logical 1-bit canvas, 2 px per pixel). */
+ * closes. Drawing goes through kui (logical 1-bit canvas, 2 px per pixel). It describes itself as a picker (pal/shell.h), so a session
+ * that draws the shell services (Athena) shows it in its own look. */
 #include <stdio.h>
 #include <string.h>
 
@@ -11,6 +12,7 @@
 #include "pal/desktop.h"
 #include "pal/kui.h"
 #include "pal/overlay.h"
+#include "pal/shell.h"
 
 #define ROW_PAD 2   /* the list's inset from the header and the sides */
 #define BAR_X (k->w - 3) /* the scrollbar's x (logical): the 3 px bar at the right edge, at any UI scale */
@@ -19,6 +21,7 @@
 static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full);
 static bool key(pal_view_t *v, const pal_key_t *k);
 static void leave(pal_view_t *v);
+static bool describe(pal_view_t *v, pal_shell_view_t *o);
 
 static struct {
     pal_view_t view;
@@ -29,7 +32,8 @@ static struct {
     int n, sel, top, vis;
     files_menu_cb_t cb;
     void *ctx;
-} M = {.view = {.id = "filemenu", .title = "Options", .flags = PAL_VIEW_OPAQUE | PAL_VIEW_HIDDEN, .draw = draw, .key = key, .leave = leave}};
+} M = {.view = {.id = "filemenu", .title = "Options", .flags = PAL_VIEW_OPAQUE | PAL_VIEW_HIDDEN, .draw = draw, .key = key, .leave = leave,
+                 .describe = describe}};
 static kui_canvas_t M_KC NEMA_EXT_BSS; /* the logical canvas, in external RAM where the board has it */
 
 static void finish(int index) {
@@ -85,6 +89,17 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     default: return true;
     }
     pal_desktop_invalidate();
+    return true;
+}
+
+static bool describe(pal_view_t *v, pal_shell_view_t *o) {
+    (void)v;
+    if (!M.used) return false;
+    o->kind = PAL_SHELL_PICKER;
+    o->title = M.title;
+    o->nitems = M.n > PAL_SHELL_ITEMS ? PAL_SHELL_ITEMS : M.n;
+    for (int i = 0; i < o->nitems; i++) o->items[i] = M.items[i];
+    o->sel = M.sel;
     return true;
 }
 

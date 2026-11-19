@@ -83,5 +83,8 @@ int pal_theme_size(void);
 
 /* Fill a 256-entry RGB565 palette (byte-swapped for SPI) for the active theme. */
 void pal_theme_palette(uint16_t out[256]);
+/* The terminal's default colours from the running desktop session (pal_desktop_chrome_t.tty_colors), over the theme's; on false
+ * the theme's again. The palette is built again by pal_display_refresh_theme. */
+void pal_theme_term_override(bool on, uint32_t bg, uint32_t fg);
 
 #endif
