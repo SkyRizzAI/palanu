@@ -43,6 +43,9 @@ static struct {
     pal_legend_item_t items[2][PAL_LEGEND_MAX];
 } L NEMA_EXT_BSS; /* PSRAM: the internal RAM budget is spent (ramcheck) */
 
+/* Why the first shell did not start (empty when it did): shown in place of the screen, Enter tries again, Esc closes. */
+static char s_fail[64] NEMA_EXT_BSS;
+
 static const pal_font_t *font_of(int f) { return f == 0 ? &PAL_FONT_SPLEEN_5X8 : f == 2 ? &PAL_FONT_SPLEEN_8X16 : &PAL_FONT_SPLEEN_6X12; }
 
 static void geometry(pal_view_t *v, int *cols, int *rows) {
@@ -64,20 +67,28 @@ static int session_start(pal_view_t *v, int idx) {
     int cols, rows;
     geometry(v, &cols, &rows);
     if (!T.owner) T.owner = nema_owner_register("terminal");
-    if (nema_tty_create(&s->tty, (uint16_t)cols, (uint16_t)rows, T.owner) != NEMA_OK) return -1;
+    nema_err_t r = nema_tty_create(&s->tty, (uint16_t)cols, (uint16_t)rows, T.owner);
+    if (r != NEMA_OK) {
+        snprintf(s_fail, sizeof(s_fail), "No terminal device: %s", pal_strerror(r));
+        return -1;
+    }
     s->term = pal_term_create(cols, rows, 200, T.owner);
     if (!s->term) {
         nema_tty_destroy(s->tty);
+        snprintf(s_fail, sizeof(s_fail), "Not enough memory for the screen");
         return -1;
     }
     pal_term_set_reply(s->term, on_reply, s);
     nema_obj_t *io = nema_tty_proc_obj(s->tty);
     nema_spawn_t sp = {.name = "sh", .stdio = {io, io, io}, .cwd = "/home"};
-    if (nema_proc_spawn(&sp, &s->pid) != NEMA_OK) {
+    r = nema_proc_spawn(&sp, &s->pid);
+    if (r != NEMA_OK) {
         pal_term_destroy(s->term);
         nema_tty_destroy(s->tty);
+        snprintf(s_fail, sizeof(s_fail), "The shell did not start: %s", pal_strerror(r));
         return -1;
     }
+    s_fail[0] = 0;
     nema_tty_set_foreground(s->tty, s->pid);
     pal_desktop_watch(nema_tty_term_obj(s->tty));
     s->used = true;
@@ -223,7 +234,18 @@ static void pump(pal_view_t *v) {
 
 static void draw(pal_view_t *v, pal_canvas_t *c, pal_rect_t a, bool full) {
     sess_t *s = &T.s[T.cur];
-    if (!s->used) return;
+    if (!s->used) {
+        if (!s_fail[0]) return;
+        const pal_theme_t *t = pal_theme_active();
+        const pal_font_t *f = t->tokens.body;
+        const char *hint = "Enter: try again   Esc: close";
+        pal_fill(c, a.x, a.y, a.w, a.h, PAL_C_TERM_BG);
+        int y = a.y + a.h / 2 - f->h;
+        pal_text(c, f, a.x + (a.w - pal_text_w(f, s_fail)) / 2, y, s_fail, PAL_C_TERM_FG, PAL_TRANSPARENT);
+        pal_text(c, t->tokens.caption, a.x + (a.w - pal_text_w(t->tokens.caption, hint)) / 2, y + f->h + 6, hint, PAL_C_TERM_FG,
+                 PAL_TRANSPARENT);
+        return;
+    }
     const pal_font_t *f = font_of(T.font);
     if (full) {
         pal_fill(c, a.x, a.y, a.w, a.h, PAL_C_TERM_BG);
@@ -280,7 +302,16 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
         pal_desktop_invalidate_all();
         return true;
     }
-    if (!s->used) return true;
+    if (!s->used) { /* the first shell did not start */
+        if (k->sym == PAL_KEY_ENTER && session_start(v, T.cur) == 0) pal_term_mark_all(s->term);
+        else if (k->sym == PAL_KEY_ESC) {
+            s_fail[0] = 0;
+            T.ready = false; /* the next open tries again */
+            pal_app_exit();
+        }
+        pal_desktop_invalidate_all();
+        return true;
+    }
     if ((k->mods & PAL_MOD_SHIFT) && (k->sym == PAL_KEY_PGUP || k->sym == PAL_KEY_UP)) {
         pal_term_scroll_view(s->term, k->sym == PAL_KEY_PGUP ? pal_term_rows(s->term) / 2 : 1);
         return true;
