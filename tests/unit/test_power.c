@@ -37,8 +37,38 @@ TEST(each_profile_is_a_cpu_range) {
     CHECK_EQ(g_calls, 4);
 }
 
+static int g_sleep = -1, g_sleep_calls;
+static nema_err_t light(bool allow) {
+    g_sleep = allow, g_sleep_calls++;
+    return NEMA_OK;
+}
+
+TEST(saver_light_sleeps_only_with_the_screen_off) {
+    pal_power_ops_t ops = {.cpu = cpu, .max_mhz = 320, .light_sleep = light};
+    pal_power_set_ops(&ops);
+    pal_power_screen(true);
+    CHECK_EQ(pal_power_apply(PAL_POWER_SAVER), NEMA_OK);
+    CHECK(!pal_power_sleeping()); /* the screen is on */
+    pal_power_screen(false);
+    CHECK(pal_power_sleeping() && g_sleep == 1);
+    char d[80];
+    pal_power_describe(d, sizeof(d));
+    CHECK(!strcmp(d, "Saver: CPU 40 to 160 MHz, light sleep now"));
+    pal_power_screen(true);
+    CHECK(!pal_power_sleeping() && g_sleep == 0);
+    pal_power_screen(false);
+    CHECK_EQ(pal_power_apply(PAL_POWER_BALANCED), NEMA_OK); /* another profile: awake even with the screen off */
+    CHECK(!pal_power_sleeping());
+    int calls = g_sleep_calls;
+    pal_power_screen(true);
+    pal_power_screen(false);
+    CHECK_EQ(g_sleep_calls, calls); /* Balanced never asks for it */
+    pal_power_screen(true);
+}
+
 int main(void) {
     RUN(a_board_without_ops_keeps_its_clock);
     RUN(each_profile_is_a_cpu_range);
+    RUN(saver_light_sleeps_only_with_the_screen_off);
     return TEST_DONE();
 }

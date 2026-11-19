@@ -43,7 +43,10 @@ The firmware is divided into layered components, and the layer boundaries are en
   simulator, built for hhv2, not yet paired with a real host. USB HID is not done.
 - **Lua (ADR-0019):** `lua` (scripts, a prompt, the `pal` module; `docs/LUA.md`), proven by `test_lua` and in the simulator, built
   for hhv2. The image is at 87.2% of the update slot (above the 85% warning).
-- Not done from the 19 November 2026 analysis: USB HID keyboard mode, music, light sleep, rotation by 90 or 270 degrees,
+- **Light sleep:** the policy is done and tested (Saver, screen off: `pal_power_screen`, `test_power`), but hhv2 does not offer it:
+  with tickless idle the S31's IDF 6.2 asserts in `sleep_retention.c` when the BLE controller starts and the board reboots in a
+  loop (tried on the board, reverted). It needs an IDF fix or a sleep-retention setting for the BLE baseband.
+- Not done from the 19 November 2026 analysis: USB HID keyboard mode, music, rotation by 90 or 270 degrees,
   LoRa and radio modules.
 - The display on a physical screen and typing on the physical keyboard have not been seen directly; the screen mirror over Palanu Link shows the canvas contents correctly.
 - SSH from the board over Wi-Fi to a real server was shown once by the owner (echo, Ctrl-C and Ctrl-D were fixed afterwards and need to be tried again); HTTPS was proven in the native simulator against real servers, not yet from the board.

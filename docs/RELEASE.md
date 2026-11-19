@@ -104,7 +104,8 @@ Features that were checked directly in the code and are confirmed **absent**:
 - system: screen rotation by 90 or 270 degrees (portrait layouts), Wi-Fi monitor/inject for security tools (needs a radio
   capability that does not exist yet). The 12-hour clock and the upside-down screen were added on 19 November 2026.
 
-The power profile is applied since 19 November 2026 (`pal/power.h`: the CPU frequency range through esp_pm, no light sleep yet;
+The power profile is applied since 19 November 2026 (`pal/power.h`: the CPU frequency range through esp_pm; Saver's light sleep with
+the screen off is written but hhv2 cannot run it yet, see STATE.md;
 Developer > System > Battery & power, or `power PROFILE`). **Rotation** (Settings > Display) turns the panel upside down
 (`pal_display_set_rotation`: the panel's mirror, so the image, the screen mirror and screenshots stay upright); 90 and 270
 degrees would need portrait layouts for both desktops and are not offered.

@@ -30,6 +30,8 @@ CONFIG_VFS_SUPPORT_TERMIOS=y
 
 # Power profiles (pal/power.h): dynamic CPU frequency through esp_pm; no light sleep yet
 CONFIG_PM_ENABLE=y
+# No tickless idle (so no light sleep): on the S31 with IDF 6.2 it makes the BLE controller's start assert in sleep_retention.c
+# (module_is_inited(dep_module), from btbb_sleep_retention_enable) and the board reboots in a loop (found on hhv2).
 
 # Diagnostics used by top: per-task runtime statistics
 CONFIG_FREERTOS_USE_TRACE_FACILITY=y

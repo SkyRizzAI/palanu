@@ -6,6 +6,7 @@
 #include "nema/port.h"
 #include "pal/dpm.h"
 #include "pal/sha256.h"
+#include "pal/power.h"
 
 #define PIN_MIN 4
 #define PIN_MAX 16
@@ -25,6 +26,7 @@ static void set_display(bool on) {
     if (P.disp_on == on) return;
     P.disp_on = on;
     if (P.h.display) P.h.display(on);
+    pal_power_screen(on); /* Saver light-sleeps while the screen is off (pal/power.h) */
 }
 
 void pal_dpm_init(const pal_dpm_hooks_t *hooks, uint32_t now_ms) {
