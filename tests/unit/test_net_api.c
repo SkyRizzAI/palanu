@@ -12,8 +12,10 @@
 #include "pal/papp.h"
 #include "test.h"
 
-#define BASE_PORT 39420
-#define CLOSED_PORT 39499 /* nothing listens here */
+/* Each run takes its own block of 100 ports, so two runs at once (or another test) do not take each other's ports. */
+static int g_base_port = 39420;
+#define BASE_PORT g_base_port
+#define CLOSED_PORT (g_base_port + 79) /* nothing listens here */
 
 static int g_bad;
 #define AC(cond)                                                              \
@@ -198,8 +200,9 @@ static void echo_once(void *arg) {
 }
 
 TEST(connect_send_receive_and_shutdown_through_handles) {
-    nema_obj_t *lst;
+    nema_obj_t *lst = NULL;
     CHECK(nema_net_listen(BASE_PORT, &lst) == NEMA_OK);
+    if (!lst) return; /* the server task would unref a listener that does not exist */
     nema_task_desc_t d = {.name = "echo", .fn = echo_once, .arg = lst, .stack = 6144, .role = NEMA_TASK_SYSTEM};
     CHECK(nema_task_create(&d) == NEMA_OK);
     char p[8];
@@ -227,8 +230,9 @@ static void http_once(void *arg) {
 }
 
 TEST(http_fetch_returns_the_status_length_and_body) {
-    nema_obj_t *lst;
+    nema_obj_t *lst = NULL;
     CHECK(nema_net_listen(BASE_PORT + 20, &lst) == NEMA_OK);
+    if (!lst) return;
     nema_task_desc_t d = {.name = "httpd", .fn = http_once, .arg = lst, .stack = 6144, .role = NEMA_TASK_SYSTEM};
     CHECK(nema_task_create(&d) == NEMA_OK);
     char p[8];
@@ -245,8 +249,9 @@ TEST(connect_to_a_closed_port_is_refused) {
 TEST(dns_resolves_localhost_and_times_out_on_an_unknown_name) { CHECK_EQ(run("dns", NULL), 0); }
 
 TEST(a_non_blocking_read_with_no_data_returns_eagain) {
-    nema_obj_t *lst;
+    nema_obj_t *lst = NULL;
     CHECK(nema_net_listen(BASE_PORT + 1, &lst) == NEMA_OK); /* nobody accepts: the connection waits in the backlog */
+    if (!lst) return;
     char p[8];
     snprintf(p, sizeof(p), "%d", BASE_PORT + 1);
     CHECK_EQ(run("nonblock", p), 0);
@@ -299,6 +304,7 @@ static bool kill_blocked(const char *scen, const char *port) {
 TEST(kill_ends_a_process_blocked_in_connect) {
     nema_obj_t *l = NULL, *fill[4] = {NULL, NULL, NULL, NULL};
     CHECK(nema_net_listen_bl(BASE_PORT + 4, 1, &l) == NEMA_OK);
+    if (!l) return;
     for (int i = 0; i < 4; i++) nema_net_connect("127.0.0.1", BASE_PORT + 4, 300, &fill[i]);
     char p[8];
     snprintf(p, sizeof(p), "%d", BASE_PORT + 4);
@@ -314,10 +320,23 @@ TEST(kill_ends_a_process_in_a_name_lookup_if_it_is_still_in_one) {
     printf("    (name lookup still running at the kill: %s)\n", blocked ? "yes" : "no, it had already returned");
 }
 
+/* The ports the tests listen on are free (an earlier run's connections may still hold some). */
+static bool ports_free(void) {
+    static const int used[] = {0, 1, 2, 3, 4, 20};
+    for (size_t i = 0; i < sizeof(used) / sizeof(used[0]); i++) {
+        nema_obj_t *l = NULL;
+        if (nema_net_listen(g_base_port + used[i], &l) != NEMA_OK) return false;
+        nema_obj_unref(l);
+    }
+    return true;
+}
+
 int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
     nema_net_init();
+    g_base_port = 30000 + (int)(nema_port_time_us() % 300u) * 100;
+    for (int tries = 0; tries < 20 && !ports_free(); tries++) g_base_port = 30000 + (g_base_port - 30000 + 700) % 30000;
     nema_app_register(&NETAPP);
     RUN(connect_send_receive_and_shutdown_through_handles);
     RUN(connect_to_a_closed_port_is_refused);
