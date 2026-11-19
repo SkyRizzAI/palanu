@@ -9,6 +9,7 @@ static struct {
     nema_port_mutex_t *lock;
     char *ring;
     size_t cap, head, used;
+    uint64_t total; /* bytes ever put in the ring */
     bool console;
     nema_log_level_t max_level;
     nema_log_sink_t sink;
@@ -37,6 +38,34 @@ static void ring_put(const char *s, size_t n) {
     }
     L.used += n;
     if (L.used > L.cap) L.used = L.cap;
+    L.total += n;
+}
+
+uint64_t nema_log_total(void) {
+    if (!L.lock) return 0;
+    nema_port_mutex_lock(L.lock);
+    uint64_t t = L.total;
+    nema_port_mutex_unlock(L.lock);
+    return t;
+}
+
+size_t nema_log_read(uint64_t *pos, char *dst, size_t cap, uint64_t *lost) {
+    if (lost) *lost = 0;
+    if (!pos || !dst || !cap || !L.lock) return 0;
+    nema_port_mutex_lock(L.lock);
+    uint64_t oldest = L.total - L.used;
+    if (*pos < oldest) {
+        if (lost) *lost = oldest - *pos;
+        *pos = oldest;
+    }
+    if (*pos > L.total) *pos = L.total; /* a position from before a restart of the ring */
+    size_t n = (size_t)(L.total - *pos);
+    if (n > cap) n = cap;
+    size_t start = (L.head + L.cap - (size_t)(L.total - *pos)) % (L.cap ? L.cap : 1);
+    for (size_t i = 0; i < n; i++) dst[i] = L.ring[(start + i) % L.cap];
+    *pos += n;
+    nema_port_mutex_unlock(L.lock);
+    return n;
 }
 
 void nema_log(nema_log_level_t level, const char *tag, const char *fmt, ...) {

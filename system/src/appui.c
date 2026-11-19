@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "appui.h"
+#include "app_events.h"
 #include "desktop_int.h"
 #include "nema/nema.h"
 #include "pal/display.h"
@@ -142,6 +143,7 @@ static bool v_key(pal_view_t *v, const pal_key_t *k) {
     slot_t *s = v->data;
     if (s->is_canvas) {
         push(s, (int32_t)(k->sym | (k->mods << 8)), (int32_t)k->cp, 0);
+        psys_events_post_app(s->app, 1 /* PAL_EV_KEY */, k->sym, k->cp, k->mods); /* the same key on the event queue */
         return true; /* every key is the app's; the home key and the session's keys never reach here */
     }
     bool used = pal_menu_key(&s->menu, k);
@@ -157,6 +159,13 @@ static void v_enter(pal_view_t *v) {
     s->closed_flag = false;
     if (!s->is_canvas) pal_menu_bind(s->vid, &s->menu); /* the session may draw it in its own look */
     s->full = true;
+    if (s->used) psys_events_post_app(s->app, 3 /* PAL_EV_FOCUS */, 0, 0, 0);
+}
+
+static void v_exposed(pal_view_t *v) { /* an overlay over the screen went away: a canvas app may draw again */
+    slot_t *s = v->data;
+    s->full = true;
+    if (s->used) psys_events_post_app(s->app, 8 /* PAL_EV_EXPOSE */, 0, 0, 0);
 }
 
 static void v_leave(pal_view_t *v) {
@@ -165,6 +174,7 @@ static void v_leave(pal_view_t *v) {
     s->closed_flag = true;
     if (!s->is_canvas) push(s, 0, EV_CLOSED, 0);
     else nema_notify(&s->obj);
+    psys_events_post_app(s->app, 4 /* PAL_EV_BLUR */, 0, 0, 0);
 }
 
 static void v_pump(pal_view_t *v) {
@@ -183,7 +193,7 @@ void appui_init(void) {
         nema_obj_init(&s->obj, &OPS);
         snprintf(s->vid, sizeof(s->vid), "app-screen-%d", i);
         s->view = (pal_view_t){.id = s->vid, .title = s->title, .flags = PAL_VIEW_HIDDEN, .enter = v_enter, .leave = v_leave,
-                               .draw = v_draw, .key = v_key, .pump = v_pump, .data = s};
+                               .draw = v_draw, .key = v_key, .pump = v_pump, .exposed = v_exposed, .data = s};
         s->page = (pal_menu_page_t){.title = s->title, .store = s->rows, .cap = FIELDS, .build = build, .ctx = s};
         pal_menu_init(&s->menu, &s->page);
         (void)pal_desktop_register(&s->view);

@@ -21,7 +21,8 @@ void api_stop(api_ctx_t *c, const char *reason); /* the app ends at its next ret
 
 /* The manifest grants the capability: "fs", "fs.home", "fs.media", "net", "net.listen", "crypto.keys", "settings.read",
  * "settings.write", "notify", "dev". Unknown names are refused. */
-bool api_perm(const api_ctx_t *c, const char *cap);
+bool api_perm(const api_ctx_t *c, const char *cap);       /* the manifest has it and the user allows it (asks at first use) */
+bool api_perm_quiet(const api_ctx_t *c, const char *cap); /* the same, never asking: for what is only listed (the roots of /) */
 const char *api_app_id(const api_ctx_t *c);
 const char *api_tmp_dir(const api_ctx_t *c); /* the app's private /tmp directory for this run (absolute path) */
 /* Ends the app's use of the filesystem: removes its private /tmp (system/api/fs.c). Called once, when the app ends. */
@@ -65,6 +66,7 @@ typedef struct {
     uint32_t tty_flags;
     int32_t legend_fd; /* legend.c: the terminal the app published legends to, -1 when none */
     void *crypto; /* crypto.c: the process's digest, cipher and key tables (crypto_tab.c), NULL until first use */
+    uint32_t perm_ok, perm_no; /* wasm_rt.c: runtime permission answers already known in this run (pal/perms.h) */
 } api_ext_t;
 api_ext_t *api_ext(api_ctx_t *c);
 void api_tty_size(int *cols, int *rows); /* tty.c: the controlling terminal's size, 80x24 when there is none */

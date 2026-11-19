@@ -102,6 +102,9 @@ slot, and whether updates over the link are supported.
 
 ## 8. When something goes wrong
 
+The log is also saved to flash: `/data/log/system.log` (and `system.log.1` before it, 128 KB each), written in batches every few
+seconds, so it survives a restart or a crash. `tail /data/log/system.log` reads it; Developer > Save log to flash turns it off.
+
 | Symptom | What to do |
 |---|---|
 | The screen shows "safe mode" or an installed app does not appear | three boots in a row did not finish in time (30 seconds), so only core services are running. Type `safemode off` in the terminal, then restart |

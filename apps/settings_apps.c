@@ -12,6 +12,7 @@
 #include "pal/papp.h"
 #include "pal/registry.h"
 #include "pal/svc.h"
+#include "pal/perms.h"
 #include "settings_int.h"
 
 #define APP_SLOTS 32
@@ -220,6 +221,16 @@ static void perm_text(void *ctx, char *out, size_t cap) {
     snprintf(out, cap, "granted");
 }
 
+/* A permission asked at first use (pal/perms.h): Ask, Allow or Don't allow, changed here. ctx is the bit. */
+static const char *const PERM_STATES[] = {"Ask", "Allow", "Don't allow", NULL};
+static int perm_get(void *ctx) { return (int)psys_perm_state(s_detail_id, (uint32_t)(uintptr_t)ctx); }
+static void perm_set(void *ctx, int v) { (void)psys_perm_set(s_detail_id, (uint32_t)(uintptr_t)ctx, (pal_perm_state_t)v); }
+static void perm_reset_run(void *ctx) {
+    (void)ctx;
+    (void)psys_perm_reset(s_detail_id);
+    settings_toast("It asks again at first use");
+}
+
 /* The reference app detail: the app's name, Permissions, Storage, Manage (Uninstall). The PalanuOS facts
  * and the run and service controls follow under System. A built-in app has no package to uninstall, so its Uninstall is N/A. */
 static void build_detail(pal_menu_page_t *p) {
@@ -236,10 +247,19 @@ static void build_detail(pal_menu_page_t *p) {
     if (found)
         for (size_t i = 0; i < sizeof(PERMS) / sizeof(PERMS[0]); i++)
             if (a.caps & PERMS[i].bit) {
-                r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .inert = true, .label = PERMS[i].name, .text = perm_text};
+                bool asked = a.source == PAL_SRC_INSTALLED && (PERMS[i].bit & PAL_PERM_ASKED);
+                if (asked)
+                    r = (pal_menu_row_t){.kind = PAL_MENU_CHOICE, .label = PERMS[i].name, .choices = PERM_STATES, .get = perm_get,
+                                         .set = perm_set, .ctx = (void *)(uintptr_t)PERMS[i].bit, .hint = psys_perm_what(PERMS[i].bit)};
+                else r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .inert = true, .label = PERMS[i].name, .text = perm_text};
                 pal_menu_add(p, &r);
                 shown++;
             }
+    if (found && a.source == PAL_SRC_INSTALLED && (a.caps & PAL_PERM_ASKED)) {
+        r = (pal_menu_row_t){.kind = PAL_MENU_ACTION, .label = "Reset permissions", .icon = "lock", .run = perm_reset_run,
+                             .hint = "Every permission back to Ask"};
+        pal_menu_add(p, &r);
+    }
     if (!shown) {
         r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .inert = true, .label = "No permissions requested"};
         pal_menu_add(p, &r);

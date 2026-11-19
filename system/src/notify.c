@@ -2,6 +2,7 @@
  * system, so one mutex guards it; the sink runs after the lock is released. */
 #include <string.h>
 
+#include "app_events.h"
 #include "nema/log.h"
 #include "nema/port.h"
 #include "nema/types.h"
@@ -122,6 +123,7 @@ int32_t psys_notify_post(const char *source, const char *title, const char *text
     /* Settings: notify.dnd silences the beep (and the toasts, below); notify.beep turns the buzzer on for a post. */
     if (!psys_settings_int("notify.dnd", 0) && psys_settings_int("notify.beep", 1)) pal_beep(60);
     sink_call(PSYS_NOTIFY_POSTED, &snap);
+    psys_events_post_all(6 /* PAL_EV_NOTIFY */, (uint32_t)snap.id, 0, 0); /* apps that listen learn of it */
     return (int32_t)snap.id;
 }
 

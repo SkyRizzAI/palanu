@@ -79,6 +79,7 @@ static const kv_def_t DEFS[] = {
     {"power.profile", KV_CHOICE, 0, 2, PROFILE_NAMES, 1, NULL, apply_power}, /* applied at once and at boot (pal/power.h) */
     {"dev.mode", KV_BOOL, 0, 1, NULL, PSYS_DEV_MODE_DEFAULT, NULL, NULL}, /* the default trust.c reads too (trust.h) */
     {"log.level", KV_CHOICE, 0, 3, LOG_NAMES, 2, NULL, apply_log},
+    {"log.file", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the log on flash (logfile.c), read when the log-file service starts */
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},
     {"boot.quiet", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the system console's splash covers the boot log until a key (console.c) */
     {"profile.user", KV_TEXT, 0, TEXT_MAX - 1, NULL, 0, "", NULL},

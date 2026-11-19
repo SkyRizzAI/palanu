@@ -50,10 +50,21 @@ static bool wifi_wanted_at_boot(void) {
     return !strcmp(w, "on") || (!strcmp(w, "auto") && pal_wifi_has_credentials());
 }
 
+nema_err_t psys_logfile_start(void); /* system/src/logfile.c */
+void psys_logfile_stop(void);
+
 /* Registers the radio and link services. Reads the radio settings first: they decide the autostart. */
 void pal_svc_register_radio_link(void) {
     pal_settings_load_radio();
     psys_svc_builtin_t b;
+    memset(&b, 0, sizeof(b));
+    b.id = "log-file"; /* the log on flash: /data/log/system.log */
+    b.name = "Log file";
+    b.restart = PSYS_SVC_RESTART_ON_FAILURE;
+    b.autostart = true;
+    b.start = psys_logfile_start;
+    b.stop = psys_logfile_stop;
+    psys_svc_register_builtin(&b);
     memset(&b, 0, sizeof(b));
     b.id = "radio-wifi";
     b.name = "Wi-Fi radio";

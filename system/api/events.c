@@ -1,12 +1,15 @@
-/* The events module of the palanu API (api/palanu/events.h): pal_wait over several handles, and the process event queue
- * (RESIZE and QUIT). The queue is a nema object installed as one of the app's handles. It is readable while the process
- * has a pending window change or stop request, so a wait that includes it wakes exactly for those. */
+/* The events module of the palanu API (api/palanu/events.h): pal_wait over several handles, and the process event queue. The
+ * queue is a nema object installed as one of the app's handles. It is readable while the process has a pending window change or
+ * stop request (RESIZE, QUIT), or while the system has posted events to it (FOCUS, BLUR, EXPOSE, KEY for the app's screen;
+ * NOTIFY and SETTING for every app, app_events.h): a wait that includes it wakes exactly for those. The queues are listed, so
+ * the system can post from any task without the owner's handle table. */
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "../src/api_ctx.h"
 #include "../src/api_impl.h"
+#include "../src/app_events.h"
 #include "nema/nema.h"
 #include "nema/port.h"
 
@@ -15,22 +18,38 @@
 #define EV_BYTES 16u /* uint32 type, a, b, c */
 #define EV_RESIZE 2u
 #define EV_QUIT 5u
+#define RING 8 /* posted events kept per queue; a full ring drops the oldest */
 
 /* The PAL_POLL_* bits of api/palanu/events.h are the NEMA_POLL_* bits: records pass them through unchanged. */
 _Static_assert(NEMA_POLL_IN == 0x1 && NEMA_POLL_OUT == 0x2 && NEMA_POLL_HUP == 0x4 && NEMA_POLL_ERR == 0x8,
                "PAL_POLL_* must equal NEMA_POLL_*");
 
-typedef struct {
+typedef struct ev_queue {
     nema_obj_t obj;    /* first: the handle table holds the reference */
     nema_proc_t *proc; /* the owner: its pending signals make the queue readable */
     bool resize;       /* a window change a wait without the queue saw first: kept here for the next event */
+    const void *app;   /* the owner's API context: what psys_events_post_app names */
+    struct ev_queue *next;
+    uint8_t h, n;
+    uint32_t ring[RING][4]; /* type, a, b, c */
 } ev_queue_t;
+
+static ev_queue_t *s_queues;
+static nema_port_mutex_t *s_qlock;
+
+static void qlock(void) {
+    if (!s_qlock) s_qlock = nema_port_mutex_create();
+    if (s_qlock) nema_port_mutex_lock(s_qlock);
+}
+static void qunlock(void) {
+    if (s_qlock) nema_port_mutex_unlock(s_qlock);
+}
 
 /* Readable while a window change is kept or pending, or a stop request is pending (not while the process defers
  * signals: they apply when the deferral ends). */
 static uint32_t ev_poll(nema_obj_t *o, uint32_t events) {
     ev_queue_t *q = (ev_queue_t *)o;
-    bool ready = q->resize;
+    bool ready = q->resize || q->n > 0;
     if (q->proc && q->proc->defer == 0 && (q->proc->sigpending & (NEMA_SIG_FATAL | NEMA_SIG_WINCH))) ready = true;
     return ready && (events & NEMA_POLL_IN) ? NEMA_POLL_IN : 0;
 }
@@ -47,7 +66,16 @@ static nema_err_t ev_ioctl(nema_obj_t *o, uint32_t req, void *arg) {
     (void)o, (void)req, (void)arg;
     return NEMA_ERR_NOSYS;
 }
-static void ev_destroy(nema_obj_t *o) { nema_free(o); }
+static void ev_destroy(nema_obj_t *o) {
+    qlock();
+    for (ev_queue_t **pp = &s_queues; *pp; pp = &(*pp)->next)
+        if (*pp == (ev_queue_t *)o) {
+            *pp = (*pp)->next;
+            break;
+        }
+    qunlock();
+    nema_free(o);
+}
 
 static const nema_obj_ops_t EV_OPS = {"events", ev_read, ev_write, ev_poll, ev_ioctl, ev_destroy};
 
@@ -68,6 +96,7 @@ static int32_t queue_open(api_ctx_t *c) {
     if (!q) return NEMA_ERR_NOMEM;
     nema_obj_init(&q->obj, &EV_OPS);
     q->proc = self;
+    q->app = c;
     int h = nema_handle_install(&q->obj);
     nema_obj_unref(&q->obj); /* the handle table holds the only reference now (or the object is freed, if it failed) */
     if (h < 0) return h;
@@ -76,8 +105,49 @@ static int32_t queue_open(api_ctx_t *c) {
         return NEMA_ERR_FULL;
     }
     api_ext(c)->ev_fd = h;
+    qlock();
+    q->next = s_queues;
+    s_queues = q;
+    qunlock();
     return h;
 }
+
+/* ---- posted events (app_events.h) ---- */
+
+static void post(ev_queue_t *q, uint32_t type, uint32_t a, uint32_t b, uint32_t c) {
+    if (q->n == RING) q->h = (uint8_t)((q->h + 1) % RING), q->n--; /* full: the oldest goes */
+    uint32_t *e = q->ring[(q->h + q->n) % RING];
+    e[0] = type, e[1] = a, e[2] = b, e[3] = c;
+    q->n++;
+}
+
+void psys_events_post_all(uint32_t type, uint32_t a, uint32_t b, uint32_t c) {
+    qlock();
+    for (ev_queue_t *q = s_queues; q; q = q->next) {
+        post(q, type, a, b, c);
+        nema_notify(&q->obj);
+    }
+    qunlock();
+}
+
+void psys_events_post_app(const void *app, uint32_t type, uint32_t a, uint32_t b, uint32_t c) {
+    qlock();
+    for (ev_queue_t *q = s_queues; q; q = q->next)
+        if (q->app == app) {
+            post(q, type, a, b, c);
+            nema_notify(&q->obj);
+        }
+    qunlock();
+}
+
+uint32_t psys_events_key_hash(const char *key) {
+    uint32_t h = 2166136261u;
+    for (; key && *key; key++) h = (h ^ (unsigned char)*key) * 16777619u;
+    return h;
+}
+
+/* Takes the oldest posted event into ev; false when there is none. */
+static bool take_posted(ev_queue_t *q, void *ev);
 
 /* A stop request ends the app like a blocking read does; a canceled call (kill) too. */
 static int32_t cut(api_ctx_t *c, int32_t n) {
@@ -171,6 +241,7 @@ int32_t psys_api_event_next(api_ctx_t *c, void *ev, uint32_t len, int32_t timeou
             put_event(ev, EV_RESIZE, (uint32_t)cols, (uint32_t)rows, 0);
             return (int32_t)EV_BYTES;
         }
+        if (take_posted(q, ev)) return (int32_t)EV_BYTES;
         if (timeout_ms == 0) return 0;
         nema_pollfd_t pf = {fd, NEMA_POLL_IN, 0};
         int r = nema_poll(&pf, 1, left_ms(timeout_ms, deadline));
@@ -178,4 +249,17 @@ int32_t psys_api_event_next(api_ctx_t *c, void *ev, uint32_t len, int32_t timeou
         if (r < 0 && r != NEMA_ERR_INTR) return cut(c, r);
         /* ready, or a signal arrived: the loop reads it */
     }
+}
+
+static bool take_posted(ev_queue_t *q, void *ev) {
+    qlock();
+    bool any = q->n > 0;
+    if (any) {
+        const uint32_t *e = q->ring[q->h];
+        put_event(ev, e[0], e[1], e[2], e[3]);
+        q->h = (uint8_t)((q->h + 1) % RING);
+        q->n--;
+    }
+    qunlock();
+    return any;
 }

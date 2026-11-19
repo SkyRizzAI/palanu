@@ -355,6 +355,8 @@ static const pal_menu_row_t DEV_ROWS[] = {
      .set = settings_bool_set, .hint = "A splash over the boot log; any key shows the log"},
     {.kind = PAL_MENU_CHOICE, .label = "Log level", .icon = "logs", .ctx = (void *)&MAP_LOG, .choices = LOG_LABELS,
      .get = settings_map_get, .set = settings_map_set, .hint = "What the device logs to the console"},
+    {.kind = PAL_MENU_TOGGLE, .label = "Save log to flash", .icon = "logs", .ctx = (void *)"log.file", .get = settings_bool_get,
+     .set = settings_bool_set, .key = "log.file", .hint = "/data/log/system.log, kept across restarts (from the next start)"},
     {.kind = PAL_MENU_TOGGLE, .label = "Developer mode", .icon = "monitor", .get = dev_get, .set = dev_set, .key = "dev.mode",
      .hint = "Turning it on asks first"},
     {.kind = PAL_MENU_INFO, .label = "Safe mode", .text = safe_text},

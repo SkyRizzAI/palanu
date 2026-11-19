@@ -22,6 +22,12 @@ void nema_log_set_level(nema_log_level_t max_level);
 typedef void (*nema_log_sink_t)(nema_log_level_t level, const char *line, size_t len);
 void nema_log_set_sink(nema_log_sink_t sink);
 
+/* Bytes logged since boot: a reader keeps a position and asks for what came after it (nema_log_read). */
+uint64_t nema_log_total(void);
+/* Copies text logged at or after *pos, up to cap bytes, into dst and moves *pos past it. When the ring no longer holds some of it,
+ * the copy starts at the oldest byte it holds and *lost (may be NULL) gets the bytes skipped. Returns the bytes copied. */
+size_t nema_log_read(uint64_t *pos, char *dst, size_t cap, uint64_t *lost);
+
 /* Copy the most recent text (whole lines) into dst. Returns bytes written. */
 size_t nema_log_snapshot(char *dst, size_t cap);
 

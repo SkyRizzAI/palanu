@@ -10,6 +10,7 @@
 
 #include "api_wasm.h"
 #include "pal/papp.h"
+#include "pal/perms.h"
 #include "wasm_export.h"
 
 #if !defined(WASM_MEM_ALLOC_WITH_USAGE) || WASM_MEM_ALLOC_WITH_USAGE != 1
@@ -138,7 +139,21 @@ static uint32_t perm_bit(const char *cap) {
 
 bool api_perm(const api_ctx_t *c, const char *cap) {
     uint32_t bit = perm_bit(cap);
-    return bit != 0 && (c->app->perms & bit) != 0;
+    if (bit == 0 || (c->app->perms & bit) == 0) return false;
+    if (!(bit & PAL_PERM_ASKED)) return true;
+    api_ctx_t *m = (api_ctx_t *)c; /* the answer is cached in the run's context: asked once, read on every call after */
+    if (m->ext.perm_ok & bit) return true;
+    if (m->ext.perm_no & bit) return false;
+    bool ok = psys_perm_check(c->app->id, c->app->name[0] ? c->app->name : c->app->id, bit);
+    if (ok) m->ext.perm_ok |= bit;
+    else m->ext.perm_no |= bit;
+    return ok;
+}
+
+bool api_perm_quiet(const api_ctx_t *c, const char *cap) {
+    uint32_t bit = perm_bit(cap);
+    if (bit == 0 || (c->app->perms & bit) == 0) return false;
+    return !(bit & PAL_PERM_ASKED) || psys_perm_state(c->app->id, bit) != PAL_PERM_DENIED;
 }
 
 bool api_cap_ok(wasm_exec_env_t env, const char *cap) { return api_perm(api_ctx_of(env), cap); }
@@ -162,6 +177,7 @@ api_ctx_t *api_ctx_new(const pal_papp_t *app, int argc, char **argv) {
     for (int i = 0; i < OPEN_MAX_APP; i++) c->fds[i] = -1;
     c->ext.ev_fd = -1;
     c->ext.crypto = NULL;
+    c->ext.perm_ok = c->ext.perm_no = 0;
     c->ext.tty_fd = -1;
     c->ext.tty_saved = false;
     c->ext.legend_fd = -1;

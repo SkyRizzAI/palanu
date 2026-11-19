@@ -268,14 +268,14 @@ static bool root_name(const api_ctx_t *c, uint32_t i, const char **name) {
         return true;
     }
     i -= 2;
-    if (api_perm(c, "fs.home")) {
+    if (api_perm_quiet(c, "fs.home")) {
         if (i == 0) {
             *name = "home";
             return true;
         }
         i--;
     }
-    if (api_perm(c, "fs.media") && i == 0) {
+    if (api_perm_quiet(c, "fs.media") && i == 0) {
         *name = "sd";
         return true;
     }

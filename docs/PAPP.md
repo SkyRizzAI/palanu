@@ -100,6 +100,15 @@ bun forge/tools/palanu.ts pack app.wasm --id demo --perm net --sign dev.key -o d
 
 The public key is placed on the device as `/etc/trust/<name>.pub`.
 
+## Permissions at first use (ADR-0014)
+
+A manifest permission is what an app may ask for; the user decides. `net`, `net.listen`, `fs.home`, `fs.media`, `proc.spawn`,
+`crypto.keys` and `settings.write` are asked the first time the app uses them ("Allow Chat? Chat wants to use the network."), and
+the answer is kept per app in `/data/perms`. A denied permission makes the call fail with `PAL_ERR_PERM`, as if the manifest did
+not have it, and is not asked again. Settings > Apps > the app shows each one as Ask, Allow or Don't allow, and Reset permissions
+asks again at first use. The other permissions (`fs`, `notify`, `dev`, `settings.read`, `svc.control`, `link`) come with the
+manifest. Where nobody can be asked (no display, no desktop running), the manifest decides as before and nothing is kept.
+
 ## Proven on the chip (ESP32-S31)
 `hello` (arguments, time), `count` in a pipe, `note` (`fs` permission, stored in LittleFS), `spin` (watchdog). WAMR memory
 is in PSRAM (peak 18.7 KB for the example app); one app uses 12 KB of process stack.

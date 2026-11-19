@@ -55,6 +55,7 @@ static const pal_setting_desc_t S[] = {
     /* Developer */
     {.key = "dev.mode", .kind = PAL_SETTING_BOOL, .label = "Developer mode", .group = "Developer", .owner = SYS},
     {.key = "log.level", .kind = PAL_SETTING_CHOICE, .label = "Log level", .group = "Developer", .owner = SYS, .names = LOGS, .labels = LOGS_L},
+    {.key = "log.file", .kind = PAL_SETTING_BOOL, .label = "Save log to flash", .group = "Developer", .owner = SYS},
     {.key = "boot.target", .kind = PAL_SETTING_CHOICE, .label = "Boot target", .group = "Developer", .help = "The screen in front after a restart", .owner = SYS, .names = TARGETS, .labels = TARGETS_L},
     {.key = "boot.quiet", .kind = PAL_SETTING_BOOL, .label = "Quiet boot", .group = "Developer", .help = "A splash over the boot log", .owner = SYS},
     {.key = "perf.overlay", .kind = PAL_SETTING_BOOL, .label = "Frame timing overlay", .group = "Developer", .owner = SYS, .internal = true},

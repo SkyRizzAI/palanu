@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "app_events.h"
 #include "nema/log.h"
 #include "nema/types.h"
 #include "pal/anim.h"
@@ -362,7 +363,16 @@ static int kv_set(const char *key, const char *value) {
     return NEMA_OK;
 }
 
+static int settings_set(const char *key, const char *value);
+
+/* Every change also reaches the apps that listen: a SETTING event with the key's hash (app_events.h). */
 int psys_settings_set(const char *key, const char *value) {
+    int rc = settings_set(key, value);
+    if (rc == NEMA_OK) psys_events_post_all(7 /* PAL_EV_SETTING */, psys_events_key_hash(key), 0, 0);
+    return rc;
+}
+
+static int settings_set(const char *key, const char *value) {
     if (!key || !value) return NEMA_ERR_INVAL;
     if (psys_settings_kv_has(key)) return kv_set(key, value);
     const row_t *r = find(key);

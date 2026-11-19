@@ -19,6 +19,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 - **Battery:** ADC reading exists, but the S31 voltage scale is not calibrated (there is no calibration scheme in this IDF) and this board does not carry a battery, so the result is "not detected".
 - **Palanu Link (proven on the chip and in the simulator):** specification `docs/PLP.md`, device side `system/src/link.c`, TypeScript client `forge/packages/link`, CLI `bun forge/tools/palanu.ts` (`info`, `ping`, `ls`, `get`, `put`, `screen`, `key`, `shell`). Over a 115200 baud UART cable: ping 10 ms, writing 20 KB takes 2.8 s; remote shell, screen mirror (a real board screenshot), key injection. 7 bun tests against the simulator (`bun test forge/packages/link`).
 
+- **Apps at runtime (19 November 2026, ADR-0014):** sensitive permissions are asked at first use and kept per app; the event queue carries FOCUS, BLUR, EXPOSE, KEY, NOTIFY and SETTING; the kernel log is saved to `/data/log/system.log` by the `log-file` service.
 - **WebAssembly apps (proven on the chip):** WAMR fast interpreter, `.papp` container (CBOR manifest, SHA-256), the `palanu` v1 import module with permissions, installed apps run as Nema processes and can be piped, instruction-limit watchdog, installation through Palanu Link or `app install`. SDK in `sdk/`, `palanu build|pack|install`, guide `docs/PAPP.md`.
 - **Browser simulator (verified in Chrome-class browser, not on the board):** the whole system runs in a Web Forge page (`./pal web`, `/sim/`): keyboard with the real matrix, hotkeys, key sequences, live LEDs/sensors/pins/I2C, editable Wi-Fi, TCP bridge (verified with `nc` against the local proxy), log panel, IndexedDB persistence. `docs/SIMULATOR.md`, ADR-0008.
 
@@ -29,7 +30,7 @@ The firmware is divided into layered components, and the layer boundaries are en
 - Browser simulator on a host without the isolation headers (`coi-sw.js`, for GitHub Pages): written, not run in a real browser yet.
 - Browser simulator: no Bluetooth air interface, no inbound connections, no LAN discovery; the Palanu Link servers do not listen in the browser.
 - BLE: ping was tested from an iPhone; shell, files, and screen over BLE and the Forge BLE client have not been tried.
-- Stored only, nothing applies them yet: display rotation, `ui.clock24`. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. App events KEY, FOCUS, NOTIFY and SETTING are reserved and not produced. RELEASE.md section 6 lists the confirmed gaps.
+- Stored only, nothing applies them yet: display rotation, `ui.clock24`. Power profiles apply a CPU frequency range (esp_pm), proven by tests and the board build, not yet measured on hhv2. RELEASE.md section 6 lists the confirmed gaps.
 
 ## Phases
 | Phase | State |

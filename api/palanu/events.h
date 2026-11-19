@@ -1,10 +1,12 @@
 /* Waiting and events. pal_wait waits on several handles at once: a file or pipe end, a terminal, or the process event
  * queue from pal_events. Each record of the array is 8 bytes, little-endian: int32 h (the handle), uint16 want (the
  * PAL_POLL_IN and PAL_POLL_OUT bits the app waits for) and uint16 got (what is ready, written by the call). At most 16
- * records. The event queue reports RESIZE (the terminal size changed) and QUIT (a stop was asked: Ctrl-C, TERM, HUP).
- * Each event is 16 bytes, little-endian: uint32 type, a, b, c. Types KEY, FOCUS, BLUR, NOTIFY, SETTING and EXPOSE are
- * reserved and not produced yet. A stop request ends a wait that does not include the queue, like a read; when the
- * queue is in the wait it becomes ready instead, and reading QUIT takes the request. */
+ * records. The event queue reports RESIZE (the terminal size changed), QUIT (a stop was asked: Ctrl-C, TERM, HUP), and since
+ * 19 November 2026 FOCUS, BLUR and EXPOSE (the app's screen came to the front, left it, or shows again after an overlay), KEY (a
+ * key on the app's canvas screen), NOTIFY (a notification was posted, to every app) and SETTING (a setting changed, to every app).
+ * Each event is 16 bytes, little-endian: uint32 type, a, b, c. The queue keeps the last 8 posted events; an app that never called
+ * pal_events gets none. A stop request ends a wait that does not include the queue, like a read; when the queue is in the wait it
+ * becomes ready instead, and reading QUIT takes the request. */
 #ifndef PALANU_API_EVENTS_H
 #define PALANU_API_EVENTS_H
 
@@ -15,8 +17,10 @@
 #define PAL_POLL_HUP 0x4
 #define PAL_POLL_ERR 0x8
 
-/* Event types. RESIZE: a = columns, b = rows. QUIT: a = the stop request taken (PAL_SIG_INT, PAL_SIG_TERM or
- * PAL_SIG_HUP, see proc). The others are reserved. */
+/* Event types. RESIZE: a = columns, b = rows. QUIT: a = the stop request taken (PAL_SIG_INT, PAL_SIG_TERM or PAL_SIG_HUP, see
+ * proc). KEY: a = the key symbol, b = the code point, c = the modifiers (as pal_canvas_key gives them). NOTIFY: a = the
+ * notification's id. SETTING: a = the FNV-1a 32-bit hash of the key's name (read the settings the app cares about again).
+ * FOCUS, BLUR, EXPOSE: no data. */
 #define PAL_EV_NONE 0
 #define PAL_EV_KEY 1
 #define PAL_EV_RESIZE 2
