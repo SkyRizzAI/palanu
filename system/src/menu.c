@@ -285,6 +285,7 @@ static pal_menu_row_t *pending_row(pal_menu_t *m) {
 }
 
 void pal_menu_answer_pick(pal_menu_t *m, int index) {
+    m->changes++;
     if (m->pend != PAL_MENU_PEND_PICK) return;
     pal_menu_row_t *r = pending_row(m);
     m->pend = PAL_MENU_PEND_NONE;
@@ -292,6 +293,7 @@ void pal_menu_answer_pick(pal_menu_t *m, int index) {
 }
 
 void pal_menu_answer_confirm(pal_menu_t *m, bool ok) {
+    m->changes++;
     if (m->pend != PAL_MENU_PEND_CONFIRM) return;
     m->pend = PAL_MENU_PEND_NONE;
     if (!m->pend_page) {
@@ -306,6 +308,7 @@ void pal_menu_answer_confirm(pal_menu_t *m, bool ok) {
 }
 
 void pal_menu_answer_ask(pal_menu_t *m, bool ok, const char *text) {
+    m->changes++;
     if (m->pend != PAL_MENU_PEND_ASK) return;
     m->pend = PAL_MENU_PEND_NONE;
     if (!m->pend_page) {
@@ -376,6 +379,7 @@ bool pal_menu_activate(pal_menu_t *m) {
 }
 
 bool pal_menu_key(pal_menu_t *m, const pal_key_t *k) {
+    m->changes++;
     pal_menu_page_t *p = pal_menu_top(m);
     if (!p) return false;
     bool big = (k->mods & PAL_MOD_SHIFT) != 0;

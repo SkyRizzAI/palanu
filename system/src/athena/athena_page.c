@@ -281,7 +281,7 @@ static void page_build(void) {
         if (A.pidx[i] == A.psel) lv_obj_scroll_to_view_recursive(A.prow[i], LV_ANIM_OFF);
 }
 
-/* Follows the bound menu: a new page or row count rebuilds, a new selection restyles, values refresh twice a second. */
+/* Follows the bound menu: a new page or row count rebuilds, a new selection restyles, values refresh after a key and twice a second. */
 /* What the rows say: kind, label text, icon, whether they show, are disabled or destructive, and the title. A page that builds
  * its rows again (a Wi-Fi scan, the PIN page after a change) keeps its count and its address, so this is what tells it moved. */
 static uint32_t rows_sig(const pal_menu_page_t *p) {
@@ -337,7 +337,9 @@ void ath_page_sync(pal_menu_t *m, uint32_t now) {
                 if (A.pidx[i] == A.psel) lv_obj_scroll_to_view_recursive(A.prow[i], LV_ANIM_OFF);
             }
     }
-    if (now - A.pvals_ms >= 500u) {
+    /* after a key (a toggle, a choice) at once; values that change on their own twice a second */
+    if (m->changes != A.pchanges || now - A.pvals_ms >= 500u) {
+        A.pchanges = m->changes;
         A.pvals_ms = now;
         for (int i = 0; i < A.pn; i++) page_value(i);
     }

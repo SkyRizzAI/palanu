@@ -239,6 +239,7 @@ TEST(toggle_flips_on_enter_and_on_the_sideways_keys) {
     CHECK(pal_menu_key(&m, &(pal_key_t){PAL_KEY_RIGHT, 0, false, 0}));
     CHECK_EQ(v_toggle, 0);
     CHECK_EQ(v_sets_toggle, 2);
+    CHECK_EQ((int)m.changes, 2); /* a desktop that draws the values itself (Athena) reads them again at once */
 }
 
 TEST(disabled_rows_change_nothing_and_say_why) {

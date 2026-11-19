@@ -135,6 +135,7 @@ struct pal_menu {
     void (*done_confirm)(void *ctx, bool ok);
     void (*done_ask)(void *ctx, bool ok, const char *text);
     void *done_ctx;
+    uint32_t changes; /* goes up on every key and answer: a desktop that draws the values itself reads them again */
 };
 
 void pal_menu_set_hooks(const pal_menu_hooks_t *h); /* NULL restores the desktop */
