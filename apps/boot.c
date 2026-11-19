@@ -170,6 +170,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
         pal_desktop_register(&pal_files_view);    /* Files: launcher app */
         pal_desktop_register(&pal_textview_view); /* the text viewer, an overlay opened by Files */
         pal_desktop_register(&pal_logs_view);     /* Logs: launcher app */
+        pal_desktop_register(&pal_editor_view);   /* Editor: launcher app, `edit FILE`, Files > Edit */
         pal_vk_register(); /* the on-screen keyboard overlay (vk.h) */
         pal_launcher_set_runner(pal_terminal_run); /* installed tty apps open in the Terminal */
         pal_desktops_boot(); /* the session named by desktop.env, unless boot.target is console or this is safe mode */

@@ -72,6 +72,14 @@ you trust.
 card-detect switch, so a card inserted after boot is mounted through Settings > Storage > **Mount SD Card** or `sd mount`.
 Remove the card only after **Eject SD Card** (or `sd eject`).
 
+## 5a. Editing text
+
+**Editor** (launcher, `edit FILE` in the terminal, or Files > Tab > Edit) edits a text file of up to 256 KB. The arrows move,
+Home and End go to the ends of the line, PgUp and PgDn by a screen; Enter keeps the indent of the line above and Tab inserts four
+spaces. **Ctrl+S** saves (a new text asks where), **Ctrl+F** finds and **Ctrl+N** goes to the next match, **Ctrl+G** goes to a line
+number. **Esc** closes; with unsaved changes it asks Save and close, Discard changes or Keep editing. The editor takes the
+terminal's colours of the running desktop.
+
 ## 6. Terminal and SSH
 
 **Terminal** is a shell. `Alt+N` opens a new tab, `Alt+W` closes it, `Alt+Tab` switches tabs, `Shift+Fn+W` / `Shift+Fn+S` scroll the screen history one line, `Shift+Fn+R` / `Shift+Fn+F` one screen.

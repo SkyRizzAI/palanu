@@ -153,8 +153,20 @@ static int cmd_desktop(int argc, char **argv) {
     return 1;
 }
 
+/* edit [FILE]: the text editor on FILE (relative to the shell's directory), or on a new text. */
+static int cmd_edit(int argc, char **argv) {
+    char path[NEMA_PATH_MAX] = "";
+    if (argc > 1 && nema_path_resolve(argv[1], path, sizeof(path)) != NEMA_OK) { /* relative to the shell's directory */
+        pal_eprintf("edit: %s: not a path\n", argv[1]);
+        return 1;
+    }
+    pal_editor_open(path);
+    return 0;
+}
+
 #define APP(n, h, f, s) {n, h, f, s, 0}
 static const nema_app_t VIEW_APPS[] = {
+    APP("edit", "edit a text file (Ctrl+S saves, Esc closes)", cmd_edit, 8192),
     APP("files", "open the file browser at PATH (default /home)", cmd_files, 8192),
     APP("desktop", "list the desktop sessions, start one (desktop use ID) or stop it (desktop stop)", cmd_desktop, 8192),
     APP("logs", "open the log viewer, optionally only one source (COMPONENT)", cmd_logs, 8192),

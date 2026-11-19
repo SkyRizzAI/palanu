@@ -37,7 +37,7 @@ static pal_menu_row_t SVC_DETAIL_STORE[16] NEMA_EXT_BSS;
 static pal_menu_row_t LOG_STORE[LOG_LINES + 2] NEMA_EXT_BSS;
 static char s_log_tail[1024] NEMA_EXT_BSS;
 static char s_svc_names[SVC_SLOTS][40] NEMA_EXT_BSS;
-static char s_svc_ids[SVC_SLOTS][PSYS_SVC_ID_LEN];
+static char s_svc_ids[SVC_SLOTS][PSYS_SVC_ID_LEN] NEMA_EXT_BSS;
 
 static const char *kind_name(pal_kind_t k) {
     switch (k) {

@@ -99,7 +99,7 @@ static void band(kui_canvas_t *k, int y, const char *title) {
 
 static void draw_row(kui_canvas_t *k, int x, int y, int w, const psys_notify_t *n, bool focus, int marq) {
     const int h = row_h();
-    static pal_reg_app_t entry;
+    static pal_reg_app_t entry NEMA_EXT_BSS;
     const char *icon = psys_reg_find(n->source, &entry) ? (entry.icon[0] ? entry.icon : entry.id) : "notifications";
     pal_menu_icon8(k, icon, x + ICON_X, y + (h - 8) / 2);
     char age[12], buf[96];

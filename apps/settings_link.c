@@ -20,8 +20,8 @@
 #define CLIENTS_MAX 8
 
 static pal_menu_row_t CLIENTS_STORE[CLIENTS_MAX + 2] NEMA_EXT_BSS;
-static char s_ids[CLIENTS_MAX][17];
-static char s_names[CLIENTS_MAX][26];
+static char s_ids[CLIENTS_MAX][17] NEMA_EXT_BSS;
+static char s_names[CLIENTS_MAX][26] NEMA_EXT_BSS;
 static char s_code[PAL_LINK_CODE_LEN + 1];
 
 /* ---- paired devices (from pal/link.h): one line per client, parsed into rows. Shared by Bluetooth, Remote and the

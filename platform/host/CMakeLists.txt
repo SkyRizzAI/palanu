@@ -29,10 +29,10 @@ foreach(t ${TESTS})
   endif()
   target_include_directories(${name} PRIVATE ${ROOT}/tests/unit ${ROOT}/sdk)
   target_compile_options(${name} PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter)
-  # Tests of apps (the shell, the Files, text viewer and Logs models) get the apps library; every other test links the system library only.
+  # Tests of apps (the shell, the Files, text viewer, Logs and editor models) get the apps library; every other test links the system library only.
   if(name STREQUAL "test_sessions" AND TARGET palathena)
     target_link_libraries(${name} PRIVATE palathena) # the real sessions: classic (system) and Athena (LVGL)
-  elseif(name MATCHES "^test_(sh_|files|textview|logs|settings_reach)" AND TARGET palapps)
+  elseif(name MATCHES "^test_(sh_|files|textview|logs|settings_reach|editor)" AND TARGET palapps)
     target_link_libraries(${name} PRIVATE palapps)
   elseif(TARGET palsys)
     target_link_libraries(${name} PRIVATE palsys)

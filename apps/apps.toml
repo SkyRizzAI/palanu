@@ -92,6 +92,14 @@ icon = "files"
 category = "Tools"
 
 [[app]]
+id = "editor"
+name = "Editor"
+version = "1.0.0"
+kind = "gui"
+icon = "editor"
+category = "Tools"
+
+[[app]]
 id = "logs"
 name = "Logs"
 version = "1.0.0"

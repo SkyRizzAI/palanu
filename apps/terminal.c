@@ -41,7 +41,7 @@ static struct {
     int buf;
     char text[2][NEMA_TTY_LEGEND_MAX];
     pal_legend_item_t items[2][PAL_LEGEND_MAX];
-} L;
+} L NEMA_EXT_BSS; /* PSRAM: the internal RAM budget is spent (ramcheck) */
 
 static const pal_font_t *font_of(int f) { return f == 0 ? &PAL_FONT_SPLEEN_5X8 : f == 2 ? &PAL_FONT_SPLEEN_8X16 : &PAL_FONT_SPLEEN_6X12; }
 

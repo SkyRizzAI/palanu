@@ -76,7 +76,7 @@ static struct {
     pal_rect_t ov_rect;
     char ov_shown[OVERLAY_TEXT_MAX];
     uint32_t ov_last_us;
-} P;
+} P NEMA_EXT_BSS; /* PSRAM: the internal RAM budget is spent (ramcheck) */
 
 static struct {
     struct {

@@ -32,7 +32,7 @@
 #define MAX_MENU 16 /* the ops menu rows (files_menu.h holds the same count) */
 
 typedef enum {
-    A_NONE, A_VIEW, A_OPEN, A_COPY, A_CUT, A_PASTE, A_RENAME, A_DELETE, A_INFO, A_NEWDIR, A_NEWFILE, A_INSTALL,
+    A_NONE, A_VIEW, A_OPEN, A_COPY, A_CUT, A_PASTE, A_RENAME, A_DELETE, A_INFO, A_NEWDIR, A_NEWFILE, A_INSTALL, A_EDIT,
 } act_t;
 
 typedef struct {
@@ -376,6 +376,7 @@ static void do_delete(void) {
 static void perform(act_t act) {
     switch (act) {
     case A_VIEW: pal_textview_open(F.tgt.path); break;
+    case A_EDIT: pal_editor_open(F.tgt.path); break;
     case A_OPEN: go(F.tgt.path); break;
     case A_COPY:
         snprintf(F.clip, sizeof(F.clip), "%s", F.tgt.path);
@@ -449,6 +450,7 @@ static void open_menu(void) {
         F.tgt.is_dir = e->type != NEMA_T_FILE;
         if (files_kind(e) == FILES_K_PACKAGE) menu_add(&n, "Install", A_INSTALL);
         if (!F.tgt.is_dir) menu_add(&n, "View", A_VIEW);
+        if (!F.tgt.is_dir) menu_add(&n, "Edit", A_EDIT);
         menu_add(&n, "Copy", A_COPY);
         menu_add(&n, "Cut", A_CUT);
         if (F.clip_has) menu_add(&n, "Paste", A_PASTE);
