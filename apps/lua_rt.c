@@ -10,6 +10,7 @@
 #include "lua.h"
 #include "lualib.h"
 #include "pal/board.h"
+#include "pal/lora.h"
 #include "pal/music.h"
 #include "pal/notify.h"
 #include "pal/settings.h"
@@ -283,6 +284,31 @@ static int l_beep(lua_State *L) {
     return 0;
 }
 
+static int l_lora_send(lua_State *L) { /* pal.lora_send(text): true, or nil and why */
+    size_t n;
+    const char *s = luaL_checklstring(L, 1, &n);
+    nema_err_t e = pal_lora_send((const uint8_t *)s, n);
+    if (e != NEMA_OK) return push_fail(L, "lora", e);
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+static int l_lora_recv(lua_State *L) { /* pal.lora_recv([ms]): text, rssi, snr; nil when nothing came */
+    uint8_t buf[PAL_LORA_MAX];
+    pal_lora_meta_t m = {0};
+    int r = pal_lora_recv(buf, sizeof(buf), (int32_t)luaL_optinteger(L, 1, 1000), &m);
+    if (r == NEMA_ERR_INTR) return luaL_error(L, "interrupted");
+    if (r < 0) return push_fail(L, "lora", (nema_err_t)r);
+    if (r == 0) {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_pushlstring(L, (const char *)buf, (size_t)r);
+    lua_pushinteger(L, m.rssi_dbm);
+    lua_pushinteger(L, m.snr_db);
+    return 3;
+}
+
 static int l_tone(lua_State *L) { /* pal.tone(hz, ms): blocks for ms */
     pal_tone((int)luaL_checkinteger(L, 1), (int)luaL_checkinteger(L, 2));
     return 0;
@@ -306,6 +332,7 @@ static const luaL_Reg PAL_FNS[] = {{"sleep", l_sleep},   {"uptime", l_uptime}, {
                                    {"ls", l_ls},         {"exists", l_exists}, {"remove", l_remove},     {"mkdir", l_mkdir},
                                    {"run", l_run},       {"setting", l_setting}, {"notify", l_notify},   {"beep", l_beep},
                                    {"tone", l_tone},     {"play", l_play},
+                                   {"lora_send", l_lora_send}, {"lora_recv", l_lora_recv},
                                    {NULL, NULL}};
 
 static int open_pal(lua_State *L) {

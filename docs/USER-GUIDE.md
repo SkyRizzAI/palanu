@@ -114,6 +114,10 @@ the same keys, known hosts and profiles as `ssh`.
 **Lua**: `lua` opens a Lua 5.4 prompt, `lua script.lua` runs a script; the `pal` module reads and writes files, runs commands and
 posts notifications (`man lua`).
 
+**LoRa** (on a board with a module): `lora` shows the module and its settings; set your region's frequency first, for example
+`lora set freq 923.2` (AS923) or `lora set freq 868.1` (EU868), then `lora send hello` and `lora listen`. Lua has `pal.lora_send`
+and `pal.lora_recv`.
+
 **Music**: `play ode` plays a tune on the buzzer (`play -l` lists them); `play 'name:d=4,o=5,b=120:c,e,g,2c6'` plays any RTTTL
 ringtone text, and `play FILE` one saved in a file. Ctrl-C stops it. Lua has `pal.tone` and `pal.play`.
 

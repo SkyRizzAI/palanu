@@ -328,6 +328,9 @@ int main(int argc, char **argv) {
     sim_hw_cfg_t hw = {.leds = arg_int(argc, argv, "--leds"), .sensors = arg_int(argc, argv, "--sensors"),
                        .gpios = arg_int(argc, argv, "--gpios"), .i2c = has_arg(argc, argv, "--i2c"),
                        .log = has_arg(argc, argv, "--led-log")};
+    /* --lora PORT:PEER: a LoRa module over UDP (two simulators with crossed ports talk) */
+    for (int i = 1; i + 1 < argc; i++)
+        if (!strcmp(argv[i], "--lora")) sscanf(argv[i + 1], "%d:%d", &hw.lora_port, &hw.lora_peer);
     sim_hw_init(&SIM_BOARD, &hw);
     pal_boot_cfg_t cfg = {
         .board = &SIM_BOARD,

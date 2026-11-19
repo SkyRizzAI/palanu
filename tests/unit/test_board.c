@@ -266,7 +266,7 @@ static const pal_device_t XK[] = {
     {.id = "cam", .name = "Camera", .kind = PAL_DEV_CAMERA},
     {.id = "mic", .name = "Mic", .kind = PAL_DEV_MIC},
     {.id = "tp", .name = "Touch", .kind = PAL_DEV_TOUCH},
-    {.id = "ble0", .name = "BLE", .kind = PAL_DEV_RADIO, .radio = {PAL_DEVRADIO_BLE}},
+    {.id = "ble0", .name = "BLE", .kind = PAL_DEV_RADIO, .radio = {.type = PAL_DEVRADIO_BLE}},
 };
 static const pal_board_desc_t XB = {.name = "fake-x", .chip = "x", .caps = PAL_CAP_DISPLAY | PAL_CAP_WIFI, .devices = XK, .ndevices = 5};
 

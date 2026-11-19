@@ -6,7 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "nema/log.h"
+#include "nema/nema.h"
+#include "pal/lora.h"
 #include "nema/port.h"
 #include "pal/device.h"
 #include "pal/hid.h"
@@ -23,7 +31,7 @@ static int dev_battery(void *ctx) {
 }
 
 /* ---- LEDs, sensors, pins, I2C ---- */
-static pal_device_t s_all[1 + SIM_HW_MAX_LEDS + 2 * SIM_HW_MAX_EXTRA + 1 + 2];
+static pal_device_t s_all[1 + SIM_HW_MAX_LEDS + 2 * SIM_HW_MAX_EXTRA + 1 + 2 + 1];
 static char s_led_id[SIM_HW_MAX_LEDS][8], s_led_name[SIM_HW_MAX_LEDS][12];
 static char s_sen_id[SIM_HW_MAX_EXTRA][8], s_sen_name[SIM_HW_MAX_EXTRA][16];
 static char s_gpio_id[SIM_HW_MAX_EXTRA][8], s_gpio_name[SIM_HW_MAX_EXTRA][12];
@@ -249,6 +257,77 @@ static nema_err_t hid_report(uint8_t mods, const uint8_t keys[6]) {
 static void hid_peer(char *out, size_t cap) { snprintf(out, cap, "simulated host"); }
 static const pal_hid_ops_t SIM_HID = {hid_start, hid_stop, hid_state, hid_report, hid_peer};
 
+/* ---- a LoRa module (pal/lora.h) over UDP: two simulators started with crossed ports hear each other. A packet carries the
+ * frequency, spreading factor, bandwidth and sync word, and a receiver set differently does not hear it, as on air. ---- */
+static int s_lora_fd = -1;
+static struct sockaddr_in s_lora_peer;
+static pal_lora_cfg_t s_lora_cfg;
+
+typedef struct {
+    uint32_t freq;
+    uint8_t sf, sync;
+    uint16_t bw;
+} lora_hdr_t;
+
+static nema_err_t lora_configure(void *ctx, const pal_lora_cfg_t *c) {
+    (void)ctx;
+    s_lora_cfg = *c;
+    return NEMA_OK;
+}
+
+static nema_err_t lora_send(void *ctx, const uint8_t *buf, size_t n, int32_t timeout_ms) {
+    (void)ctx, (void)timeout_ms;
+    uint8_t pkt[sizeof(lora_hdr_t) + PAL_LORA_MAX];
+    lora_hdr_t h = {s_lora_cfg.freq_hz, s_lora_cfg.sf, s_lora_cfg.sync, s_lora_cfg.bw_khz};
+    memcpy(pkt, &h, sizeof(h));
+    memcpy(pkt + sizeof(h), buf, n);
+    if (sendto(s_lora_fd, pkt, sizeof(h) + n, 0, (struct sockaddr *)&s_lora_peer, sizeof(s_lora_peer)) < 0) return NEMA_ERR_IO;
+    nema_sleep_ms(pal_lora_airtime_ms(&s_lora_cfg, n)); /* on air as long as the real radio would be */
+    return NEMA_OK;
+}
+
+static int lora_recv(void *ctx, uint8_t *buf, size_t cap, int32_t timeout_ms, pal_lora_meta_t *meta) {
+    (void)ctx;
+    uint64_t end = nema_port_time_us() + (uint64_t)(timeout_ms < 0 ? 0x7FFFFFFF : timeout_ms) * 1000u;
+    for (;;) {
+        if (nema_interrupted()) return NEMA_ERR_INTR;
+        fd_set rs;
+        FD_ZERO(&rs);
+        FD_SET(s_lora_fd, &rs);
+        struct timeval tv = {0, 50000};
+        if (select(s_lora_fd + 1, &rs, NULL, NULL, &tv) > 0) {
+            uint8_t pkt[sizeof(lora_hdr_t) + PAL_LORA_MAX];
+            ssize_t r = recv(s_lora_fd, pkt, sizeof(pkt), 0);
+            lora_hdr_t h;
+            if (r >= (ssize_t)sizeof(h)) {
+                memcpy(&h, pkt, sizeof(h));
+                if (h.freq == s_lora_cfg.freq_hz && h.sf == s_lora_cfg.sf && h.bw == s_lora_cfg.bw_khz && h.sync == s_lora_cfg.sync) {
+                    size_t n = (size_t)r - sizeof(h) < cap ? (size_t)r - sizeof(h) : cap;
+                    memcpy(buf, pkt + sizeof(h), n);
+                    if (meta) meta->rssi_dbm = -62, meta->snr_db = 9;
+                    return (int)n;
+                }
+            }
+        }
+        if (nema_port_time_us() >= end) return 0;
+    }
+}
+
+static const pal_lora_ops_t SIM_LORA = {lora_configure, lora_send, lora_recv};
+
+static bool lora_open(int port, int peer) {
+    s_lora_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s_lora_fd < 0) return false;
+    struct sockaddr_in a = {.sin_family = AF_INET, .sin_port = htons((uint16_t)port), .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
+    if (bind(s_lora_fd, (struct sockaddr *)&a, sizeof(a)) != 0) {
+        close(s_lora_fd);
+        s_lora_fd = -1;
+        return false;
+    }
+    s_lora_peer = (struct sockaddr_in){.sin_family = AF_INET, .sin_port = htons((uint16_t)peer), .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
+    return true;
+}
+
 uint32_t sim_hw_hid_reports(uint8_t last[7]) {
     if (last) memcpy(last, s_hid_last, 7);
     return s_hid_reports;
@@ -261,7 +340,7 @@ void sim_hw_init(pal_board_desc_t *board, const sim_hw_cfg_t *cfg) {
     int nsen = cfg->sensors > SIM_HW_MAX_EXTRA ? SIM_HW_MAX_EXTRA : cfg->sensors;
     int ngpio = cfg->gpios > SIM_HW_MAX_EXTRA ? SIM_HW_MAX_EXTRA : cfg->gpios;
     if (cfg->i2c && s_ni2c == 0) sim_hw_i2c_set(0x48, true), sim_hw_i2c_set(0x68, true);
-    if (nled <= 0 && nsen <= 0 && ngpio <= 0 && !cfg->i2c && !cfg->radios) return;
+    if (nled <= 0 && nsen <= 0 && ngpio <= 0 && !cfg->i2c && !cfg->radios && cfg->lora_port <= 0) return;
     int n = 0;
     s_all[n++] = (pal_device_t){.id = "battery0", .name = "Battery", .kind = PAL_DEV_BATTERY, .battery = {.percent = dev_battery}};
     for (int k = 0; k < nled; k++) {
@@ -286,8 +365,11 @@ void sim_hw_init(pal_board_desc_t *board, const sim_hw_cfg_t *cfg) {
         s_all[n++] = (pal_device_t){.id = "i2c0", .name = "I2C bus", .kind = PAL_DEV_BUS,
                                     .bus = {.type = PAL_BUS_I2C, .app = true, .probe = i2c_probe, .xfer = bus_xfer}};
     if (cfg->radios) {
-        s_all[n++] = (pal_device_t){.id = "wifi0", .name = "Wi-Fi", .kind = PAL_DEV_RADIO, .radio = {PAL_DEVRADIO_WIFI}};
-        s_all[n++] = (pal_device_t){.id = "ble0", .name = "Bluetooth LE", .kind = PAL_DEV_RADIO, .radio = {PAL_DEVRADIO_BLE}};
+        s_all[n++] = (pal_device_t){.id = "wifi0", .name = "Wi-Fi", .kind = PAL_DEV_RADIO, .radio = {.type = PAL_DEVRADIO_WIFI}};
+        s_all[n++] = (pal_device_t){.id = "ble0", .name = "Bluetooth LE", .kind = PAL_DEV_RADIO, .radio = {.type = PAL_DEVRADIO_BLE}};
     }
+    if (cfg->lora_port > 0 && lora_open(cfg->lora_port, cfg->lora_peer))
+        s_all[n++] = (pal_device_t){.id = "lora0", .name = "LoRa (simulated)", .kind = PAL_DEV_RADIO,
+                                    .radio = {.type = PAL_DEVRADIO_LORA, .lora = &SIM_LORA}};
     board->devices = s_all, board->ndevices = n;
 }

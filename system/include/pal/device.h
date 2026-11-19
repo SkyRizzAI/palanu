@@ -18,11 +18,12 @@ typedef enum {
     PAL_DEV_CAMERA,  /* a camera (declared so the system knows; no API yet) */
     PAL_DEV_MIC,     /* a microphone */
     PAL_DEV_TOUCH,   /* a touch panel */
-    PAL_DEV_RADIO,   /* a Wi-Fi or Bluetooth LE radio */
+    PAL_DEV_RADIO,   /* a Wi-Fi, Bluetooth LE or LoRa radio */
 } pal_dev_kind_t;
 
 typedef enum { PAL_BUS_I2C = 1, PAL_BUS_SPI, PAL_BUS_UART } pal_bus_type_t;
-typedef enum { PAL_DEVRADIO_WIFI = 1, PAL_DEVRADIO_BLE } pal_devradio_type_t;
+typedef enum { PAL_DEVRADIO_WIFI = 1, PAL_DEVRADIO_BLE, PAL_DEVRADIO_LORA } pal_devradio_type_t;
+struct pal_lora_ops; /* pal/lora.h */
 
 typedef struct pal_device {
     const char *id;   /* stable, lower case, unique on the board: "led0", "status", "strip" */
@@ -65,7 +66,10 @@ typedef struct pal_device {
             int (*xfer)(void *ctx, int addr, const uint8_t *tx, int txn, uint8_t *rx, int rxn);
         } bus;
         struct { int present; } camera, mic, touch; /* info only: these declare that the hardware exists */
-        struct { pal_devradio_type_t type; } radio;
+        struct {
+            pal_devradio_type_t type;
+            const struct pal_lora_ops *lora; /* PAL_DEVRADIO_LORA: the module's driver (pal/lora.h), its state in ctx */
+        } radio;
     };
 } pal_device_t;
 

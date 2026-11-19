@@ -21,6 +21,7 @@ typedef struct {
     bool i2c;                 /* an I2C bus with the devices added by sim_hw_i2c_set (default 0x48 and 0x68) */
     bool radios;              /* declare the Wi-Fi and Bluetooth LE radios in the device table */
     bool log;                 /* print LED and pin writes on stderr */
+    int lora_port, lora_peer; /* a LoRa module over UDP on 127.0.0.1: listen on lora_port, send to lora_peer (0 = none) */
 } sim_hw_cfg_t;
 
 /* Fills board->devices. With nothing asked for the table is left as the board had it. */

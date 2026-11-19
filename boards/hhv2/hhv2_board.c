@@ -26,8 +26,8 @@ static const pal_device_t HHV2_DEVICES[] = {
     {.id = "battery0", .name = "Battery", .kind = PAL_DEV_BATTERY,
      .battery = {.percent = hhv2_dev_battery_percent, .mv = hhv2_dev_battery_mv}},
     {.id = "flash0", .name = "Internal flash", .kind = PAL_DEV_STORAGE, .storage = {.removable = false}},
-    {.id = "wifi0", .name = "Wi-Fi", .kind = PAL_DEV_RADIO, .radio = {PAL_DEVRADIO_WIFI}},
-    {.id = "ble0", .name = "Bluetooth LE", .kind = PAL_DEV_RADIO, .radio = {PAL_DEVRADIO_BLE}},
+    {.id = "wifi0", .name = "Wi-Fi", .kind = PAL_DEV_RADIO, .radio = {.type = PAL_DEVRADIO_WIFI}},
+    {.id = "ble0", .name = "Bluetooth LE", .kind = PAL_DEV_RADIO, .radio = {.type = PAL_DEVRADIO_BLE}},
     {.id = "sd0", .name = "microSD", .kind = PAL_DEV_STORAGE, .storage = {.removable = true}},
 };
 /* No GPIO, I2C or SPI device is declared: the board has not named a pin that is free for apps yet. Add .kind = PAL_DEV_GPIO

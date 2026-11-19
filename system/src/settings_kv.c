@@ -87,6 +87,11 @@ static const kv_def_t DEFS[] = {
     {"ui.statusbar", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"ui.legend", KV_BOOL, 0, 1, NULL, 1, NULL, NULL}, /* the legend bar at the bottom (pal/legend.h); off hides it everywhere */
     {"ui.clock24", KV_BOOL, 0, 1, NULL, 1, NULL, apply_clock24}, /* off: 12 hours with AM/PM (pal_ui_fmt_clock) */
+    {"lora.freq", KV_INT, 150000000, 960000000, NULL, 868100000, NULL, NULL}, /* the region's band: the owner sets it (pal/lora.h) */
+    {"lora.sf", KV_INT, 5, 12, NULL, 9, NULL, NULL},
+    {"lora.bw", KV_INT, 31, 500, NULL, 125, NULL, NULL},
+    {"lora.cr", KV_INT, 5, 8, NULL, 5, NULL, NULL},
+    {"lora.power", KV_INT, -9, 22, NULL, 14, NULL, NULL},
     {"notify.dnd", KV_BOOL, 0, 1, NULL, 0, NULL, NULL},
     {"notify.beep", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"input.repeat_delay", KV_INT, 120, 1000, NULL, 420, NULL, apply_repeat},

@@ -7,7 +7,7 @@ PalanuOS runs without a board in two places. Both run the same portable code (`n
 | Where | a window (SDL2) on your computer | a tab, nothing to install for the user |
 | Build | CMake, `platform/host/sim_main.c` | Emscripten, `platform/web/web_main.c` |
 | Used for | golden images, unit and scripted tests, development | trying the OS, demos, hardware set-up without a device, teaching |
-| Hardware | flags: `--leds N --sensors N --gpios N --i2c --battery P` | the page's Hardware panel; the same code (`platform/host/sim_hw.c`) |
+| Hardware | flags: `--leds N --sensors N --gpios N --i2c --battery P --lora PORT:PEER` (a LoRa module over UDP: two simulators with crossed ports talk) | the page's Hardware panel; the same code (`platform/host/sim_hw.c`) |
 
 ## Browser simulator
 

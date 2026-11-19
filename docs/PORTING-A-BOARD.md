@@ -60,6 +60,10 @@ Fill `devices` with one entry per device: `PAL_DEV_BATTERY` (`percent`, `mv`), `
 `PAL_DEV_BUS` (`type`, `app`, `probe`). The `RGB_LED`, `BUZZER`, `BATTERY`, `SD` and `SENSORS` bits are computed from the list; do not write them yourself.
 A pin is exposed to apps only if `app = true`. Try it with `dev` in the terminal and, in the simulator, `--sensors`, `--gpios`, `--i2c`.
 
+A LoRa module (ADR-0020) is a `PAL_DEV_RADIO` entry `{.type = PAL_DEVRADIO_LORA, .lora = &PAL_SX126X_OPS}` whose `ctx` is a
+`pal_sx126x_t` naming the SPI bus device and its chip select, the BUSY and NRESET pin devices, the TCXO voltage and whether DIO2
+drives the antenna switch (`pal/sx126x.h`). `lora info` shows it; `lora send` and `lora listen` try it.
+
 ## Desktop sessions
 
 Which desktop sessions a firmware ships is the target's choice, not the board's: list them in `pal_boot_cfg_t.desktops` (first =
