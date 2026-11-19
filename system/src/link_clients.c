@@ -6,6 +6,7 @@
 #include "crypto_prim.h"
 #include "keystore.h"
 #include "link_clients.h"
+#include "nema/log.h"
 #include "nema/mem.h"
 #include "nema/port.h"
 #include "nema/types.h"
@@ -180,6 +181,9 @@ int lc_remove(const uint8_t id[8]) {
     int rc = rec_path(path, sizeof(path), id);
     if (rc != NEMA_OK) return rc;
     nema_stat_t st;
+    char tmp[PATH_MAX_LC + 4];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    (void)nema_fs_unlink(tmp); /* a write that a reset cut short leaves this behind */
     if (nema_fs_stat(path, &st) != NEMA_OK) return NEMA_ERR_NOENT;
     s_count = -1;
     return nema_fs_unlink(path);
@@ -269,14 +273,19 @@ int lc_device_id(char out[17]) {
     if (rc != NEMA_OK) return rc;
     char hex[17];
     rc = read_all(PATH_DEVICE_ID, (uint8_t *)hex, 16, &got);
+    hex[got < 16 ? got : 16] = 0; /* lc_hex_dec measures the text: without this it read past the 16 digits, and on the board the
+                                   * stack there was not zero, so every hello made a new id and no browser found its pairing */
     if (rc == NEMA_OK && got == 16 && lc_hex_dec(hex, id, 8)) {
         memcpy(out, hex, 16);
         out[16] = 0;
         return NEMA_OK;
     }
+    NEMA_LOGW("link", "device id: read %d, %u bytes: making a new one", rc, (unsigned)got);
     nema_port_random(id, sizeof(id));
     lc_hex_enc(id, 8, out);
-    return write_atomic(PATH_DEVICE_ID, (const uint8_t *)out, 16);
+    rc = write_atomic(PATH_DEVICE_ID, (const uint8_t *)out, 16);
+    if (rc != NEMA_OK) NEMA_LOGW("link", "device id: cannot keep it (%d)", rc);
+    return rc;
 }
 
 /* The config file: key=value lines, as the settings file. */

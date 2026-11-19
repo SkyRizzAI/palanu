@@ -584,6 +584,17 @@ static void handle_frame(pal_link_t *l, uint8_t chan, uint8_t type, const uint8_
                 l->kill = false;
                 l->trusted = true;
             }
+        } else if (type == LA_TYPE_AUTH_FORGET) {
+            /* the client forgets its pairing and asks the device to forget it too: only for the client it signed in as (the
+             * cable, trusted without a client, has none to forget) */
+            if (!l->auth.authed) {
+                send_err(l, CH_CTL, (int8_t)NEMA_ERR_STATE, "this connection did not sign in with a pairing");
+                break;
+            }
+            char hex[17];
+            lc_hex_enc(l->auth.client_id, 8, hex);
+            send_frame(l, CH_CTL, LA_TYPE_AUTH_FORGOTTEN, NULL, 0);
+            (void)pal_link_revoke(hex); /* ends this session too */
         }
         break;
     case CH_TTY:

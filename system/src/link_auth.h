@@ -19,6 +19,8 @@
 #define LA_TYPE_AUTH_CHALLENGE 10
 #define LA_TYPE_AUTH_RESPONSE 11
 #define LA_TYPE_AUTH_OK 12
+#define LA_TYPE_AUTH_FORGET 13    /* a signed-in client: delete my pairing (a browser's "Forget"); no payload */
+#define LA_TYPE_AUTH_FORGOTTEN 14 /* the reply, just before the device ends the session */
 #define LA_TYPE_ERR 0x7F
 
 #define LA_WINDOW_MS 120000u

@@ -2,6 +2,7 @@
  * sessions), the Palanu Link page (cable trust, pairing, the paired devices, the TCP server), and the pairing overlay that shows the 6-digit code large with its countdown. Pairing and
  * revoking go through pal/link.h (link_admin.c); the cable trust is the settings key link.uart.trust. */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "nema/types.h"
@@ -12,6 +13,7 @@
 #include "pal/radio.h"
 #include "pal/svc.h"
 #include "pal/theme.h"
+#include "pal/time.h"
 #include "pal/toast.h"
 #include "pal/ui.h"
 #include "pal/wifi.h"
@@ -22,6 +24,7 @@
 static pal_menu_row_t CLIENTS_STORE[CLIENTS_MAX + 2] NEMA_EXT_BSS;
 static char s_ids[CLIENTS_MAX][17] NEMA_EXT_BSS;
 static char s_names[CLIENTS_MAX][26] NEMA_EXT_BSS;
+static char s_hints[CLIENTS_MAX][64] NEMA_EXT_BSS; /* "last used 3d ago, paired 2026-11-19" for each row */
 static char s_code[PAL_LINK_CODE_LEN + 1];
 
 /* ---- paired devices (from pal/link.h): one line per client, parsed into rows. Shared by Bluetooth, Remote and the
@@ -52,9 +55,21 @@ static void add_clients(pal_menu_page_t *p) {
         if (len >= sizeof(s_names[count])) len = sizeof(s_names[count]) - 1;
         memcpy(s_names[count], name, len);
         s_names[count][len] = 0;
+        /* two browsers both called "Web Forge" are told apart by when they were used */
+        const char *lu = strstr(line, "last used ");
+        const char *cr = strstr(line, "created ");
+        uint32_t last = lu ? (uint32_t)strtoul(lu + 10, NULL, 10) : 0, made = cr ? (uint32_t)strtoul(cr + 8, NULL, 10) : 0;
+        char age[16] = "never";
+        if (last) pal_ui_fmt_age(pal_time_epoch(), last, pal_time_tz_minutes(), age, sizeof(age));
+        pal_tm_t tm;
+        pal_time_from_epoch(made + (uint32_t)(int32_t)(pal_time_tz_minutes() * 60), &tm);
+        size_t al = strlen(age);
+        bool clock = strchr(age, ':') != NULL, ago = al && (age[al - 1] == 'm' || age[al - 1] == 'd'); /* "14:05", or "5m" / "3d" */
+        snprintf(s_hints[count], sizeof(s_hints[count]), "Last used %s%s%s, paired %04d-%02d-%02d", clock ? "at " : "", age,
+                 ago ? " ago" : "", tm.year, tm.month, tm.day);
         pal_menu_row_t r = {.kind = PAL_MENU_ACTION, .label = s_names[count], .icon = "link", .ctx = s_ids[count],
                             .run = revoke_run, .confirm = "This device must pair again to connect.",
-                            .ok_label = "Revoke", .danger = true, .hint = "Enter asks, then revokes the device"};
+                            .ok_label = "Revoke", .danger = true, .hint = s_hints[count]};
         pal_menu_add(p, &r);
         count++;
     }

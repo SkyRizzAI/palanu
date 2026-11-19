@@ -24,7 +24,10 @@ The built file can be opened straight from disk in Chrome or Edge, or copied to 
 
 Wi-Fi and Bluetooth are untrusted until AUTH. Pair once: open the pairing window on the device (Settings > Remote >
 Pair, or `link pair` in its terminal), type the 6-digit code in Web Forge. The token is stored only in that browser's `localStorage`
-(key `palanu.webforge.links`); "Forget pairing" deletes it, `link revoke` on the device revokes it.
+(key `palanu.webforge.links`, by the device's id), so the next connection signs in without a code. The pairing is named after the
+browser ("Chrome on macOS"), which is how the device lists it. "Forget this pairing" deletes it in the browser and, while connected,
+on the device too (AUTH_FORGET); on the device, Settings > Remote > Authorized Devices shows each pairing with when it was last
+used, and Enter revokes it (or `link revoke ID`).
 
 Crypto: X25519 and HMAC-SHA256 from WebCrypto (Chrome/Edge 133, Safari 17, Firefox 130), ChaCha20-Poly1305 from
 `forge/packages/link/src/chacha.ts`. The frame format is shared with the command-line client (`forge/packages/link/src/frame.ts`).

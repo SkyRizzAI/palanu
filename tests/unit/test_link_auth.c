@@ -468,6 +468,30 @@ TEST(revoking_a_client_drops_its_live_session) {
     CHECK_EQ(pal_link_revoke("not-hex"), NEMA_ERR_INVAL);
 }
 
+/* A browser's "Forget" (AUTH_FORGET): the device deletes the pairing the connection signed in with, answers, and ends the session.
+ * A link that did not sign in with a pairing (the cable) has nothing to forget. */
+TEST(a_client_can_ask_the_device_to_forget_it) {
+    reset_store();
+    pal_link_t *l = make_link(PAL_LINK_WS);
+    feed(l, CH_CTL, T_HELLO, (const uint8_t *)"t", 1);
+    uint8_t id[8], tok[32];
+    char code[7];
+    CHECK_EQ(pair_now(l, "Chrome on macOS", id, tok, code), 0);
+    CHECK_EQ(cl_auth_with(l, id, tok, PAL_LINK_WS), 0);
+    CHECK_EQ(lc_count(), 1);
+    feed(l, CH_CTL, LA_TYPE_AUTH_FORGET, NULL, 0);
+    CHECK(find(CH_CTL, LA_TYPE_AUTH_FORGOTTEN) != NULL);
+    CHECK_EQ(lc_count(), 0);
+    CHECK(l->kill);
+    pal_link_destroy(l);
+
+    pal_link_t *u = make_link(PAL_LINK_UART); /* trusted by the cable, signed in as nobody */
+    feed(u, CH_CTL, T_HELLO, (const uint8_t *)"t", 1);
+    feed(u, CH_CTL, LA_TYPE_AUTH_FORGET, NULL, 0);
+    CHECK(find(CH_CTL, LA_TYPE_AUTH_FORGOTTEN) == NULL && find(CH_CTL, T_ERR) != NULL);
+    pal_link_destroy(u);
+}
+
 TEST(eight_clients_at_most) {
     reset_store();
     pal_link_t *l = make_link(PAL_LINK_TCP);
@@ -483,12 +507,22 @@ TEST(eight_clients_at_most) {
     pal_link_destroy(l);
 }
 
+/* Leaves the stack below the caller full of hex digits: the id's reader once measured its buffer past the 16 digits it read, which
+ * only went unnoticed while that stack happened to be zero (it was not on the board: every hello made a new id). */
+static void __attribute__((noinline)) dirty_stack(void) {
+    volatile char junk[2048];
+    for (size_t i = 0; i < sizeof(junk); i++) junk[i] = 'a';
+}
+
 TEST(device_id_is_stable_and_clients_list_names_them) {
     reset_store();
-    char a[17], b[17];
+    char a[17], b[17], c[17];
     pal_link_device_id(a);
+    dirty_stack();
     pal_link_device_id(b);
-    CHECK(strlen(a) == 16 && strcmp(a, b) == 0);
+    dirty_stack();
+    pal_link_device_id(c);
+    CHECK(strlen(a) == 16 && strcmp(a, b) == 0 && strcmp(b, c) == 0);
     pal_link_t *l = make_link(PAL_LINK_TCP);
     uint8_t id[8], tok[32];
     char code[7];
@@ -519,6 +553,7 @@ int main(void) {
     RUN(untrusted_links_refuse_every_channel_but_hello_ping_and_pairing);
     RUN(cable_is_trusted_by_default_and_trust_can_be_switched_off_live);
     RUN(revoking_a_client_drops_its_live_session);
+    RUN(a_client_can_ask_the_device_to_forget_it);
     RUN(eight_clients_at_most);
     RUN(device_id_is_stable_and_clients_list_names_them);
     return TEST_DONE();

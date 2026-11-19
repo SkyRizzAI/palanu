@@ -43,6 +43,8 @@ and `forge/packages/link` (computer).
 | 10 | AUTH_CHALLENGE | device to client: 16-byte nonce |
 | 11 | AUTH_RESPONSE | client to device: 32-byte HMAC |
 | 12 | AUTH_OK | device to client: this link is now trusted |
+| 13 | AUTH_FORGET | client to device, on a link that signed in with a pairing: delete my pairing (no payload) |
+| 14 | AUTH_FORGOTTEN | device to client: deleted; the device then ends the session (a link signed in as nobody, the cable, gets an error) |
 | 0x7F | ERROR | `code i8` + text. Codes: see "Error codes" |
 
 ### tty (1)

@@ -17,7 +17,7 @@ export interface Transport {
 }
 
 export const PAIR = { request: 5, challenge: 6, proof: 7, ok: 8 } as const;
-export const AUTH = { hello: 9, challenge: 10, response: 11, ok: 12 } as const;
+export const AUTH = { hello: 9, challenge: 10, response: 11, ok: 12, forget: 13, forgotten: 14 } as const;
 export const LINK_ERR = { auth: -23, busy: -4, full: -15, state: -16, pairClosed: -27 } as const;
 
 export class LinkError extends Error {
@@ -160,6 +160,13 @@ export class Link {
     const ok = this.ctlReply([AUTH.ok]);
     void this.send(CH.ctl, AUTH.response, await authResponse(tok, ch.payload.slice(0, 16), id, this.t.tag));
     await ok;
+  }
+
+  /** Asks the device to delete this browser's pairing (AUTH_FORGET); the device then ends the connection. */
+  async forget(): Promise<void> {
+    const done = this.ctlReply([AUTH.forgotten]);
+    void this.send(CH.ctl, AUTH.forget, new Uint8Array(0));
+    await done;
   }
 
   async ping(): Promise<number> {

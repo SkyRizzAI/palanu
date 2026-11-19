@@ -79,11 +79,22 @@ async function trust() {
   await link!.auth(pairing.clientId, pairing.token);
 }
 
+/** A name the device can tell apart in its list: "Chrome on macOS" rather than "Web Forge" for every browser. */
+function browserName(): string {
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "";
+  return (os ? `${browser} on ${os}` : browser).slice(0, 24);
+}
+
 function askPairing(): Promise<{ clientId: string; token: string }> {
   return new Promise((resolve, reject) => {
     const dlg = $("pair") as HTMLDialogElement;
     $("pair-device").textContent = String(info.name ?? "PalanuOS");
     ($("pair-code") as HTMLInputElement).value = "";
+    const nameField = $("pair-name") as HTMLInputElement;
+    if (!nameField.dataset.edited) nameField.value = browserName();
+    nameField.oninput = () => (nameField.dataset.edited = "1");
     $("pair-err").textContent = "";
     dlg.showModal();
     const form = $("pair-form") as HTMLFormElement;
@@ -430,9 +441,14 @@ function init() {
   $("files-root").onclick = () => void listDir("/");
 
   $("ping").onclick = async () => { try { $("ping-out").textContent = `${(await link!.ping()).toFixed(0)} ms`; } catch (e) { $("ping-out").textContent = (e as Error).message; } };
-  $("forget").onclick = () => {
-    const all = loadAll(); delete all[String(info.id ?? "")]; saveAll(all);
-    $("paired-note").textContent = "Pairing forgotten in this browser. Revoke it on the device too: link revoke";
+  $("forget").onclick = async () => {
+    const id = String(info.id ?? "");
+    const signedIn = !!loadAll()[id] && link?.t.kind !== "USB";
+    let onDevice = false;
+    if (signedIn && link) { try { await link.forget(); onDevice = true; } catch { /* an older device: revoke it there */ } }
+    const all = loadAll(); delete all[id]; saveAll(all);
+    $("paired-note").textContent = onDevice ? "Forgotten here and on the device: the next connection pairs again."
+      : "Forgotten in this browser. Remove it on the device too: Settings > Remote > Authorized Devices.";
   };
   ($("ota-file") as HTMLInputElement).onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) void flash(f); (e.target as HTMLInputElement).value = ""; };
 
