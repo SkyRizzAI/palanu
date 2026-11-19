@@ -6,6 +6,7 @@
 #include "pal/board.h"
 #include "pal/desktops.h"
 #include "pal/settings_schema.h"
+#include "athena_themes.h"
 
 static const char *const ON_OFF_AUTO[] = {"off", "on", "auto", NULL};
 static const char *const ON_OFF_AUTO_L[] = {"Off", "On", "Automatic", NULL};
@@ -18,8 +19,8 @@ static const char *const LOGS_L[] = {"Errors", "Warnings", "Info", "Debug", NULL
 static const char *const TARGETS[] = {"desktop", "console", NULL};
 static const char *const TARGETS_L[] = {"Desktop", "Console", NULL};
 static const char *const ROTATIONS[] = {"0", "90", "180", "270", NULL};
-static const char *const ATHENA_THEMES[] = {"cupertino", "material", "softkey", "trackball", NULL};
-static const char *const ATHENA_THEMES_L[] = {"Cupertino", "Material", "Softkey", "Trackball", NULL};
+static const char *const ATHENA_THEMES[] = {ATHENA_THEME_IDS, NULL};
+static const char *const ATHENA_THEMES_L[] = {ATHENA_THEME_LABELS, NULL};
 
 #define SYS NULL
 #define CLASSIC "classic"
@@ -76,7 +77,7 @@ static const pal_setting_desc_t S[] = {
     {.key = "ui.wall_anchor", .kind = PAL_SETTING_CHOICE, .label = "Wallpaper anchor", .group = "Appearance", .owner = CLASSIC, .dynamic = true},
     /* The Athena session's look */
     {.key = "athena.seconds", .kind = PAL_SETTING_BOOL, .label = "Second hand", .group = "Athena", .owner = ATHENA, .internal = true},
-    {.key = "athena.theme", .kind = PAL_SETTING_CHOICE, .label = "Theme", .group = "Athena", .help = "Cupertino, Material, Softkey or Trackball", .owner = ATHENA, .names = ATHENA_THEMES, .labels = ATHENA_THEMES_L},
+    {.key = "athena.theme", .kind = PAL_SETTING_CHOICE, .label = "Theme", .group = "Athena", .help = "The look of the Athena desktop", .owner = ATHENA, .names = ATHENA_THEMES, .labels = ATHENA_THEMES_L},
 };
 
 size_t pal_settings_schema_count(void) { return sizeof(S) / sizeof(S[0]); }

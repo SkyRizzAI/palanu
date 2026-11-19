@@ -8,6 +8,7 @@
  * session shows. */
 #include <string.h>
 
+#include "../athena_themes.h"
 #include "athena_int.h"
 #include "pal/settings.h"
 
@@ -36,6 +37,8 @@ static const ath_theme_t THEMES[] = {
      .idle_home = true, .title_pane = true, .level_bars = true, .dock = 5, .menu_cols = 5, .menu_dark = true, .popup_right = true,
      .term_bg = 0x0B0D10, .term_fg = 0xE8E8E8},
 };
+
+_Static_assert(sizeof(THEMES) / sizeof(THEMES[0]) == ATHENA_THEME_COUNT, "athena_themes.h lists every theme");
 
 const ath_theme_t *ath_T = &THEMES[0];
 

@@ -171,7 +171,7 @@ take the session's colours (`pal_desktop_chrome_t.tty_colors`): each Athena them
 **Themes.** Athena's look is a theme of tokens (`system/src/athena/athena_theme.c`): colours (wallpaper, surface, rows, accent, text,
 switches, danger, keyboard mode keys, the bar over apps) and shape (corner radii of cards, rows and icons, centred or left-aligned
 titles, upper-case buttons, shadows or flat) and layout (ADR-0011: a softkey bar, an idle home, title panes, level bars, highlight
-gradients). Three ship: **Cupertino** (the default: centred titles, round corners, soft shadows, inset grouped lists), **Material**
+gradients). Four ship (their ids are listed once, in `system/src/athena_themes.h`, for the setting and its page): **Cupertino** (the default: centred titles, round corners, soft shadows, inset grouped lists), **Material**
 (flat, small radii, round icons, left-aligned titles, upper-case buttons, edge-to-edge lists, a teal accent) and **Softkey** (the
 feature-phone way: a softkey bar at the bottom of every screen with Options on Tab, the Enter action in the middle and Back on Esc; an
 idle home with the clock and this week's calendar that opens a menu grid of the apps; titles on a blue pane; a gradient highlight bar
