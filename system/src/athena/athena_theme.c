@@ -39,7 +39,6 @@ static const ath_theme_t THEMES[] = {
 
 const ath_theme_t *ath_T = &THEMES[0];
 
-const char *const ATH_THEME_IDS[] = {"cupertino", "material", "softkey", "trackball", NULL};
 
 /* The theme the setting names; the first one when it names none. */
 const ath_theme_t *ath_theme_wanted(void) {

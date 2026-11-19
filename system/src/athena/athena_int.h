@@ -1,4 +1,5 @@
-/* Athena's parts (athena.c, athena_lock.c, athena_page.c, athena_shell.c): the shared state and calls. */
+/* Athena's parts (athena.c, athena_bar.c, athena_doc.c, athena_lock.c, athena_page.c, athena_sheet.c, athena_shell.c,
+ * athena_softkeys.c, athena_theme.c, athena_widgets.c): the shared state and calls. */
 #ifndef ATHENA_INT_H
 #define ATHENA_INT_H
 
@@ -62,7 +63,6 @@ typedef struct {
 } ath_theme_t;
 
 extern const ath_theme_t *ath_T;
-extern const char *const ATH_THEME_IDS[];
 const ath_theme_t *ath_theme_wanted(void);
 
 #define C_WALL_TOP lv_color_hex(ath_T->wall_top)

@@ -182,16 +182,17 @@ costs a rebuild of the objects, nothing more.
 
 
 `system/src/athena/athena.c`, LVGL 9.2.2 (`third_party/lvgl`, MIT) configured in `system/src/athena/lv_conf.h`: software rendering, LVGL's
-allocator on a 192 KB pool in PSRAM, the Montserrat fonts (SIL OFL), only plain objects and labels. LVGL renders one RGB565 frame the size
+allocator on a 192 KB pool in PSRAM, the Montserrat fonts (SIL OFL), plain objects, labels and lines (the analog clock), the Montserrat sizes it uses and unscii 8 for fixed-width documents. LVGL renders one RGB565 frame the size
 of the panel (in PSRAM) in direct mode.
 
-- Home or a sheet in front: Athena owns the screen and sends its dirty areas to the panel; the compositor draws nothing.
-- An app in front: the compositor draws it below Athena's 20-row bar and Athena sends only the bar. A sheet opened over an app sends only
-  the sheet, so the app stays visible around it.
-- Something over the home (a toast, the on-screen keyboard): the home is copied into the 8-bit canvas, dithered onto the palette's colour
-  cube, so the overlay can be drawn on top.
+- Home, a form, a document or a sheet in front: Athena owns the screen and sends its dirty areas to the panel; the compositor draws
+  nothing.
+- An app in front: the compositor draws it below Athena's 20-row bar (and above the softkey bar, on a theme with one) and Athena sends
+  only its bars. A sheet opened over an app sends only the sheet, so the app stays visible around it.
+- A shell service in front (a dialog, a picker, the on-screen keyboard): Athena draws it as a modal over a copy of the screen frame;
+  toasts take its bar.
 
-Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (the image is 91% of the OTA slot), no internal RAM
+Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (with classic and Athena the image is 92% of the OTA slot), no internal RAM
 beyond a few hundred bytes (the pool, the frame and its state are in PSRAM), and the desktop task's stack went from 6 to 8 KB.
 
 Golden scenes: `athena-files`, `athena-files-ops`, `athena-textview`, `athena-textview-hex`, `athena-logs`, `athena-material-files`,

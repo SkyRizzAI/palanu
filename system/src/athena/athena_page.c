@@ -12,10 +12,6 @@ pal_menu_t *ath_page_menu(void) {
     return pal_menu_bound(pal_desktop_front_id());
 }
 
-static bool selectable(const pal_menu_row_t *r) {
-    return r->kind != PAL_MENU_SECTION && !r->inert && !(r->kind == PAL_MENU_SLIDER && !r->set);
-}
-
 static void page_value(int i) {
     const pal_menu_row_t *r = &A.ppage->rows[A.pidx[i]];
     if (!A.pval[i]) return;
@@ -306,7 +302,6 @@ void ath_page_sync(pal_menu_t *m, uint32_t now) {
         A.pvals_ms = now;
         for (int i = 0; i < A.pn; i++) page_value(i);
     }
-    (void)selectable;
 }
 
 void ath_build_page(void) {
