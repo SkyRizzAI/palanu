@@ -89,6 +89,9 @@ static const char *parent_title(void) {
     return fv && fv->title ? fv->title : "Back";
 }
 
+/* The page row at the top of a page to read: the menu scrolls in logical rows of about 13 px (menu_draw.c). */
+static int info_anchor(const pal_menu_page_t *p) { return p->spx / 13; }
+
 static void page_build(void) {
     lv_obj_clean(A.page_list);
     A.pn = 0;
@@ -128,11 +131,14 @@ static void page_build(void) {
     lv_obj_t *card = NULL, *prev = NULL;
     int card_y = 0, card_n = 0;
     /* a long page (a big folder) is drawn as a window of MAX_PAGE_ROWS rows around the selection, built again when it leaves it */
+    /* a page with nothing to select (rows to read) puts its window around where the keys scrolled it instead */
     size_t start = 0;
+    bool info = !pal_menu_has_selectable(A.ppage);
     if (A.ppage->n > MAX_PAGE_ROWS) {
-        int st = A.psel - MAX_PAGE_ROWS / 2, last = (int)A.ppage->n - MAX_PAGE_ROWS;
+        int st = info ? info_anchor(A.ppage) - 4 : A.psel - MAX_PAGE_ROWS / 2, last = (int)A.ppage->n - MAX_PAGE_ROWS;
         start = (size_t)(st < 0 ? 0 : st > last ? last : st);
     }
+    A.pstart = (int)start;
     for (size_t k = start; k < A.ppage->n && A.pn < MAX_PAGE_ROWS; k++) {
         const pal_menu_row_t *r = &A.ppage->rows[k];
         if (r->kind == PAL_MENU_SECTION && r->group) { /* a new card without a title */
@@ -279,6 +285,18 @@ static void page_build(void) {
     else lv_label_set_text(A.page_empty, "");
     for (int i = 0; i < A.pn; i++)
         if (A.pidx[i] == A.psel) lv_obj_scroll_to_view_recursive(A.prow[i], LV_ANIM_OFF);
+    if (info && start > 0 && pal_menu_scrolled_to_end(A.pm)) { /* at the end: the last row shows, whatever the rows' heights */
+        lv_obj_update_layout(A.page_list);
+        lv_obj_scroll_by_bounded(A.page_list, 0, -lv_obj_get_scroll_bottom(A.page_list), LV_ANIM_OFF);
+    } else if (info && start > 0) { /* the row the scroll had reached goes to the top */
+        int anchor = info_anchor(A.ppage);
+        for (int i = 0; i < A.pn; i++)
+            if (A.pidx[i] >= anchor) {
+                lv_obj_update_layout(A.page_list);
+                lv_obj_scroll_to_y(A.page_list, lv_obj_get_y(A.prow[i]) - 4, LV_ANIM_OFF);
+                break;
+            }
+    }
 }
 
 /* Follows the bound menu: a new page or row count rebuilds, a new selection restyles, values refresh after a key and twice a second. */
@@ -315,10 +333,18 @@ void ath_page_sync(pal_menu_t *m, uint32_t now) {
     if (p->spx != A.pspx) { /* the keys scrolled the page without moving the selection (rows to read, or none to select) */
         int d = p->spx - A.pspx;
         A.pspx = p->spx;
+        if (p->n > MAX_PAGE_ROWS && !pal_menu_has_selectable(p)) { /* a long page to read: near an edge of its window, move it */
+            int anchor = info_anchor(p), last = (int)p->n - MAX_PAGE_ROWS;
+            if ((anchor < A.pstart + 2 && A.pstart > 0) || (anchor + 12 > A.pstart + MAX_PAGE_ROWS && A.pstart < last)) {
+                page_build();
+                return;
+            }
+        }
         if (p->spx == 0) lv_obj_scroll_to_y(A.page_list, 0, LV_ANIM_OFF);
         else {
             int px = (d < 0 ? -d : d) * ROW_H / 13; /* the menu scrolls in its logical rows of about 13 px */
             if (px < ROW_H) px = ROW_H;
+            if (d > 0 && pal_menu_scrolled_to_end(m)) px = lv_obj_get_scroll_bottom(A.page_list); /* the end: all of it */
             lv_obj_scroll_by_bounded(A.page_list, 0, d > 0 ? -px : px, LV_ANIM_OFF);
         }
     }

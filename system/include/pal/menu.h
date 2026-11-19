@@ -198,6 +198,8 @@ bool pal_menu_reveal(pal_menu_t *m, int dir);
 /* Scrolls the page's list by a row (dir -1 up, +1 down) or by a page, without moving the selection. True when it moved.
  * What pal_menu_key does on a page with nothing to select. */
 bool pal_menu_scroll(pal_menu_t *m, int dir, bool page);
+/* The page scrolled as far down as it goes (spx at its end, against the list as last laid out). */
+bool pal_menu_scrolled_to_end(const pal_menu_t *m);
 /* The page has a row the selection can stop on. */
 bool pal_menu_has_selectable(const pal_menu_page_t *p);
 /* Long text: the selected row's label or value that does not fit scrolls sideways (after a short pause) instead of being cut

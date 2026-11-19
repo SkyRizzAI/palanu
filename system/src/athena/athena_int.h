@@ -121,6 +121,7 @@ typedef struct {
     pal_menu_page_t *ppage;
     size_t prows;
     uint32_t pvals_ms;
+    int pstart;        /* the first page row in the drawn window (a long page) */
     uint32_t pchanges; /* the bound menu's change count when its values were last read */
     uint32_t prsig; /* what the drawn rows say (rows_sig): a page rebuilt with as many rows but other rows is drawn again */
     int mode; /* 0 home, 1 toolkit page, 2 an app drawn by the compositor */

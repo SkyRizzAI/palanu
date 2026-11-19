@@ -409,6 +409,13 @@ bool pal_menu_scroll(pal_menu_t *m, int dir, bool page) {
     return p->spx != old;
 }
 
+bool pal_menu_scrolled_to_end(const pal_menu_t *m) {
+    pal_menu_page_t *p = pal_menu_top(m);
+    if (!p) return false;
+    int cont = content_h(p, NULL, S_LIST_W), maxs = cont > S_LIST_H ? cont - S_LIST_H : 0;
+    return maxs > 0 && p->spx >= maxs;
+}
+
 /* ---- long text on the selected row: scrolled sideways instead of cut ---- */
 
 #define MARQ_HOLD 4 /* ticks at rest before it starts */
