@@ -161,7 +161,8 @@ static void style_tile(int i) {
     if (ath_T->idle_home) { /* the menu grid: the highlight fills the cell behind the icon and the name */
         lv_obj_set_style_bg_opa(A.tile[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
         ath_focus_bg(A.tile[i], on, C_ROW);
-        lv_obj_set_style_text_color(lv_obj_get_child(A.tile[i], 1), on ? C_WHITE : C_INK, 0);
+        lv_obj_set_style_text_color(lv_obj_get_child(A.tile[i], 1), on || ath_T->menu_dark ? C_WHITE : C_INK, 0);
+        if (on && ath_T->menu_dark && A.menu_title) lv_label_set_text(A.menu_title, A.app[i].name); /* the name is the title */
         return;
     }
     lv_obj_t *icon = lv_obj_get_child(A.tile[i], 0);
@@ -241,8 +242,68 @@ static void build_tile(lv_obj_t *parent, int c, int r, int x, int y, int cell_w,
 
 /* The idle home (a theme with idle_home): the widgets one above the other across the screen, each as tall as its rows ask; and the app
  * menu the left softkey or Enter opens, a title pane over a grid of three columns that scrolls. */
+/* The idle screen's row of apps: the selected one on the highlight, its name above the row. */
+static void style_dock(void) {
+    for (int i = 0; i < A.nd; i++) {
+        bool on = i == A.dsel;
+        lv_obj_set_style_bg_opa(A.dtile[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        ath_focus_bg(A.dtile[i], on, C_BLACK);
+    }
+    if (A.nd) lv_label_set_text(A.dock_name, A.app[A.dsel].name);
+}
+
+static void build_dock(int w, int h, int pad) {
+    const int ROW = 50, NAME = 18;
+    A.dock = lv_obj_create(A.home);
+    lv_obj_remove_style_all(A.dock);
+    lv_obj_set_size(A.dock, w, ROW + NAME);
+    lv_obj_set_pos(A.dock, 0, h - ROW - NAME);
+    lv_obj_remove_flag(A.dock, LV_OBJ_FLAG_SCROLLABLE);
+    A.dock_name = ath_text(A.dock, &lv_font_montserrat_16, C_WHITE);
+    lv_obj_set_width(A.dock_name, w);
+    lv_obj_set_style_text_align(A.dock_name, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(A.dock_name, 0, 0);
+    lv_obj_t *strip = lv_obj_create(A.dock); /* a dark band under the icons */
+    lv_obj_remove_style_all(strip);
+    lv_obj_set_size(strip, w, ROW);
+    lv_obj_set_pos(strip, 0, NAME);
+    lv_obj_set_style_bg_color(strip, C_BLACK, 0);
+    lv_obj_set_style_bg_opa(strip, LV_OPA_50, 0);
+    lv_obj_remove_flag(strip, LV_OBJ_FLAG_SCROLLABLE);
+    A.nd = 0;
+    int n = ath_T->dock > 8 ? 8 : ath_T->dock, cell = (w - 2 * pad) / (n ? n : 1);
+    for (size_t i = 0; i < psys_launcher_count() && A.nd < n; i++) {
+        if (!psys_launcher_get(i, &A.app[A.nd])) continue;
+        const icon_style_t *st = icon_for(A.app[A.nd].id);
+        lv_obj_t *t = lv_obj_create(strip);
+        lv_obj_remove_style_all(t);
+        lv_obj_set_size(t, cell - 6, ROW - 6);
+        lv_obj_set_pos(t, pad + A.nd * cell + 3, 3);
+        lv_obj_set_style_radius(t, ath_T->r_row, 0);
+        lv_obj_remove_flag(t, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_t *icon = lv_obj_create(t);
+        lv_obj_remove_style_all(icon);
+        lv_obj_set_size(icon, ROW - 14, ROW - 14);
+        lv_obj_center(icon);
+        lv_obj_set_style_radius(icon, ath_T->r_icon, 0);
+        lv_obj_set_style_bg_opa(icon, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(icon, lv_color_hex(st->top), 0);
+        lv_obj_set_style_bg_grad_color(icon, lv_color_hex(st->bot), 0);
+        lv_obj_set_style_bg_grad_dir(icon, LV_GRAD_DIR_VER, 0);
+        lv_obj_t *g = ath_text(icon, &lv_font_montserrat_20, C_WHITE);
+        char init[2] = {A.app[A.nd].name[0] ? A.app[A.nd].name[0] : '?', 0};
+        lv_label_set_text(g, st->glyph ? st->glyph : init);
+        lv_obj_center(g);
+        A.dtile[A.nd++] = t;
+    }
+    if (A.dsel >= A.nd) A.dsel = 0;
+    style_dock();
+}
+
 static void build_idle_home(int w, int h) {
     int pad = w / 40 < 4 ? 4 : w / 40, total = 0;
+    int dock_h = ath_T->dock ? 68 : 0; /* build_dock's row and name */
+    A.dock = NULL, A.nd = 0;
     const ath_widget_t *wds[MAX_WIDGETS];
     int nwd = 0;
     for (int k = 0; ATH_HOME_WIDGETS[k] && nwd < MAX_WIDGETS; k++) {
@@ -250,17 +311,20 @@ static void build_idle_home(int w, int h) {
         if (wd) wds[nwd++] = wd, total += wd->rows;
     }
     A.nw = 0;
-    int y = pad, avail = h - pad * (nwd + 1);
+    int y = pad, avail = h - dock_h - pad * (nwd + 1);
     for (int i = 0; i < nwd; i++) {
         int bh = total ? avail * wds[i]->rows / total : 0;
         build_widget(A.home, wds[i], pad, y, w - 2 * pad, bh);
         y += bh + pad;
     }
+    if (dock_h) build_dock(w, h, pad);
 
     A.menu = lv_obj_create(A.home);
     lv_obj_remove_style_all(A.menu);
     lv_obj_set_size(A.menu, w, h);
-    lv_obj_set_style_bg_color(A.menu, C_SHEET, 0);
+    lv_obj_set_style_bg_color(A.menu, ath_T->menu_dark ? C_WALL_TOP : C_SHEET, 0); /* dark: the icons sit on the wallpaper */
+    lv_obj_set_style_bg_grad_color(A.menu, C_WALL_BOT, 0);
+    lv_obj_set_style_bg_grad_dir(A.menu, ath_T->menu_dark ? LV_GRAD_DIR_VER : LV_GRAD_DIR_NONE, 0);
     lv_obj_set_style_bg_opa(A.menu, LV_OPA_COVER, 0);
     lv_obj_remove_flag(A.menu, LV_OBJ_FLAG_SCROLLABLE);
     const int PANE = 24;
@@ -268,11 +332,13 @@ static void build_idle_home(int w, int h) {
     lv_obj_remove_style_all(pane);
     lv_obj_set_size(pane, w, PANE);
     ath_pane_bg(pane);
-    lv_obj_t *t = ath_text(pane, &lv_font_montserrat_16, C_WHITE);
-    lv_label_set_text(t, LV_SYMBOL_LIST "  Menu");
-    lv_obj_align(t, LV_ALIGN_LEFT_MID, 8, 0);
-    A.cols = 3;
-    const int CELL_W = (w - 2 * pad) / A.cols, CELL_H = (h - PANE) / 3, ICON = CELL_H * 9 / 16;
+    A.menu_title = ath_text(pane, &lv_font_montserrat_16, C_WHITE);
+    lv_label_set_text(A.menu_title, LV_SYMBOL_LIST "  Menu");
+    lv_obj_align(A.menu_title, LV_ALIGN_LEFT_MID, 8, 0);
+    A.cols = ath_T->menu_cols ? ath_T->menu_cols : 3;
+    if (A.cols > 8) A.cols = 8;
+    const int CELL_W = (w - 2 * pad) / A.cols, CELL_H = (h - PANE) / 3;
+    const int ICON = ath_T->menu_dark ? (CELL_W < CELL_H ? CELL_W : CELL_H) * 5 / 8 : CELL_H * 9 / 16;
     A.grid = lv_obj_create(A.menu);
     lv_obj_remove_style_all(A.grid);
     lv_obj_set_pos(A.grid, 0, PANE);
@@ -286,7 +352,9 @@ static void build_idle_home(int w, int h) {
         if (!psys_launcher_get(i, &A.app[A.n])) continue;
         int c, r;
         if (!place(used, A.cols, 1, 1, &c, &r)) break;
-        build_tile(A.grid, c, r, pad + c * CELL_W + 2, r * CELL_H + 2, CELL_W - 4, CELL_H - 4, ICON, CELL_H / 12);
+        build_tile(A.grid, c, r, pad + c * CELL_W + 2, r * CELL_H + 2, CELL_W - 4, CELL_H - 4, ICON,
+                   ath_T->menu_dark ? (CELL_H - 4 - ICON) / 2 : CELL_H / 12);
+        if (ath_T->menu_dark) lv_obj_add_flag(lv_obj_get_child(A.tile[A.n], 1), LV_OBJ_FLAG_HIDDEN); /* no names: the title has it */
         A.n++;
     }
     if (!A.menu_open) lv_obj_add_flag(A.menu, LV_OBJ_FLAG_HIDDEN);
@@ -342,7 +410,7 @@ static void build_home(void) {
     lv_obj_set_pos(A.home, 0, BAR_H);
     lv_obj_set_size(A.home, w, h);
     lv_obj_remove_flag(A.home, LV_OBJ_FLAG_SCROLLABLE);
-    A.menu = NULL;
+    A.menu = NULL, A.menu_title = NULL;
     if (ath_T->idle_home) {
         build_idle_home(w, h);
         if (A.sel >= A.n) A.sel = 0;
@@ -517,8 +585,8 @@ static bool chrome_key(const pal_key_t *k) {
         pal_desktop_home();
         return true;
     }
-    /* the left softkey (Tab) on a screen Athena draws: Menu on the idle screen, Options everywhere else; an app keeps its Tab */
-    if (ath_T->softkeys && k->sym == PAL_KEY_TAB && !pal_shell_top(NULL) && !pal_desktop_locked() &&
+    /* the left softkey or menu key (Tab) on a screen Athena draws: Menu on the idle screen, Options everywhere else; an app keeps its Tab */
+    if ((ath_T->softkeys || ath_T->idle_home) && k->sym == PAL_KEY_TAB && !pal_shell_top(NULL) && !pal_desktop_locked() &&
         (ath_home_in_front() || ath_page_menu())) {
         if (ath_home_in_front() && !A.menu_open) ath_menu_show(true);
         else ath_open_options();
@@ -645,9 +713,18 @@ static bool key(pal_view_t *v, const pal_key_t *k) {
     (void)v;
     if (A.menu && !A.menu_open) { /* the idle screen: Enter opens the menu, Esc the recent apps */
         switch (pal_nav_of(k)) {
-        case PAL_NAV_OK: ath_menu_show(true); return true;
+        case PAL_NAV_OK:
+            if (A.nd) pal_launcher_run(&A.app[A.dsel]); /* the row: Enter opens the selected app */
+            else ath_menu_show(true);
+            return true;
         case PAL_NAV_BACK: ath_open_recents_sheet(); return true;
-        case PAL_NAV_UP: case PAL_NAV_DOWN: case PAL_NAV_LEFT: case PAL_NAV_RIGHT: return true;
+        case PAL_NAV_LEFT: case PAL_NAV_RIGHT:
+            if (A.nd) {
+                A.dsel = (A.dsel + (pal_nav_of(k) == PAL_NAV_RIGHT ? 1 : A.nd - 1)) % A.nd;
+                style_dock();
+            }
+            return true;
+        case PAL_NAV_UP: case PAL_NAV_DOWN: return true;
         default: return false;
         }
     }

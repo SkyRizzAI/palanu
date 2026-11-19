@@ -26,12 +26,16 @@ Option 3. `ath_theme_t` gains layout fields; zero is the existing behaviour, so 
 - `title_pane`: a form's title sits on a band in the pane colours.
 - `level_bars`: the status bar shows the Wi-Fi signal and the battery as bars.
 - `hl_top`, `hl_bot`, `pane_top`, `pane_bot`: the highlight and pane gradients.
+- Added with the Trackball theme (same day): `dock` (a row of the first apps along the bottom of the idle screen), `menu_cols` (the menu
+  grid's columns), `menu_dark` (the menu is icons on the wallpaper without names, the selected app's name as the title) and
+  `popup_right` (Options opens at the right edge). On a theme with `idle_home` Tab opens the menu and then Options, with or without a
+  softkey bar.
 
 The softkey bar also stays over apps, so the compositor needs to know its rows: `pal_desktop_chrome_t` gains `bottom_px` (appended; the
 area of every layer stops above it) and the display gains `pal_display_reserve_bottom`. Athena sets one of two chrome tables by theme and
 sets it again when the theme changes.
 
-The theme is named `softkey`: the phone makers' names are trademarks and the repository only names its own things. Its icons and colours
+The themes are named `softkey` and `trackball`: the phone makers' names are trademarks and the repository only names its own things. Its icons and colours
 are drawn fresh, nothing is copied.
 
 ## Consequences

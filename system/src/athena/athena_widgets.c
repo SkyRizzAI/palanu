@@ -226,6 +226,7 @@ static void calendar_tick(lv_obj_t *box, const pal_tm_t *t) {
 static struct {
     lv_obj_t *time, *date;
     int last;
+    bool long_date; /* "Wednesday, 19 November" rather than "Wednesday  19/11/2026" */
 } SC;
 
 static void idle_clock_build(lv_obj_t *box, int w, int h) {
@@ -237,6 +238,7 @@ static void idle_clock_build(lv_obj_t *box, int w, int h) {
     SC.date = label(box, &lv_font_montserrat_16, 0xDCEBFF, "");
     lv_obj_align(SC.date, LV_ALIGN_BOTTOM_LEFT, 4, 0);
     SC.last = -1;
+    SC.long_date = false;
 }
 
 static void idle_clock_tick(lv_obj_t *box, const pal_tm_t *t) {
@@ -245,7 +247,13 @@ static void idle_clock_tick(lv_obj_t *box, const pal_tm_t *t) {
     if (m == SC.last) return;
     SC.last = m;
     lv_label_set_text_fmt(SC.time, "%02d:%02d", t->hour, t->minute);
-    lv_label_set_text_fmt(SC.date, "%s  %02d/%02d/%04d", DAYS[t->wday % 7], t->day, t->month, t->year);
+    if (SC.long_date) {
+        char d[48];
+        ath_date_text(t, d, sizeof(d));
+        lv_label_set_text(SC.date, d);
+    } else {
+        lv_label_set_text_fmt(SC.date, "%s  %02d/%02d/%04d", DAYS[t->wday % 7], t->day, t->month, t->year);
+    }
 }
 
 /* ---- calendar, Softkey: a card with a title pane and this week, today on the highlight bar ---- */
@@ -253,6 +261,7 @@ static void idle_clock_tick(lv_obj_t *box, const pal_tm_t *t) {
 static struct {
     lv_obj_t *box;
     int day, w, h;
+    bool dark; /* Trackball: a dark band on the wallpaper, white numbers */
 } WC;
 
 static void week_fill(const pal_tm_t *t) {
@@ -267,6 +276,8 @@ static void week_fill(const pal_tm_t *t) {
     lv_label_set_text_fmt(ti, LV_SYMBOL_LIST "  Calendar   %s %d", MONTHS[(t->month + 11) % 12], t->year);
     lv_obj_align(ti, LV_ALIGN_LEFT_MID, 6, 0);
     int cw = (WC.w - 8) / 7, y = 22, rh = (WC.h - y - 4) / 2;
+    bool compact = rh < 17; /* too short for the letters over the numbers: "W 19" on one line */
+    if (compact) rh = WC.h - y - 4;
     int n = days_in(t->month, t->year);
     int pm = t->month == 1 ? 12 : t->month - 1, py = t->month == 1 ? t->year - 1 : t->year, np = days_in(pm, py);
     for (int c = 0; c < 7; c++) {
@@ -278,29 +289,60 @@ static void week_fill(const pal_tm_t *t) {
         if (today) {
             lv_obj_t *m = lv_obj_create(WC.box);
             lv_obj_remove_style_all(m);
-            lv_obj_set_size(m, cw - 2, rh * 2);
+            lv_obj_set_size(m, cw - 2, compact ? rh : rh * 2);
             lv_obj_set_pos(m, x + 1, y);
             lv_obj_set_style_radius(m, 3, 0);
             lv_obj_set_style_bg_opa(m, LV_OPA_COVER, 0);
             ath_focus_bg(m, true, lv_color_hex(0xFFFFFF));
         }
-        lv_obj_t *h = label(WC.box, &lv_font_montserrat_12, today ? 0xFFFFFF : 0x5B6573, HDR[c]);
-        lv_obj_set_width(h, cw);
-        lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(h, x, y + 2);
+        lv_obj_t *h = label(WC.box, &lv_font_montserrat_12, today ? 0xFFFFFF : WC.dark ? 0xA9B4C2 : 0x5B6573, HDR[c]);
+        if (compact) {
+            lv_obj_set_pos(h, x + 6, y + (rh - 12) / 2);
+        } else {
+            lv_obj_set_width(h, cw);
+            lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_pos(h, x, y + 2);
+        }
         char num[4];
         snprintf(num, sizeof(num), "%d", shown);
-        lv_obj_t *l = label(WC.box, &lv_font_montserrat_16, today ? 0xFFFFFF : out ? 0x9AA5B4 : 0x12161C, num);
-        lv_obj_set_width(l, cw);
-        lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(l, x, y + rh);
+        uint32_t ink = WC.dark ? (out ? 0x7D8796 : 0xFFFFFF) : (out ? 0x9AA5B4 : 0x12161C);
+        lv_obj_t *l = label(WC.box, &lv_font_montserrat_16, today ? 0xFFFFFF : ink, num);
+        if (compact) {
+            lv_obj_set_width(l, cw - 8);
+            lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
+            lv_obj_set_pos(l, x + 2, y + (rh - 16) / 2);
+        } else {
+            lv_obj_set_width(l, cw);
+            lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_pos(l, x, y + rh);
+        }
     }
 }
 
 static void week_build(lv_obj_t *box, int w, int h) {
-    WC.box = box, WC.w = w, WC.h = h, WC.day = -1;
+    WC.box = box, WC.w = w, WC.h = h, WC.day = -1, WC.dark = false;
     box_style(box, 0xFFFFFF, 4);
     lv_obj_set_style_bg_opa(box, LV_OPA_90, 0);
+}
+
+static void week_dark_build(lv_obj_t *box, int w, int h) {
+    WC.box = box, WC.w = w, WC.h = h, WC.day = -1, WC.dark = true;
+    box_style(box, 0x000000, 3);
+    lv_obj_set_style_bg_opa(box, LV_OPA_50, 0);
+}
+
+/* ---- clock, Trackball: the time large at the top left, the date under it, the system's name on the right ---- */
+
+static void tb_clock_build(lv_obj_t *box, int w, int h) {
+    (void)w, (void)h;
+    SC.time = label(box, &lv_font_montserrat_48, 0xFFFFFF, "");
+    lv_obj_set_pos(SC.time, 2, 0);
+    SC.date = label(box, &lv_font_montserrat_16, 0xC9D6E6, "");
+    lv_obj_set_pos(SC.date, 4, 52);
+    lv_obj_t *op = label(box, &lv_font_montserrat_12, 0xC9D6E6, "PalanuOS");
+    lv_obj_align(op, LV_ALIGN_TOP_RIGHT, -2, 6);
+    SC.last = -1;
+    SC.long_date = true;
 }
 
 static void week_tick(lv_obj_t *box, const pal_tm_t *t) {
@@ -317,6 +359,8 @@ static const ath_widget_t WIDGETS[] = {
     {.id = "calendar", .style = "material", .cols = 3, .rows = 2, .build = cal_material_build, .tick = calendar_tick},
     {.id = "clock", .style = "softkey", .cols = 5, .rows = 3, .build = idle_clock_build, .tick = idle_clock_tick},
     {.id = "calendar", .style = "softkey", .cols = 5, .rows = 2, .build = week_build, .tick = week_tick},
+    {.id = "clock", .style = "trackball", .cols = 5, .rows = 3, .build = tb_clock_build, .tick = idle_clock_tick},
+    {.id = "calendar", .style = "trackball", .cols = 5, .rows = 2, .build = week_dark_build, .tick = week_tick},
 };
 
 /* The widget id's variant for the running theme: one for that theme, else one for every theme. */

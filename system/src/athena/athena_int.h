@@ -52,6 +52,10 @@ typedef struct {
     bool idle_home;  /* the home is an idle screen (the widgets); the apps are in a menu grid it opens */
     bool title_pane; /* a page's title sits on a band in the pane colours */
     bool level_bars; /* the status bar shows the signal and the battery as rising bars */
+    uint8_t dock;      /* idle_home: a row of the first apps along the bottom of the idle screen, this many (0: none) */
+    uint8_t menu_cols; /* idle_home: the menu grid's columns (0: 3) */
+    bool menu_dark;    /* idle_home: the menu is icons on the wallpaper, no names; the selected app's name is the title */
+    bool popup_right;  /* Options opens at the right edge (otherwise above the left softkey) */
 } ath_theme_t;
 
 extern const ath_theme_t *ath_T;
@@ -84,7 +88,10 @@ typedef struct {
     /* home */
     lv_obj_t *home, *grid;
     lv_obj_t *menu;  /* idle_home: the app menu (a title pane over the grid); hidden on the idle screen */
+    lv_obj_t *menu_title;
     bool menu_open;
+    lv_obj_t *dock, *dock_name, *dtile[8]; /* the idle screen's row of apps (ath_theme_t.dock) */
+    int nd, dsel;
     lv_obj_t *wbox[MAX_WIDGETS];
     const struct ath_widget *wdef[MAX_WIDGETS];
     int nw;

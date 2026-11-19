@@ -79,7 +79,8 @@ void ath_open_options(void) {
     A.row_sel = 0;
     const int RH = 22, W = A.w * 3 / 5, H = n * RH + 6;
     lv_obj_set_size(A.sheet, W, H);
-    lv_obj_set_pos(A.sheet, 2, A.h - ath_bottom() - H - 2);
+    if (ath_T->popup_right) lv_obj_set_pos(A.sheet, A.w - W - 4, A.h - H - 6); /* at the right edge, near the trackpad */
+    else lv_obj_set_pos(A.sheet, 2, A.h - ath_bottom() - H - 2);
     lv_obj_set_style_border_width(A.sheet, 1, 0);
     lv_obj_set_style_border_color(A.sheet, lv_color_hex(ath_T->pane_bot), 0);
     for (int i = 0; i < n; i++) {

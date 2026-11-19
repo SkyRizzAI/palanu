@@ -166,7 +166,10 @@ gradients). Three ship: **Cupertino** (the default: centred titles, round corner
 (flat, small radii, round icons, left-aligned titles, upper-case buttons, edge-to-edge lists, a teal accent) and **Softkey** (the
 feature-phone way: a softkey bar at the bottom of every screen with Options on Tab, the Enter action in the middle and Back on Esc; an
 idle home with the clock and this week's calendar that opens a menu grid of the apps; titles on a blue pane; a gradient highlight bar
-and the signal and battery as bars). The choice is the `athena.theme` setting (`cupertino`, `material` or `softkey`); Athena follows a
+and the signal and battery as bars) and **Trackball** (the older keyboard-phone way: no softkeys, a dark title bar, an idle home with the
+clock, this week on one line and a row of five apps along the bottom with the selected one's name above it; Tab, the menu key, opens a
+grid of five columns of icons on the wallpaper with the selected app's name as the title, and Tab again pops Options up at the right
+edge). The choice is the `athena.theme` setting (`cupertino`, `material`, `softkey` or `trackball`); Athena follows a
 change within a second by building its objects again. A classic theme only swaps colour tokens; an Athena theme also changes shapes and layout rules, which
 costs a rebuild of the objects, nothing more.
 
@@ -184,6 +187,6 @@ of the panel (in PSRAM) in direct mode.
 Built into the firmware and both simulators. Cost on hhv2: about 400 KB of flash (the image is 91% of the OTA slot), no internal RAM
 beyond a few hundred bytes (the pool, the frame and its state are in PSRAM), and the desktop task's stack went from 6 to 8 KB.
 
-Golden scenes: `athena-softkey-home`, `athena-softkey-menu`, `athena-softkey-options`, `athena-softkey-settings`, `athena-softkey-app`,
+Golden scenes: `athena-trackball-home`, `athena-trackball-menu`, `athena-trackball-options`, `athena-trackball-settings`, `athena-softkey-home`, `athena-softkey-menu`, `athena-softkey-options`, `athena-softkey-settings`, `athena-softkey-app`,
 `athena-home`, `athena-select`, `athena-settings`, `athena-settings-display`, `athena-keyboard`, `athena-recents`, `athena-app`, `console-shell`
 (`forge/tools/golden-scenes.json`). Unit test: `tests/unit/test_desktops.c` (the registry and the console's hand-off).
