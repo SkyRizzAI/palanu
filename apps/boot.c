@@ -9,6 +9,7 @@
 #include "pal/bootcount.h"
 #include "pal/link.h"
 #include "pal/papp.h"
+#include "pal/power.h"
 #include "pal/perf.h"
 #include "pal/radio.h"
 #include "pal/registry.h"
@@ -182,6 +183,7 @@ void pal_boot(const pal_boot_cfg_t *cfg) {
     pal_svc_register_radio_link();
     if (desktop_up) pal_svc_register_desktop();
     if (cfg->platform_services) cfg->platform_services();
+    (void)pal_power_apply(psys_settings_int("power.profile", PAL_POWER_BALANCED)); /* the stored profile, now the board's ops exist */
     if (safe) {
         NEMA_LOGE("boot", "*** SAFE MODE ***  %lu boot attempts without reaching ready", (unsigned long)psys_bootcount_value());
         NEMA_LOGE("boot", "only core services run; installed apps are not scanned; `safemode off` clears it");

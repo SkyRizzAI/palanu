@@ -10,6 +10,7 @@
 #include "pal/board.h"
 #include "pal/notify.h"
 #include "pal/theme.h"
+#include "pal/power.h"
 #include "settings_int.h"
 
 /* ---- Notifications ---- */
@@ -169,6 +170,11 @@ static void volt_text(void *ctx, char *out, size_t cap) {
 
 static pal_menu_row_t POWER_STORE[8] NEMA_EXT_BSS;
 
+static void power_now_text(void *ctx, char *out, size_t cap) {
+    (void)ctx;
+    pal_power_describe(out, cap);
+}
+
 static void build_power(pal_menu_page_t *p) {
     pal_menu_clear(p);
     pal_menu_row_t r = {.kind = PAL_MENU_SECTION, .label = "Battery"};
@@ -180,12 +186,13 @@ static void build_power(pal_menu_page_t *p) {
         r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "No battery driver"};
         pal_menu_add(p, &r);
     }
-    /* hidden until a power service applies it: the profile is stored and nothing reads it (docs/RELEASE.md) */
-    r = (pal_menu_row_t){.kind = PAL_MENU_SECTION, .label = "Profile", .hidden = true};
+    r = (pal_menu_row_t){.kind = PAL_MENU_SECTION, .label = "Profile"};
     pal_menu_add(p, &r);
     r = (pal_menu_row_t){.kind = PAL_MENU_CHOICE, .label = "Power profile", .icon = "power", .ctx = (void *)&MAP_PROFILE,
-                         .choices = PROFILE_LABELS, .get = settings_map_get, .set = settings_map_set, .hidden = true,
-                         .hint = "Stored now; the power service applies it later"};
+                         .choices = PROFILE_LABELS, .get = settings_map_get, .set = settings_map_set,
+                         .hint = "Performance: full speed; Balanced: slows when idle; Saver: half speed at most"};
+    pal_menu_add(p, &r);
+    r = (pal_menu_row_t){.kind = PAL_MENU_INFO, .label = "Now", .text = power_now_text, .inert = true};
     pal_menu_add(p, &r);
 }
 

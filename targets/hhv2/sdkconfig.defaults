@@ -28,6 +28,9 @@ CONFIG_MBEDTLS_SSL_RENEGOTIATION=n
 # libssh needs termios declarations (it only uses them for an interactive password helper we do not call)
 CONFIG_VFS_SUPPORT_TERMIOS=y
 
+# Power profiles (pal/power.h): dynamic CPU frequency through esp_pm; no light sleep yet
+CONFIG_PM_ENABLE=y
+
 # Diagnostics used by top: per-task runtime statistics
 CONFIG_FREERTOS_USE_TRACE_FACILITY=y
 CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y

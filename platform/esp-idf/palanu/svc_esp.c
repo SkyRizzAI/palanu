@@ -35,7 +35,10 @@ static void add(const psys_svc_builtin_t *b) {
     if (psys_svc_register_builtin(b) != NEMA_OK) NEMA_LOGE("svc", "built-in %s not registered", b->id);
 }
 
+void pal_power_esp_register(void); /* power_esp.c */
+
 void pal_esp_register_services(void) {
+    pal_power_esp_register(); /* power profiles: the CPU frequency policy */
     pal_radio_esp_init();    /* radio ops and the Wi-Fi address hook */
     pal_ota_esp_start();     /* firmware update ops and the health check's ops */
 

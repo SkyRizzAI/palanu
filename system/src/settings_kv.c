@@ -13,6 +13,7 @@
 #include "pal/desktop.h"
 #include "pal/input.h"
 #include "pal/kui.h"
+#include "pal/power.h"
 #include "pal/settings.h"
 
 #define TEXT_MAX 24 /* profile.user: characters, NUL included */
@@ -39,6 +40,11 @@ static void apply_repeat(const char *name, int32_t v) {
     if (!strcmp(name, "input.repeat_delay")) delay = (uint32_t)v;
     else rate = (uint32_t)v;
     pal_input_set_repeat(delay, rate);
+}
+
+static void apply_power(const char *name, int32_t v) {
+    (void)name;
+    (void)pal_power_apply((int)v);
 }
 
 static void apply_log(const char *name, int32_t v) {
@@ -70,7 +76,7 @@ static const kv_def_t DEFS[] = {
     {"notify.beep", KV_BOOL, 0, 1, NULL, 1, NULL, NULL},
     {"input.repeat_delay", KV_INT, 120, 1000, NULL, 420, NULL, apply_repeat},
     {"input.repeat_rate", KV_INT, 20, 200, NULL, 55, NULL, apply_repeat},
-    {"power.profile", KV_CHOICE, 0, 2, PROFILE_NAMES, 1, NULL, NULL},
+    {"power.profile", KV_CHOICE, 0, 2, PROFILE_NAMES, 1, NULL, apply_power}, /* applied at once and at boot (pal/power.h) */
     {"dev.mode", KV_BOOL, 0, 1, NULL, PSYS_DEV_MODE_DEFAULT, NULL, NULL}, /* the default trust.c reads too (trust.h) */
     {"log.level", KV_CHOICE, 0, 3, LOG_NAMES, 2, NULL, apply_log},
     {"boot.target", KV_CHOICE, 0, 1, TARGET_NAMES, 0, NULL, NULL},

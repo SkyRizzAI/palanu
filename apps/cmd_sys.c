@@ -5,6 +5,7 @@
 
 #include "libapp.h"
 #include "builtin.h"
+#include "pal/power.h"
 #include "pal/board.h"
 #include "pal/desktop.h"
 #include "pal/display.h"
@@ -287,6 +288,21 @@ static int cmd_lock(int argc, char **argv) {
     return 0;
 }
 
+/* power [performance|balanced|saver]: the profile now, or set it (stored, applied at once). */
+static int cmd_power(int argc, char **argv) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "performance") && strcmp(argv[1], "balanced") && strcmp(argv[1], "saver")) {
+            pal_eprintf("usage: power [performance | balanced | saver]\n");
+            return 2;
+        }
+        if (psys_settings_set("power.profile", argv[1]) != 0) return 1;
+    }
+    char d[64];
+    pal_power_describe(d, sizeof(d));
+    pal_printf("%s\n", d);
+    return 0;
+}
+
 static const nema_app_t SYS_APPS[] = {
     APP("true", "succeed", cmd_true, 0),           APP("false", "fail", cmd_false, 0),
     APP("free", "memory by owner", cmd_free, 0),    APP("ps", "list processes", cmd_ps, 0),
@@ -296,6 +312,7 @@ static const nema_app_t SYS_APPS[] = {
     APP("kill", "signal a process", cmd_kill, 0),  APP("beep", "sound the buzzer", cmd_beep, 0), APP("battery", "supply voltage and charge", cmd_battery, 0),
     APP("rgb", "set the RGB LED", cmd_rgb, 0),     APP("reboot", "restart the board", cmd_reboot, 0),
     APP("lock", "lock the screen now", cmd_lock, 0),
+    APP("power", "the power profile: performance, balanced or saver", cmd_power, 0),
     APP("theme", "show or change the theme", cmd_theme, 0), APP("brightness", "backlight percent", cmd_brightness, 0),
     {"flushes", "display flush count", cmd_flushes, 0, NEMA_APP_HIDDEN},
     {"setting", "set a settings key (dev: golden scenes)", cmd_setting, 0, NEMA_APP_HIDDEN},
