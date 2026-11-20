@@ -60,5 +60,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@v2
-        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      # The gitleaks CLI (MIT): gitleaks-action needs a registered license on an organization's repositories. The binary is
+      # checked against the release's SHA-256 before it runs. A push scans its own commits, a PR the commits it adds.
+      - name: Scan the new commits for secrets
+        env:
+          GITLEAKS: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          curl -sSfLo gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS}/gitleaks_${GITLEAKS}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          if [ -n "$BASE" ]; then range="origin/$BASE..HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then range="$BEFORE..HEAD"
+          else range="HEAD"; fi
+          echo "scanning $range"
+          ./gitleaks git --redact --verbose --exit-code 1 --log-opts="--no-merges $range" .
