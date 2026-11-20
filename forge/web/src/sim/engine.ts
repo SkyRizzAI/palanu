@@ -12,13 +12,14 @@ export class Engine {
   onLine: (text: string, err: boolean) => void = () => {};
 
   /** Loads the module, mounts the persistent /data, and starts the OS with the boot-time hardware options. */
-  static async boot(cfg: Config, onLine: (t: string, err: boolean) => void, onStage: (s: string) => void): Promise<Engine> {
+  /** base: the folder of palanu-web.js and .wasm ("" next to the page, "sim/0.10.0/" for a release on Pages). */
+  static async boot(cfg: Config, onLine: (t: string, err: boolean) => void, onStage: (s: string) => void, base = ""): Promise<Engine> {
     const e = new Engine();
     e.onLine = onLine;
     onStage("Loading the system");
     await new Promise<void>((ok, bad) => {
       const s = document.createElement("script");
-      s.src = "palanu-web.js";
+      s.src = base + "palanu-web.js";
       s.onload = () => ok();
       s.onerror = () => bad(new Error("palanu-web.js not found: build it with ./pal web (needs the Emscripten build, see docs/SIMULATOR.md)"));
       document.head.append(s);
@@ -26,7 +27,8 @@ export class Engine {
     e.M = await (window as any).PalanuModule({
       print: (t: string) => e.onLine(t, false),
       printErr: (t: string) => e.onLine(t, true),
-      locateFile: (p: string) => p,
+      locateFile: (p: string) => base + p,
+      mainScriptUrlOrBlob: base + "palanu-web.js", /* the workers load the same script */
       noInitialRun: true,
       preRun: [(M: any) => {
         M.FS.mkdir("/data");

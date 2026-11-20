@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // `./pal release`: cut a PalanuOS release. Nothing is pushed or published: it makes a commit, a local tag and the files.
 //
-//   ./pal release --version 0.9.1 [--board /dev/cu.usbserial-10] [--skip-golden] [--dry-run]
-//   ./pal release --bump patch|minor|major
+//   ./pal release [--board /dev/cu.usbserial-10] [--skip-golden] [--dry-run]   the version from the commits (forge/tools/version.ts)
+//   ./pal release --version 0.9.1 | --bump patch|minor|major                   only to override it
 //
 // Gates, in this order, each stopping the release at its first failure:
 //   1. a clean git tree on the main branch (untracked files are ignored)
@@ -16,6 +16,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
+import { plan, writeVersion } from "./version.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const OTA_SLOT = 0x400000; /* partitions: ota_0 and ota_1 are 4 MB each */
@@ -37,6 +38,7 @@ const step = (m: string) => console.log(`\n== ${m}`);
 /* ---- version ---- */
 
 const current = readFileSync(join(ROOT, "VERSION"), "utf8").trim();
+const planned = plan(); /* the version and the changelog from Conventional Commits (ADR-0022) */
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.-]+)?$/;
 
 function nextVersion(): string {
@@ -44,7 +46,8 @@ function nextVersion(): string {
   if (v) return SEMVER.test(v) ? v : fail(`"${v}" is not a semantic version (1.2.3 or 1.2.3-rc.1)`);
   const b = opt("--bump");
   const m = SEMVER.exec(current);
-  if (!b || !m) return fail("give --version X.Y.Z or --bump patch|minor|major");
+  if (!b) return planned.next || fail(`nothing to release: no feat, fix, perf or breaking commit since ${planned.base || "the start"}`);
+  if (!m) return fail(`VERSION "${current}" is not a semantic version`);
   let [maj, min, pat] = [Number(m[1]), Number(m[2]), Number(m[3])];
   if (b === "major") [maj, min, pat] = [maj + 1, 0, 0];
   else if (b === "minor") [min, pat] = [min + 1, 0];
@@ -96,26 +99,9 @@ if (dry) {
 /* ---- the files ---- */
 
 step("version, changelog");
-const last = git("describe --tags --abbrev=0 --match 'v*'");
-const range = last ? `${last}..HEAD` : "HEAD";
-const subjects = git(`log ${range} --no-merges --pretty=%s`).split("\n").filter(Boolean);
-const area = (s: string) => /^(Fix|fix)/.test(s) ? "Fixes" : /^(Web Forge|Terminal|Menus|Notification|UI scale|Settings|Legend|microSD|Shell|ssh|Wi-Fi)/i.test(s) ? "Features" : "Changes";
-const groups: Record<string, string[]> = { Features: [], Fixes: [], Changes: [] };
-for (const s of subjects) groups[area(s)].push(s);
+writeVersion(version, planned.commits);
+console.log(`${planned.commits.length} commits since ${planned.base || "the start"} (a section already in CHANGELOG.md is kept as written)`);
 const date = new Date().toISOString().slice(0, 10);
-let entry = `## ${version} (${date})\n\n`;
-for (const [g, items] of Object.entries(groups)) if (items.length) entry += `### ${g}\n\n${items.map((i) => `- ${i}`).join("\n")}\n\n`;
-const clPath = join(ROOT, "CHANGELOG.md");
-const old = existsSync(clPath) ? readFileSync(clPath, "utf8") : "# Changelog\n\nPalanuOS releases, newest first. `./pal release` writes each section from the commit subjects since the last tag.\n\n";
-const head = old.split("\n## ")[0].replace(/\s*$/, "\n\n");
-const rest = old.includes("\n## ") ? "## " + old.split("\n## ").slice(1).join("\n## ") : "";
-/* A section for this version that is already there was written by hand (the first release is curated): keep it. */
-const curated = new RegExp(`^## ${version.replace(/\./g, "\\.")}( |$)`, "m").test(old);
-if (curated) console.log(`CHANGELOG.md already has a ${version} section: kept as written`);
-else writeFileSync(clPath, head + entry + rest);
-writeFileSync(join(ROOT, "VERSION"), version + "\n");
-writeFileSync(join(ROOT, "system/include/pal/version.h"), readFileSync(join(ROOT, "system/include/pal/version.h"), "utf8").replace(/PAL_OS_VERSION "[^"]*"/, `PAL_OS_VERSION "${version}"`));
-console.log(`${subjects.length} commits since ${last || "the start"}`);
 
 step("rebuild with the version, web console, artifacts");
 if (sh("PAL_RELEASE=1 bun forge/tools/pal.ts build").code) fail("the rebuild failed");
@@ -146,5 +132,5 @@ if (!relKey) console.log("store/index.txt is not signed: set PALANU_RELEASE_KEY 
 
 step("commit and tag (local; nothing is pushed)");
 /* The commit only when the files changed: a version that was already written by hand (0.9.0) leaves nothing to commit, and the tag then goes on HEAD. */
-if (sh(`git add VERSION CHANGELOG.md system/include/pal/version.h store/index.txt && (test ! -f store/index.txt.sig || git add store/index.txt.sig) && (git diff --cached --quiet || git commit -q -m "Release ${version}") && git tag -a v${version} -m "PalanuOS ${version}"`).code) fail("the commit or the tag failed");
+if (sh(`git add VERSION CHANGELOG.md system/include/pal/version.h store/index.txt && (test ! -f store/index.txt.sig || git add store/index.txt.sig) && (git diff --cached --quiet || git commit -q -m "chore(release): v${version}") && git tag -a v${version} -m "PalanuOS ${version}"`).code) fail("the commit or the tag failed");
 console.log(`\nreleased ${version}: commit and tag v${version} are local. Push them yourself when you decide to publish.`);

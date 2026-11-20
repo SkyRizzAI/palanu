@@ -57,6 +57,7 @@
               <button id="start-sim" type="button" class="btn solid px">START SIMULATOR</button>
               <button id="open-connect" type="button" class="btn px">CONNECT REMOTE</button>
             </div>
+            <label class="off-fw"><span class="px">SIM FIRMWARE</span><select id="sim-fw" aria-label="Simulator build"></select></label>
             <p id="sim-note" class="off-note"></p>
           </div>
         </div>
@@ -166,7 +167,7 @@
     </section>
     <section class="box card only-sim">
       <h2 class="px">SIMULATOR</h2>
-      <dl class="kv"><dt>Frames</dt><dd id="p-frames">0</dd><dt>Frame rate</dt><dd id="p-fps">0</dd><dt>Uptime</dt><dd id="p-up">0 s</dd><dt>Isolation</dt><dd id="p-iso">?</dd></dl>
+      <dl class="kv"><dt>Build</dt><dd id="p-build">?</dd><dt>Frames</dt><dd id="p-frames">0</dd><dt>Frame rate</dt><dd id="p-fps">0</dd><dt>Uptime</dt><dd id="p-up">0 s</dd><dt>Isolation</dt><dd id="p-iso">?</dd></dl>
       <p class="muted">The same C code as on the board, built to WebAssembly. Its files are kept in this browser.</p>
       <button id="erase" type="button" class="btn rose px">ERASE SIMULATOR DATA</button>
     </section>
@@ -177,6 +178,7 @@
 <main class="sec" data-sec="setup" hidden>
   <div class="setup">
     <nav class="cats" aria-label="Simulator settings">
+      <button type="button" data-cat="firmware"><b class="px">FIRMWARE</b><span>which build to start</span></button>
       <button type="button" data-cat="screen"><b class="px">SCREEN</b><span>panel, size, look</span></button>
       <button type="button" data-cat="wifi"><b class="px">WI-FI</b><span>networks the scan finds</span></button>
       <button type="button" data-cat="net"><b class="px">INTERNET</b><span>the socket bridge</span></button>
@@ -187,7 +189,13 @@
     </nav>
 
     <div class="catpanes">
-      <section class="box cat" data-catp="screen">
+      <section class="box cat" data-catp="firmware" hidden>
+        <h2 class="px">FIRMWARE</h2>
+        <p class="muted">The simulator builds this page offers: each release, and the build of the main branch (dev). The simulator's files stay when you change build, as a board keeps its data through an update. Development builds: not signed yet.</p>
+        <div id="fw-list" class="builds"></div>
+      </section>
+
+      <section class="box cat" data-catp="screen" hidden>
         <h2 class="px">SCREEN</h2>
         <div class="set">
           <div class="lbl">Panel<small>Read when the system starts</small></div>

@@ -37,6 +37,7 @@ Settings grouped like the device's own Settings, a list on the left and one pane
 
 | Group | What you can change |
 | --- | --- |
+| **Firmware** | which build starts: the one next to the page (`./pal web`), or on GitHub Pages each release and the build of `main` (dev), from `firmware.json`; unsigned for now (ADR-0022) |
 | **Screen** | the panel's resolution (presets or WIDTHxHEIGHT, 64x48 up to 320x240, applied at restart; the system lays itself out for it), size (fit or 1x to 4x), brightness, smooth or crisp pixels, pixel grid, grayscale, inverted colours, the board frame |
 | **Wi-Fi** | the radio and link state, the device's address, the networks a scan finds as cards (name, signal with bars, channel, secure, password), "every connect fails", dropping the link |
 | **Internet** | the network bridge: Direct, Proxy (with its URL) or Off |

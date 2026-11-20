@@ -17,6 +17,14 @@ isolation (COOP and COEP, for the simulator's workers), the repository's catalog
 simulator's bridge. `/sim/` (the old simulator page) leads to `/`. localhost counts as a secure context, which Web Serial and Web
 Bluetooth require.
 
+## On GitHub Pages
+
+`.github/workflows/pages.yml` deploys the page on every push to `main` (ADR-0022), with the catalogue and the simulators: the
+build of `main` (dev) and of the last ten releases, listed in `firmware.json`. The idle screen's **Sim firmware** and Simulator >
+**Firmware** pick one; the choice is remembered, and the simulator's files stay across builds. Builds are unsigned for now. Pages
+cannot send the isolation headers, so the first start registers `coi-sw.js` and reloads once. From an https page only USB and
+Bluetooth reach a board (browsers block `ws://`). `bun forge/web/site.ts --out _site` assembles the same site locally.
+
 ## The page
 
 - **Header**: the device chip (name, transport, a state dot; click it to connect or to see System), and Device, Store and Install.
@@ -28,7 +36,7 @@ Bluetooth require.
 - **Files**: browse, download, upload, new folder, rename, delete, edit a text file in place, install a `.papp`.
 - **System**: the device's info and ping; for a board, pairing (Forget) and firmware update; for the simulator, frames, uptime
   and Erase simulator data.
-- **Simulator**: the simulator's settings, grouped like the device's Settings (`docs/SIMULATOR.md`). Hidden while a board is connected.
+- **Simulator**: the simulator's settings, grouped like the device's Settings, and Firmware, the build to start (`docs/SIMULATOR.md`). Hidden while a board is connected.
 - **Store**: a catalogue (`index.txt`, `docs/STORE.md`) read by the browser; Install downloads the package, checks its SHA-256,
   writes it to `/tmp` and installs it over the link, on a board or the simulator. The address is remembered; `./pal web` offers its
   own `/store/` first.

@@ -5,19 +5,44 @@ The current version is in `VERSION` (and `system/include/pal/version.h`, `CHANGE
 
 ## 1. Making a release
 
+**The usual way: merge the release PR** (ADR-0022). Every push to `main` makes `.github/workflows/release.yml` compute the next
+version from the commits since the last tag and open or update the PR "chore(release): vX.Y.Z" (`VERSION`, `version.h`, a
+`CHANGELOG.md` section). Edit the changelog in the PR if you want; merging it is the release. The workflow then runs `./pal check`
+and the tests, builds the simulator, tags `vX.Y.Z`, publishes the GitHub Release (`palanu-sim-vX.Y.Z.tar.gz`,
+`web-forge-vX.Y.Z.html`, `SHA256SUMS`) and deploys Pages again, so Web Forge offers that simulator. **The builds are unsigned**
+(development) until the release key and secure boot are decided (section 7).
+
+The version rules (`forge/tools/version.ts`, tested by `version.test.ts`), while PalanuOS is 0.x:
+
+| Commits since the last tag | Next version from 0.9.0 |
+| --- | --- |
+| only `docs`, `test`, `ci`, `build`, `chore`, `refactor`, `style` | no release |
+| a `fix`, `perf` or `revert` | 0.9.1 |
+| a `feat`, or any breaking change (`feat!:`, a `BREAKING CHANGE:` footer) | 0.10.0 |
+
+From 1.0, a breaking change raises the major. `bun forge/tools/version.ts next` shows what the next release would be.
+
+**GitHub Pages** (`.github/workflows/pages.yml`) deploys on every push to `main`: Web Forge, the catalogue, the simulator of
+`main` (dev) and of the last ten releases, and `firmware.json` (`forge/web/site.ts`). GitHub's release downloads cannot be
+fetched by a page (no CORS header), so the site carries its own copies. Settings once: Pages > Source "GitHub Actions"; Actions >
+General > "Allow GitHub Actions to create and approve pull requests".
+
+**From this computer, with the board gates:**
+
 ```
-./pal release --version 0.9.1 --board /dev/cu.usbserial-10      # real release: all gates, board attached
-./pal release --bump patch --dry-run --skip-golden               # rehearsal: no files, no commit
+./pal release --board /dev/cu.usbserial-10      # real release: all gates, board attached; the version from the commits
+./pal release --dry-run --skip-golden           # rehearsal: no files, no commit
+./pal release --version 0.9.1 | --bump patch    # only to override the computed version
 ```
 
 The gates, in order, stopping at the first failure: (1) git tree clean on `main`; (2) `./pal check`; (3) host tests and golden
 images; (4) the **release** build (`PAL_RELEASE=1`), the internal RAM budget (`forge/tools/ramcheck.ts`), and the image size against the 4 MB
 OTA slot (warning at 85%, failure at 95%); (5) with `--board`: the release image is flashed to the board and then the smoke tour runs (section 4).
 
-The output: `VERSION`, `version.h` and `CHANGELOG.md` (a new section from the commit subjects since the last tag), `dist/release/`
-(`palanuos-X-hhv2.bin`, `web-forge-X.html`, `SHA256SUMS-X`, `release-X.json`), one "Release X" commit, and the tag `vX`.
+The output: `VERSION`, `version.h` and `CHANGELOG.md` (the same section the release PR would write), `dist/release/`
+(`palanuos-X-hhv2.bin`, `web-forge-X.html`, `SHA256SUMS-X`, `release-X.json`), one "chore(release): vX" commit, and the tag `vX`.
 **Nothing is pushed or published**: that decision is yours. The update package is that `.bin` (`palanu ota`, Web Forge >
-Device > Firmware update, or `./pal flash`). The release also adds the image to `store/index.txt` as `firmware:hhv2`, pointing at
+System > Firmware update, or `./pal flash`). The release also adds the image to `store/index.txt` as `firmware:hhv2`, pointing at
 `https://github.com/<repo>/releases/download/vX/palanuos-X-hhv2.bin`, so devices can `update` once the tag and that file are
 published (ADR-0016). With `PALANU_RELEASE_KEY=/path/release.key` the list is signed (`store/index.txt.sig`).
 
@@ -117,7 +142,8 @@ degrees would need portrait layouts for both desktops and are not offered.
 3. Secure boot and flash encryption: yes or no, and when (irreversible).
 4. Trying Web Forge over USB and Bluetooth in Chrome with a real board.
 5. Trying SSH again (echo, Ctrl-C, Ctrl-D) after today's fix.
-6. Publishing: `./pal release ...` makes a local tag; pushing and putting `dist/release/` at a download location is your step.
+6. Publishing: push `main` (with the workflows), switch Pages to "GitHub Actions" and allow Actions to open PRs; then each
+   release is the merge of its release PR. The board's firmware is not built by CI yet: `./pal release` builds it here.
 7. The release key (ADR-0016): make it with `palanu keygen`, keep the file offline, and add its public line to
    `system/src/release_keys.h`. Until then the catalogue is unsigned and a device updates its system from it only in developer mode.
 8. Room in the update slot: the image is at 87.2% (warning at 85%). Either build for size (`CONFIG_COMPILER_OPTIMIZATION_SIZE`,

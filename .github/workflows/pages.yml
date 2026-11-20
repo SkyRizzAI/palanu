@@ -1,0 +1,57 @@
+# Web Forge on GitHub Pages (ADR-0022): the page, the catalogue, the simulator built from main ("dev") and the simulator of each
+# of the last ten releases, all on one origin (a page cannot fetch GitHub release downloads: they send no CORS header).
+# Repository settings: Pages > Build and deployment > Source: GitHub Actions.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call: # the release workflow deploys again once its release exists
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - uses: mymindstorm/setup-emsdk@v14
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+      - run: bun install --frozen-lockfile
+      - name: Build the system for the browser
+        run: emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
+      - name: Build Web Forge
+        run: bun forge/web/build.ts
+      - name: Fetch the released simulators
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p rel
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 10 --json tagName,publishedAt,isPrerelease,isDraft > rel/releases.json
+          for tag in $(jq -r '.[] | select(.isDraft | not) | .tagName' rel/releases.json); do
+            mkdir -p "rel/$tag"
+            if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'palanu-sim-*.tar.gz' --dir "rel/$tag"; then
+              tar -xzf "rel/$tag"/palanu-sim-*.tar.gz -C "rel/$tag"
+            fi
+          done
+      - name: Assemble the site
+        run: bun forge/web/site.ts --out _site --releases rel --commit "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

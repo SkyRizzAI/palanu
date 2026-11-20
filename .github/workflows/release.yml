@@ -1,0 +1,129 @@
+# Releases from Conventional Commits (ADR-0022, docs/RELEASE.md).
+#
+# Every push to main does one of two things:
+#   - VERSION names a version without a tag, written by a merged release PR: test, build the simulator, tag vX.Y.Z, publish the
+#     GitHub Release (unsigned development builds for now), and deploy Pages again so Web Forge offers it.
+#   - otherwise: compute the next version from the commits since the last tag (forge/tools/version.ts) and open or update the
+#     release PR "chore(release): vX.Y.Z" (VERSION, version.h, CHANGELOG.md). Merging it is the owner's decision to release.
+# Repository settings: Actions > General > "Allow GitHub Actions to create and approve pull requests".
+name: release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - id: plan
+        run: |
+          v=$(cat VERSION)
+          last=$(git log -1 --format=%s -- VERSION)
+          if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then publish=false
+          elif echo "$last" | grep -Eq "^chore\(release\): v${v//./\\.}( |$)"; then publish=true
+          else publish=false; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "VERSION $v, last written by: $last -> publish=$publish"
+
+  release-pr:
+    needs: plan
+    if: needs.plan.outputs.publish == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: oven-sh/setup-bun@v2
+      - name: Open or update the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          next=$(bun forge/tools/version.ts prepare)
+          if [ -z "$next" ]; then echo "nothing to release (no feat, fix, perf or breaking commit since the last tag)"; exit 0; fi
+          bun forge/tools/version.ts notes "$next" > notes.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C release/next
+          git add VERSION CHANGELOG.md system/include/pal/version.h
+          git commit -q -m "chore(release): v$next"
+          git push -f origin release/next
+          {
+            echo "Merging this releases **PalanuOS $next**: the workflow tags \`v$next\`, publishes the GitHub Release and the simulator on Pages."
+            echo "Edit CHANGELOG.md in this PR to curate the notes. Builds are unsigned (development)."
+            echo; cat notes.md
+          } > body.md
+          if [ "$(gh pr list --head release/next --state open --json number --jq length)" = "0" ]; then
+            gh pr create --base main --head release/next --title "chore(release): v$next" --body-file body.md
+          else
+            gh pr edit release/next --title "chore(release): v$next" --body-file body.md
+          fi
+
+  publish:
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      V: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: oven-sh/setup-bun@v2
+      - uses: mymindstorm/setup-emsdk@v14
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+      - run: bun install --frozen-lockfile
+      - name: Gates
+        run: ./pal check && ./pal test && bun test forge/tools/version.test.ts
+      - name: Build the simulator and Web Forge
+        run: |
+          emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
+          bun forge/web/build.ts
+      - name: Package
+        run: |
+          mkdir -p pkg out
+          cp build/web/palanu-web.js build/web/palanu-web.wasm pkg/
+          jq -n --arg v "$V" --arg c "$GITHUB_SHA" --arg d "$(date -u +%FT%TZ)" \
+            '{version: $v, commit: $c, built: $d, target: "web-simulator", signed: false}' > pkg/release.json
+          tar -czf "out/palanu-sim-v$V.tar.gz" -C pkg .
+          cp forge/web/dist/index.html "out/web-forge-v$V.html"
+          (cd out && sha256sum * > "SHA256SUMS-v$V")
+          {
+            echo "> Development build: the images are **not signed** yet."
+            echo
+            bun forge/tools/version.ts notes "$V"
+            echo
+            echo "**Files**: \`palanu-sim-v$V.tar.gz\` is the browser simulator (Web Forge loads it from Pages); \`web-forge-v$V.html\` is Web Forge in one file."
+          } > notes.md
+      - name: Tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$V" -m "PalanuOS $V"
+          git push origin "v$V"
+          pre=""; case "$V" in *-*) pre="--prerelease";; esac
+          gh release create "v$V" out/* --title "PalanuOS $V" --notes-file notes.md $pre
+
+  pages:
+    needs: publish
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

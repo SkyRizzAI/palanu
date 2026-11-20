@@ -700,7 +700,7 @@ async function init() {
   };
   const blocker = sim.simBlocker();
   if (blocker) { $<HTMLButtonElement>("start-sim").disabled = true; $("sim-note").textContent = blocker; }
-  else $("sim-note").textContent = "Sim firmware: this build (./pal web).";
+  else $("sim-note").textContent = "Development builds: not signed yet.";
 
   /* the connect dialog */
   const addr = $<HTMLInputElement>("ws-addr");
@@ -765,6 +765,7 @@ async function init() {
   $("st-q").oninput = () => st.render();
 
   /* the simulator's settings, and the hooks it calls back */
+  void sim.initBuilds();
   sim.bindSettings(() => source === "sim", {
     line: addLine,
     stage: (s) => setState("busy", s),

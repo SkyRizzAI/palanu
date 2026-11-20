@@ -31,6 +31,8 @@ jobs:
           fi
       - run: ./pal check
       - run: ./pal test
+      - name: Release rules
+        run: bun test forge/tools/version.test.ts
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -44,6 +46,8 @@ jobs:
         run: emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
       - name: Build Web Forge and the simulator page
         run: bun forge/web/build.ts
+      - name: Assemble the Pages site
+        run: bun forge/web/site.ts --out _site
       - name: Simulator page tests
         run: cd forge/web && bun test src/sim
   secrets:

@@ -6,6 +6,7 @@ import { Engine, installBridge } from "./engine.ts";
 import { buildKeyboard } from "./keymap.ts";
 import { run as runScript, runStep, parse, type Host } from "./script.ts";
 import type { Transport } from "../link.ts";
+import { allBuilds, buildLabel, chooseBuild, chosenBuild, loadBuilds, type SimBuild } from "./firmware.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const $i = (id: string) => $<HTMLInputElement>(id);
@@ -448,7 +449,9 @@ export async function startSim(): Promise<Engine | null> {
   installBridge(() => cfg, (s) => hooks.line(`[net] ${s}`, false));
   booted = performance.now();
   fpsAt = booted;
-  const e = await Engine.boot(cfg, hooks.line, hooks.stage);
+  await buildsReady;
+  bootedBuild = chosenBuild();
+  const e = await Engine.boot(cfg, hooks.line, hooks.stage, bootedBuild.path);
   engine = e;
   e.applyWifi(cfg);
   for (const a of [0x48, 0x68]) if (!cfg.hw.i2cAddrs.includes(a)) e.i2c(a, false);
@@ -461,6 +464,7 @@ export async function startSim(): Promise<Engine | null> {
   $("pixgrid").style.backgroundSize = `calc(100% / ${e.w}) calc(100% / ${e.h})`;
   buildHardware();
   applyScreen();
+  renderBuilds();
   return e;
 }
 
@@ -498,6 +502,43 @@ export function simTransport(e: Engine): Transport {
     close: async () => { clearInterval(timer); closed(); },
   };
 }
+
+// ---------------------------------------------------------------- builds: the idle picker and Simulator > Firmware
+
+let bootedBuild: SimBuild | null = null;
+
+function renderBuilds() {
+  const list = allBuilds(), pick = chosenBuild();
+  const sel = $<HTMLSelectElement>("sim-fw");
+  sel.replaceChildren(...list.map((b) => Object.assign(document.createElement("option"), { value: b.id, textContent: buildLabel(b), selected: b.id === pick.id })));
+  sel.disabled = list.length < 2;
+  sel.onchange = () => { chooseBuild(sel.value); renderBuilds(); };
+  $("fw-list").replaceChildren(...list.map((b) => {
+    const row = el("div", "build"); row.dataset.on = b.id === pick.id ? "1" : "0";
+    const tags = el("span", "");
+    tags.append(el("span", `tag ${b.channel}`, b.channel === "local" ? "LOCAL" : b.channel.toUpperCase()));
+    if (!b.signed) { tags.append(" "); tags.append(el("span", "tag unsigned", "UNSIGNED")); }
+    const meta = el("div", "meta", [b.date ? new Date(b.date).toLocaleString() : "", b.channel === "local" ? "the build next to this page (./pal web)" : ""].filter(Boolean).join(" · "));
+    if (b.notes) { const a = Object.assign(document.createElement("a"), { href: b.notes, target: "_blank", rel: "noopener", textContent: " release notes" }); meta.append(a); }
+    const inUse = bootedBuild?.id === b.id;
+    const btn = el<HTMLButtonElement>("button", `btn small px ${b.id === pick.id ? "" : "solid"}`, inUse ? "RUNNING" : b.id === pick.id ? "SELECTED" : engine ? "USE & RESTART" : "USE");
+    btn.type = "button";
+    btn.disabled = inUse || (b.id === pick.id && !engine);
+    btn.onclick = () => { chooseBuild(b.id); renderBuilds(); if (engine) restartSim(); };
+    row.append(el("span", "ver", buildLabel(b).toUpperCase()), tags, meta, btn);
+    return row;
+  }));
+  $("p-build").textContent = bootedBuild ? buildLabel(bootedBuild) : buildLabel(pick);
+}
+
+/** Reads the list of builds (firmware.json on Pages) and fills the picker. A start waits for it (a restart starts at once). */
+let buildsReady: Promise<void> = Promise.resolve();
+export function initBuilds(): Promise<void> {
+  renderBuilds();
+  buildsReady = loadBuilds().then(() => renderBuilds());
+  return buildsReady;
+}
+export function currentBuild() { return bootedBuild; }
 
 export function simFps() { return fps; }
 export function simUptime() { return booted ? performance.now() - booted : 0; }

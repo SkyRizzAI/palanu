@@ -1,6 +1,7 @@
 # Changelog
 
-PalanuOS releases, newest first. `./pal release` writes each section from the commit subjects since the last tag.
+PalanuOS releases, newest first. Each section is written from the Conventional Commits since the last tag by the release PR
+(`forge/tools/version.ts`, docs/RELEASE.md); edit it in the PR to curate it.
 
 ## 0.9.0 (2026-11-14)
 
