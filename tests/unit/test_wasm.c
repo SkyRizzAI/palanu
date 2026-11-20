@@ -60,6 +60,17 @@ static size_t proc_bytes(void) {
     return total;
 }
 
+/* proc_bytes() once it has come back to want, or after a second: a process's stack is released when its task ends, a moment
+ * after nema_proc_wait has returned the exit code, so a slow machine still sees it right after the wait. */
+static size_t settled_bytes(size_t want) {
+    size_t b = proc_bytes();
+    for (int i = 0; i < 100 && b != want; i++) {
+        nema_port_sleep_ms(10);
+        b = proc_bytes();
+    }
+    return b;
+}
+
 static nema_owner_t owner_of(nema_pid_t pid) {
     nema_proc_t *p = nema_proc_get(pid);
     return p ? p->owner : NEMA_OWNER_KERNEL;
@@ -85,7 +96,7 @@ TEST(grow_within_the_manifest_limit_succeeds) {
 }
 
 TEST(growth_beyond_the_manifest_limit_fails_cleanly) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-grow-128"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
@@ -96,11 +107,11 @@ TEST(growth_beyond_the_manifest_limit_fails_cleanly) {
     nema_owner_stat_t s;
     CHECK(nema_mem_owner_stat(o, &s));
     CHECK(s.peak < 256u * 1024u); /* the grown pages were never allocated */
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
 }
 
 TEST(process_usage_returns_to_baseline_after_exit) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     for (int i = 0; i < 5; i++) {
         nema_spawn_t sp = {.name = "wasm-grow-256"};
         nema_pid_t pid;
@@ -108,12 +119,12 @@ TEST(process_usage_returns_to_baseline_after_exit) {
         int code = -1;
         CHECK(nema_proc_wait(pid, &code, 3000) == NEMA_OK);
         CHECK_EQ(code, 0);
-        CHECK_EQ(proc_bytes(), base);
+        CHECK_EQ(settled_bytes(base), base);
     }
 }
 
 TEST(a_blocked_app_is_charged_while_it_runs) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_obj_t *r, *w;
     nema_pipe_create(16, NEMA_MEM_ANY, OW, &r, &w);
     nema_spawn_t sp = {.name = "wasm-read", .stdio = {r, NULL, NULL}};
@@ -126,7 +137,7 @@ TEST(a_blocked_app_is_charged_while_it_runs) {
     int code = -1;
     CHECK(nema_proc_wait(pid, &code, 3000) == NEMA_OK);
     CHECK_EQ(code, 0);
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
     nema_obj_unref(r);
 }
 
@@ -164,7 +175,7 @@ TEST(the_file_image_is_freed_after_load) {
 }
 
 TEST(a_quota_refusal_fails_the_app_cleanly) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_obj_t *r, *w;
     nema_pipe_create(16, NEMA_MEM_ANY, OW, &r, &w);
     /* 16 KB of PSRAM cannot hold the 64 KB linear memory: the app stops with 126 and nothing stays charged */
@@ -174,20 +185,20 @@ TEST(a_quota_refusal_fails_the_app_cleanly) {
     int code = -1;
     CHECK(nema_proc_wait(pid, &code, 3000) == NEMA_OK);
     CHECK_EQ(code, 126);
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
     nema_obj_unref(w);
     nema_obj_unref(r);
 }
 
 TEST(fuel_stops_a_pure_loop_and_the_memory_comes_back) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-pure"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
     int code = -1;
     CHECK(nema_proc_wait(pid, &code, 10000) == NEMA_OK);
     CHECK_EQ(code, 139); /* trapped: instruction limit exceeded */
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
 }
 
 static bool settle(size_t base) {
@@ -200,19 +211,19 @@ static bool settle(size_t base) {
 
 TEST(an_out_of_bounds_store_traps_inside_the_sandbox) {
     /* With the allocator hook there are no guard pages, so the bounds check is what keeps the store inside */
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-oob"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
     int code = -1;
     CHECK(nema_proc_wait(pid, &code, 3000) == NEMA_OK);
     CHECK_EQ(code, 139);
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
 }
 
 TEST(kill_stops_a_wasm_loop_that_calls_imports) {
     /* the loop calls sleep_ms; the import sees the kill at once and the instance stops (docs/adr/0003) */
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-sleep"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
@@ -226,7 +237,7 @@ TEST(kill_stops_a_wasm_loop_that_calls_imports) {
 
 TEST(kill_stops_a_pure_wasm_loop_without_fuel) {
     /* no import call and no fuel: only the kill request that the interpreter checks at its metering points can stop it */
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-pure-nofuel"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
@@ -240,7 +251,7 @@ TEST(kill_stops_a_pure_wasm_loop_without_fuel) {
 }
 
 TEST(kill_stops_a_wasm_app_blocked_in_read) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_obj_t *r, *w;
     nema_pipe_create(16, NEMA_MEM_ANY, OW, &r, &w);
     nema_spawn_t sp = {.name = "wasm-read", .stdio = {r, NULL, NULL}};

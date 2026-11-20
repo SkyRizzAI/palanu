@@ -3,7 +3,7 @@
 #include "nema/nema.h"
 #include "test.h"
 
-#define PORT 39417
+#define PORT 29417 /* below 30000: out of the other tests' random ports and the system's ephemeral range */
 
 TEST(loopback_echo_through_objects) {
     nema_obj_t *lst, *cli, *srv;

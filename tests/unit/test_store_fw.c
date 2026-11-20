@@ -202,7 +202,9 @@ int main(void) {
 
     /* a free port for this run */
     for (int t = 0; t < 20 && !g_lst; t++) {
-        g_port = 30000 + (int)((nema_port_time_us() + (uint64_t)t * 7919u) % 30000u);
+        uint32_t r; /* real randomness: the clock starts at the process start, so parallel tests would pick alike */
+        nema_port_random(&r, sizeof(r));
+        g_port = 30000 + (int)(r % 30000u);
         if (nema_net_listen(g_port, &g_lst) != NEMA_OK) g_lst = NULL;
     }
     CHECK(g_lst != NULL);

@@ -9,7 +9,7 @@
 #include "pal/http.h"
 #include "test.h"
 
-#define PORT 39530
+#define PORT 29530 /* below 30000: out of the other tests' random ports and the system's ephemeral range */
 
 /* ---- the server: answers `count` connections in turn with the canned answers in `ans` ---- */
 static struct {
@@ -77,7 +77,7 @@ static nema_err_t get(pal_http_req_t *q, pal_http_resp_t *r) {
     return pal_http_request(q, r);
 }
 
-#define URL(path) "http://127.0.0.1:39530" path
+#define URL(path) "http://127.0.0.1:29530" path
 
 TEST(content_length_body_and_headers) {
     server(1, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\nhello", NULL);
@@ -90,7 +90,7 @@ TEST(content_length_body_and_headers) {
     CHECK(!strcmp(g_body, "hello"));
     CHECK(!strcmp(r.type, "text/plain"));
     CHECK(!strncmp(SV.got[0], "GET /a?x=1 HTTP/1.1\r\n", 21));
-    CHECK(strstr(SV.got[0], "Host: 127.0.0.1:39530\r\n") != NULL);
+    CHECK(strstr(SV.got[0], "Host: 127.0.0.1:29530\r\n") != NULL);
 }
 
 TEST(chunked_body_is_joined) {
@@ -117,7 +117,7 @@ TEST(a_redirect_is_followed_to_the_final_url) {
 }
 
 TEST(a_redirect_is_handed_back_when_not_followed_or_too_many) {
-    server(1, "HTTP/1.1 301 Moved\r\nLocation: http://127.0.0.1:39530/x\r\nContent-Length: 0\r\n\r\n", NULL);
+    server(1, "HTTP/1.1 301 Moved\r\nLocation: http://127.0.0.1:29530/x\r\nContent-Length: 0\r\n\r\n", NULL);
     pal_http_req_t q = {.url = URL("/old")};
     pal_http_resp_t r;
     CHECK_EQ(get(&q, &r), NEMA_OK);
@@ -184,7 +184,7 @@ TEST(urls_are_split_and_bad_ones_refused) {
 TEST(tls_to_a_plain_server_fails_cleanly) {
     if (!strcmp(nema_net_tls_backend(), "none")) return; /* this build has no TLS */
     server(1, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n", NULL);
-    pal_http_req_t q = {.url = "https://127.0.0.1:39530/"};
+    pal_http_req_t q = {.url = "https://127.0.0.1:29530/"};
     pal_http_resp_t r;
     nema_err_t e = get(&q, &r);
     CHECK(e != NEMA_OK);

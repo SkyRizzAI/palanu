@@ -236,7 +236,7 @@ TEST(invalidate_redraws_front_without_full_flag) {
     CHECK(wait_above(&F[A].draw, d0, 2000));
     CHECK(!F[A].last_full);
     CHECK_EQ(F[A].draw_full, full0);
-    CHECK(g_presents > p0); /* the changed rectangle went to the panel */
+    CHECK(wait_above(&g_presents, p0, 2000)); /* the changed rectangle went to the panel (just after the draw counted) */
 }
 
 TEST(invalidate_all_redraws_everything) {
@@ -246,7 +246,7 @@ TEST(invalidate_all_redraws_everything) {
     pal_desktop_invalidate_all();
     CHECK(wait_above(&F[A].draw_full, full0, 2000));
     CHECK(F[A].last_full);
-    CHECK(g_presents > p0);
+    CHECK(wait_above(&g_presents, p0, 2000)); /* the present follows the draw on the desktop task */
 }
 
 TEST(no_redraw_when_nothing_is_invalid) {

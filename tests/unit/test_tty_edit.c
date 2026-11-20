@@ -124,18 +124,21 @@ TEST(legend_text_is_kept_counted_and_cleared) {
 /* ---- thread smoke: the reader gets one whole value or the other ---- */
 static nema_tty_t *g_t;
 static volatile bool g_stop;
+static volatile int g_reads;
 static void *writer(void *arg) {
     (void)arg;
     char a[200], b[200];
     memset(a, 'A', sizeof(a));
     memset(b, 'B', sizeof(b));
-    for (int i = 0; i < 4000; i++) nema_tty_set_edit(g_t, (i & 1) ? a : b, sizeof(a), 10);
+    /* 4000 writes, and on until the reader has read at all: on a loaded machine it may not run before 4000 are done */
+    for (int i = 0; i < 4000 || g_reads < 100; i++) nema_tty_set_edit(g_t, (i & 1) ? a : b, sizeof(a), 10);
     g_stop = true;
     return NULL;
 }
 TEST(thread_smoke_reads_are_whole) {
     g_t = make();
     g_stop = false;
+    g_reads = 0;
     pthread_t w;
     pthread_create(&w, NULL, writer, NULL);
     int bad = 0, reads = 0;
@@ -144,6 +147,7 @@ TEST(thread_smoke_reads_are_whole) {
         int n = nema_tty_get_edit(g_t, out, sizeof(out), NULL);
         if (n <= 0) continue;
         reads++;
+        g_reads = reads;
         for (int i = 1; i < n; i++)
             if (out[i] != out[0]) {
                 bad++;

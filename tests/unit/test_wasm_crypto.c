@@ -52,6 +52,17 @@ static size_t proc_bytes(void) {
     return total;
 }
 
+/* proc_bytes() once it has come back to want, or after a second: a process's stack is released when its task ends, a moment
+ * after nema_proc_wait has returned the exit code, so a slow machine still sees it right after the wait. */
+static size_t settled_bytes(size_t want) {
+    size_t b = proc_bytes();
+    for (int i = 0; i < 100 && b != want; i++) {
+        nema_port_sleep_ms(10);
+        b = proc_bytes();
+    }
+    return b;
+}
+
 static nema_owner_t owner_of(nema_pid_t pid) {
     nema_proc_t *p = nema_proc_get(pid);
     return p ? p->owner : NEMA_OWNER_KERNEL;
@@ -76,7 +87,7 @@ TEST(aead_tag_through_the_imports) {
 }
 
 TEST(the_sweep_frees_the_crypto_tables_of_an_app_that_exits_early) {
-    size_t base = proc_bytes();
+    size_t base = settled_bytes(0); /* the processes of the test before have let go of their stacks */
     nema_spawn_t sp = {.name = "wasm-hash-leak"};
     nema_pid_t pid;
     CHECK(nema_proc_spawn(&sp, &pid) == NEMA_OK);
@@ -87,7 +98,7 @@ TEST(the_sweep_frees_the_crypto_tables_of_an_app_that_exits_early) {
     nema_owner_stat_t s;
     CHECK(nema_mem_owner_stat(o, &s));
     CHECK(s.peak >= 4096u); /* the table (8 digests, 8 ciphers, 8 keys) was charged to the process */
-    CHECK_EQ(proc_bytes(), base);
+    CHECK_EQ(settled_bytes(base), base);
 }
 
 TEST(key_list_is_refused_without_the_crypto_keys_permission) {

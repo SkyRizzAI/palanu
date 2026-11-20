@@ -335,7 +335,9 @@ int main(void) {
     nema_config_t cfg = {.console_log = false};
     nema_init(&cfg);
     nema_net_init();
-    g_base_port = 30000 + (int)(nema_port_time_us() % 300u) * 100;
+    uint32_t r; /* real randomness: the clock starts at the process start, so parallel tests would pick alike */
+    nema_port_random(&r, sizeof(r));
+    g_base_port = 30000 + (int)(r % 300u) * 100;
     for (int tries = 0; tries < 20 && !ports_free(); tries++) g_base_port = 30000 + (g_base_port - 30000 + 700) % 30000;
     nema_app_register(&NETAPP);
     RUN(connect_send_receive_and_shutdown_through_handles);
