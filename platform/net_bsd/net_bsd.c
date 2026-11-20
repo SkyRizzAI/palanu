@@ -96,13 +96,16 @@ static void arm(sock_t *s, uint32_t events) {
 static void pump_task(void *arg) {
     (void)arg;
     for (;;) {
-        /* Clear the pending flag before reading the state: a wake that comes after this writes a byte again. */
-        __atomic_store_n(&N.wake_pending, false, __ATOMIC_RELEASE);
+        /* Drain the wake fd first, then clear the pending flag, then read the state. The other order lost wake-ups: a wake
+         * between the clear and the drain had its byte drained while the flag stayed set, so every later wake skipped its
+         * write and the pump slept through new arms until a timeout (found by the Linux CI, about 1 run in 100 under load).
+         * Now a wake before the clear is covered by the snapshot below, and one after it writes a byte the select sees. */
         if (N.wake_rd >= 0) {
             uint64_t junk;
             ssize_t dr = read(N.wake_rd, &junk, sizeof(junk));
             (void)dr;
         }
+        __atomic_store_n(&N.wake_pending, false, __ATOMIC_RELEASE);
         fd_set rs, ws;
         FD_ZERO(&rs);
         FD_ZERO(&ws);
@@ -113,6 +116,8 @@ static void pump_task(void *arg) {
         int ns = 0;
         nema_port_mutex_lock(N.lock);
         for (sock_t *s = N.head; s && ns < PUMP_SNAP_MAX; s = s->next) {
+            /* only the armed ones take a place: idle sockets used to fill the 16 and hide the armed ones after them */
+            if (!__atomic_load_n(&s->want_in, __ATOMIC_ACQUIRE) && !__atomic_load_n(&s->want_out, __ATOMIC_ACQUIRE)) continue;
             if (!nema_obj_try_ref(&s->obj)) continue; /* being destroyed */
             bool in = __atomic_exchange_n(&s->want_in, false, __ATOMIC_ACQ_REL);
             bool out = __atomic_exchange_n(&s->want_out, false, __ATOMIC_ACQ_REL);
