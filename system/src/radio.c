@@ -125,9 +125,11 @@ static nema_err_t admit(pal_radio_t r, slot_t *s) {
     size_t need_block = cost / 2 < block_max ? cost / 2 : block_max;
     if (free_b >= need_free && largest >= need_block) return NEMA_OK;
     char msg[PAL_RADIO_ERR_LEN];
-    snprintf(msg, sizeof(msg), "%s refused: needs %luK free and a %luK block, have %luK and %luK; free memory or leave it off",
-             pal_radio_name(r), (unsigned long)(need_free / 1024), (unsigned long)(need_block / 1024),
-             (unsigned long)(free_b / 1024), (unsigned long)(largest / 1024));
+    /* the line may be cut at PAL_RADIO_ERR_LEN, which still reads; only an encoding error leaves nothing to show */
+    if (snprintf(msg, sizeof(msg), "%s refused: needs %luK free and a %luK block, have %luK and %luK; free memory or leave it off",
+                 pal_radio_name(r), (unsigned long)(need_free / 1024), (unsigned long)(need_block / 1024),
+                 (unsigned long)(free_b / 1024), (unsigned long)(largest / 1024)) < 0)
+        msg[0] = 0;
     set_error(s, msg);
     return NEMA_ERR_NOMEM;
 }

@@ -172,7 +172,7 @@ static void month_grid(lv_obj_t *box, const pal_tm_t *t, int x, int y, int cw, i
             lv_obj_set_pos(m, px + 1, py - 1);
             box_style(m, mark, mark_radius);
         }
-        char s[4];
+        char s[12]; /* room for any int: GCC checks the whole range, not the 1..31 of a day */
         snprintf(s, sizeof(s), "%d", d);
         lv_obj_t *l = label(box, &lv_font_montserrat_12, today ? 0xFFFFFF : ink, s);
         lv_obj_set_width(l, cw);

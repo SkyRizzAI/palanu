@@ -151,7 +151,7 @@ void kui_skin_strip(kui_canvas_t *c, const char *title, const kui_item_t *it, in
             else kui_frame(c, px, dot_y, 3, 3, true);
         }
     } else {
-        char pos[16];
+        char pos[24]; /* room for any two ints: GCC checks the whole range */
         snprintf(pos, sizeof(pos), "%d/%d", cursor + 1, n);
         kui_text(c, body, (W - kui_text_w(body, pos)) / 2, dot_y, pos, true);
     }

@@ -119,9 +119,9 @@ nema_err_t la_pair_open(char code[PAL_LINK_CODE_LEN + 1]) {
     do {
         rnd(&v, sizeof(v));
     } while (v >= 4294000000u); /* a multiple of 10^6 below 2^32, so the six digits stay uniform */
-    v %= 1000000u;
+    unsigned long six = v % 1000000u; /* a fresh local: GCC sees its range (v escaped to rnd), so the six digits fit */
     lock();
-    snprintf(s_win.code, sizeof(s_win.code), "%06lu", (unsigned long)v);
+    snprintf(s_win.code, sizeof(s_win.code), "%06lu", six);
     s_win.open = true;
     s_win.deadline = now() + LA_WINDOW_MS;
     s_win.tries = LA_TRIES;
