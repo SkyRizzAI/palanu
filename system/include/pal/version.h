@@ -3,6 +3,6 @@
 #ifndef PAL_VERSION_H
 #define PAL_VERSION_H
 
-#define PAL_OS_VERSION "0.9.0"
+#define PAL_OS_VERSION "0.10.0"
 
 #endif

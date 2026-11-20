@@ -3,6 +3,65 @@
 PalanuOS releases, newest first. Each section is written from the Conventional Commits since the last tag by the release PR
 (`forge/tools/version.ts`, docs/RELEASE.md); edit it in the PR to curate it.
 
+## 0.10.0 (2026-11-20)
+
+### Features
+
+- **web**: one Web Forge page for a board and the simulator, in the pixel design
+- **hid**: a USB transport seam for the keyboard
+- **lora**: LoRa radio modules (ADR-0020)
+- **music**: tunes on the buzzer
+- **power**: light sleep in Saver while the screen is off, where the board can
+- **display**: turn the screen upside down
+- **ui**: the 12-hour clock
+- **lua**: Lua 5.4 on the device (ADR-0019)
+- **hid**: the device as a Bluetooth keyboard (ADR-0018)
+- **ssh**: scp and sftp (ADR-0017)
+- **store**: update PalanuOS from the catalogue, and sign the catalogue (ADR-0016)
+- **apps**: offline manual, calculator, printf, SSH profiles
+- app catalogue, install from the browser, browser file management (ADR-0015)
+- **apps**: permissions at first use, events for apps, the log on flash (ADR-0014)
+- **power**: power profiles that take effect
+- **apps**: a full-screen text Editor; free internal RAM headroom
+- **net**: TLS on sockets, HTTP client and app API, saved networks with manual IP, ping (ADR-0013)
+- **apps**: a look per desktop for Files, Logs, text viewer and Terminal (ADR-0012)
+- **athena**: Trackball theme with an app row, icon menu and right-edge Options
+- **athena**: Softkey theme with a softkey bar, idle home and menu grid (ADR-0011)
+- **athena**: home grid with clock and calendar widgets per theme; iOS-style grouped Settings
+- **api**: form and canvas screens for apps, API level 6 (ADR-0010 P6)
+- **desktop**: the target picks the desktop sessions it ships
+- **settings**: one settings schema with owners; Athena themes (ADR-0010 P5)
+- **desktop**: shell services drawn by each session (ADR-0010 P3)
+- **display**: one RGB565 screen frame owned by the system; mirroring in full colour (ADR-0010 P4)
+- **desktop**: whole desktop sessions own their screens, lock screen and keys (ADR-0010 P2)
+- **console**: system console under the desktop sessions (ADR-0010 P1)
+- **desktop**: toolkit menus bound to their view; Athena draws Settings as a full-colour grouped list
+- **desktop**: desktop environments own the status bar, global keys and screen; Athena in full colour on the board
+- **desktop**: desktop environment registry, desktop command, and the Athena desktop drawn with LVGL
+- **web**: browser simulator in Web Forge with live hardware, Wi-Fi, bridge, hotkeys and key sequences
+- **web**: browser simulator spike (Emscripten); share the portable libraries between host and web builds
+
+### Fixes
+
+- **net**: the socket pump no longer loses a wake-up
+- **build**: pass GCC 15's snprintf truncation checks on Linux (CI)
+- **link**: the device id no longer changes, so a browser signs in without pairing again
+- **settings**: the Remote pages no longer lag; the Desktop page shows the new session's settings
+- uname shows the real version, curl takes joined flags; record what was proven on hhv2
+- **sh**: write the history after a long command instead of spinning
+- **terminal**: say why the first shell did not start instead of a blank screen
+- **athena**: reach every row of a long page to read
+- **athena**: show a toggle's new value at once
+- **athena**: show the perf overlay and count Athena's frames
+- **sh**: run a whole and-or list in the background when it ends in &
+- **forge**: keep the manifest defaults when a field is undefined
+- **sdk**: restore the prebuilt net-client example package
+- PIN and hidden-network entry, stale Athena rows, lock on session change, uishow under Athena
+- **menu**: Up wraps to the last row, hidden rows no longer cut a page
+- **term**: redraw the row the cursor left, so no block stays behind
+- **terminal**: exit closes the tab, and the last one closes the app
+- **ram**: keep five UI buffers in PSRAM so internal statics stay in budget
+
 ## 0.9.0 (2026-11-14)
 
 The first release candidate for the hhv2 board (ESP32-S31, 320x240 screen, 39-key keyboard). It is a candidate, not 1.0: the
