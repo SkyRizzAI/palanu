@@ -44,3 +44,6 @@ and raw repository files allow CORS.
 - The repository settings need two switches: Pages source "GitHub Actions", and "Allow GitHub Actions to create and approve pull
   requests". A release PR opened by the built-in token does not run CI on itself; main's CI runs after the merge.
 - Pages sites are limited to about 1 GB; ten simulators are about 30 MB.
+- Actions cost: the browser build runs once per push to main (Pages), only for PRs in `ci`, and not for docs-only pushes;
+  Emscripten is pinned (7.0.0, as `refs/emsdk`) and cached; action versions as of 20 November 2026 (checkout v7, configure-pages
+  v6, upload-pages-artifact v5, deploy-pages v5, emscripten-core/setup-emsdk v16).

@@ -5,6 +5,7 @@ name: pages
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"] # the site does not change with the docs
   workflow_dispatch:
   workflow_call: # the release workflow deploys again once its release exists
 permissions:
@@ -17,17 +18,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 7.0.0 # the version refs/emsdk has (./pal web setup); "latest" would change the build under us
+          actions-cache-folder: emsdk-cache
       - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
       - run: bun install --frozen-lockfile
       - name: Build the system for the browser
         run: emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
       - name: Build Web Forge
         run: bun forge/web/build.ts
+      - name: Simulator page tests
+        run: cd forge/web && bun test src/sim
       - name: Fetch the released simulators
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,16 +48,17 @@ jobs:
           done
       - name: Assemble the site
         run: bun forge/web/site.ts --out _site --releases rel --commit "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

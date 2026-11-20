@@ -22,10 +22,15 @@ The version rules (`forge/tools/version.ts`, tested by `version.test.ts`), while
 
 From 1.0, a breaking change raises the major. `bun forge/tools/version.ts next` shows what the next release would be.
 
-**GitHub Pages** (`.github/workflows/pages.yml`) deploys on every push to `main`: Web Forge, the catalogue, the simulator of
+**GitHub Pages** (`.github/workflows/pages.yml`) deploys on every push to `main` that changes more than the docs: Web Forge, the catalogue, the simulator of
 `main` (dev) and of the last ten releases, and `firmware.json` (`forge/web/site.ts`). GitHub's release downloads cannot be
 fetched by a page (no CORS header), so the site carries its own copies. Settings once: Pages > Source "GitHub Actions"; Actions >
 General > "Allow GitHub Actions to create and approve pull requests".
+
+**What a push costs in Actions** (free on a public repository's standard runners, but kept small): `ci` runs the checks and
+tests, and builds the browser system only for a PR; on `main` that build is `pages`' (skipped for docs-only pushes); `release`
+plans in seconds and opens the PR. A release adds one build and one more Pages deploy. Emscripten is pinned to the version of
+`refs/emsdk` (7.0.0) and cached; every job has a time limit.
 
 **From this computer, with the board gates:**
 

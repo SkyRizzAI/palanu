@@ -33,13 +33,17 @@ jobs:
       - run: ./pal test
       - name: Release rules
         run: bun test forge/tools/version.test.ts
-  web:
+  web: # on a push to main, pages.yml builds and tests the same (one browser build per push, not two)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 7.0.0 # the version refs/emsdk has (./pal web setup); "latest" would change the build under us
+          actions-cache-folder: emsdk-cache
       - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
       - run: bun install --frozen-lockfile
       - name: Build the system for the browser
@@ -52,6 +56,7 @@ jobs:
         run: cd forge/web && bun test src/sim
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }

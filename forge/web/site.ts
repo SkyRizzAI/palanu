@@ -38,7 +38,6 @@ copyFileSync(join(DIST, "coi-sw.js"), join(out, "coi-sw.js"));
 mkdirSync(join(out, "flash"), { recursive: true });
 copyFileSync(join(DIST, "flash/index.html"), join(out, "flash/index.html")); /* no firmware image yet: the page says so */
 if (existsSync(join(ROOT, "store"))) cpSync(join(ROOT, "store"), join(out, "store"), { recursive: true });
-writeFileSync(join(out, ".nojekyll"), ""); /* serve every file as it is */
 
 interface Build { version: string; path: string; date: string; sha256: Record<string, string>; signed: false }
 function place(from: string, dir: string, version: string, date: string): Build {

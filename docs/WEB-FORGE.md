@@ -19,7 +19,7 @@ Bluetooth require.
 
 ## On GitHub Pages
 
-`.github/workflows/pages.yml` deploys the page on every push to `main` (ADR-0022), with the catalogue and the simulators: the
+`.github/workflows/pages.yml` deploys the page on every push to `main` that changes more than the docs (ADR-0022), with the catalogue and the simulators: the
 build of `main` (dev) and of the last ten releases, listed in `firmware.json`. The idle screen's **Sim firmware** and Simulator >
 **Firmware** pick one; the choice is remembered, and the simulator's files stay across builds. Builds are unsigned for now. Pages
 cannot send the isolation headers, so the first start registers `coi-sw.js` and reloads once. From an https page only USB and

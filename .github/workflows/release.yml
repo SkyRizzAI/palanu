@@ -19,6 +19,7 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       publish: ${{ steps.plan.outputs.publish }}
       version: ${{ steps.plan.outputs.version }}
@@ -40,6 +41,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.publish == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -84,11 +86,14 @@ jobs:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: oven-sh/setup-bun@v2
-      - uses: mymindstorm/setup-emsdk@v14
       - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
       - run: bun install --frozen-lockfile
       - name: Gates
         run: ./pal check && ./pal test && bun test forge/tools/version.test.ts
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 7.0.0 # the version refs/emsdk has (./pal web setup); "latest" would change the build under us
+          actions-cache-folder: emsdk-cache
       - name: Build the simulator and Web Forge
         run: |
           emcmake cmake -S platform/web -B build/web && cmake --build build/web -j4
